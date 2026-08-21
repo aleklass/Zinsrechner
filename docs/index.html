@@ -302,6 +302,42 @@
       color: var(--text);
     }
 
+    .scenario-tab .edit {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      color: var(--muted);
+      opacity: .55;
+      font-size: 11px;
+    }
+
+    .scenario-tab .edit:hover {
+      opacity: 1;
+      background: rgba(255,255,255,.1);
+      color: var(--text);
+    }
+
+    .scenario-tab-rename {
+      width: 92px;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid rgba(255,255,255,.4);
+      border-radius: 0;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 650;
+      padding: 0 0 1px;
+      outline: none;
+    }
+
+    .scenario-tab-rename:focus {
+      border-color: var(--accent-2);
+      box-shadow: none;
+    }
+
     .scenario-tab-add {
       display: flex;
       align-items: center;
@@ -309,14 +345,18 @@
       width: 34px;
       height: 34px;
       border-radius: 999px;
-      border: 1px dashed var(--border);
-      color: var(--muted);
+      border: 1px dashed rgba(98,211,148,.5);
+      color: var(--accent);
       cursor: pointer;
       flex: 0 0 auto;
       font-size: 17px;
       line-height: 1;
-      background: transparent;
+      background: var(--panel-2);
       transition: .15s ease;
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      box-shadow: 10px 0 12px -6px rgba(5,9,18,.65);
     }
 
     .scenario-tab-add:hover {
