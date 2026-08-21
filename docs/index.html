@@ -1003,18 +1003,97 @@
     }
   }
 
-  function parseScenarioValues() {
-    return (els.scenarioValues.value || '')
-      .split(',')
-      .map(v => v.trim())
-      .filter(Boolean)
-      .map(v => Number(v.replace(/\./g, '').replace(',', '.')))
-      .filter(v => Number.isFinite(v) && v >= 0)
-      .slice(0, 6);
+  function readInputsIntoValues() {
+    const values = {};
+    FIELD_KEYS.forEach(key => { values[key] = els[key].value; });
+    return values;
+  }
+
+  function applyValuesToInputs(values) {
+    FIELD_KEYS.forEach(key => {
+      if (values[key] !== undefined) els[key].value = values[key];
+    });
+  }
+
+  function syncActiveFromInputs() {
+    if (!scenarios[activeIndex]) return;
+    scenarios[activeIndex].values = readInputsIntoValues();
+  }
+
+  function renderTabs() {
+    els.scenarioTabs.innerHTML = '';
+
+    scenarios.forEach((sc, idx) => {
+      const tab = document.createElement('div');
+      tab.className = 'scenario-tab' + (idx === activeIndex ? ' active' : '');
+
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.style.background = colorFor(idx);
+      tab.appendChild(dot);
+
+      const label = document.createElement('span');
+      label.className = 'label';
+      label.textContent = sc.name;
+      tab.appendChild(label);
+
+      if (scenarios.length > 1) {
+        const close = document.createElement('span');
+        close.className = 'close';
+        close.textContent = '✕';
+        close.title = 'Szenario entfernen';
+        close.addEventListener('click', (e) => {
+          e.stopPropagation();
+          removeScenario(idx);
+        });
+        tab.appendChild(close);
+      }
+
+      tab.addEventListener('click', () => switchScenario(idx));
+      els.scenarioTabs.appendChild(tab);
+    });
+
+    const addBtn = document.createElement('div');
+    addBtn.className = 'scenario-tab-add';
+    addBtn.textContent = '+';
+    addBtn.title = 'Aktuelles Szenario duplizieren';
+    addBtn.addEventListener('click', addScenario);
+    els.scenarioTabs.appendChild(addBtn);
+  }
+
+  function switchScenario(idx) {
+    if (idx === activeIndex) return;
+    syncActiveFromInputs();
+    activeIndex = idx;
+    applyValuesToInputs(scenarios[activeIndex].values);
+    renderTabs();
+    calculate();
+  }
+
+  function addScenario() {
+    syncActiveFromInputs();
+    const newScenario = makeScenario(scenarios[activeIndex].values);
+    scenarios.push(newScenario);
+    activeIndex = scenarios.length - 1;
+    applyValuesToInputs(newScenario.values);
+    renderTabs();
+    calculate();
+  }
+
+  function removeScenario(idx) {
+    if (scenarios.length <= 1) return;
+    scenarios.splice(idx, 1);
+    if (idx < activeIndex) activeIndex -= 1;
+    if (activeIndex >= scenarios.length) activeIndex = scenarios.length - 1;
+    applyValuesToInputs(scenarios[activeIndex].values);
+    renderTabs();
+    calculate();
   }
 
   function calculate() {
-    const main = simulate(Math.max(0, num(els.start)));
+    syncActiveFromInputs();
+    const activeScenario = scenarios[activeIndex];
+    const main = simulate(activeScenario.values);
 
     els.finalValue.textContent = fmt(main.finalWealth);
     els.activeValue.textContent = fmt(main.activeCapital);
@@ -1029,92 +1108,88 @@
       `${main.interestPct.toLocaleString('de-DE', {maximumFractionDigits: 1})} % des Gesamtvermögens · ${fmt(main.totalReinvested)} insgesamt reinvestiert`;
 
     renderTable(main.rows);
+    els.tableScenarioLabel.textContent = activeScenario.name;
 
-    drawLineChart(els.chart, [{
-      label: 'Aktuelles Szenario',
-      color: '#62d394',
-      data: main.series,
-      width: 2.6
-    }], { fillFirst: true });
-
-    const colors = ['#62d394', '#75a7ff', '#ffb86b', '#ff7a7a', '#c28cff', '#7fe7e7'];
-    const scenarioStarts = parseScenarioValues();
-
-    const datasets = scenarioStarts.map((startCapital, idx) => {
-      const result = simulate(startCapital);
+    const datasets = scenarios.map((sc, idx) => {
+      const result = idx === activeIndex ? main : simulate(sc.values);
       return {
-        label: `${fmt(startCapital)} → ${fmt(result.finalWealth)}`,
-        color: colors[idx % colors.length],
+        label: `${sc.name}: ${fmt(result.finalWealth, sc.values.currency)}`,
+        color: colorFor(idx),
         data: result.series,
-        width: 2.4
+        width: idx === activeIndex ? 3 : 2
       };
     });
 
-    if (datasets.length === 0) {
-      els.scenarioLegend.innerHTML = '<span class="legend-item">Keine gültigen Szenarien eingetragen</span>';
-      drawLineChart(els.scenarioChart, [{
-        label: 'Leer',
-        color: '#75a7ff',
-        data: [{ month: 0, value: 0 }, { month: 1, value: 0 }]
-      }]);
-    } else {
-      drawLineChart(els.scenarioChart, datasets, { legendContainer: els.scenarioLegend });
-    }
+    drawLineChart(els.chart, datasets, { legendContainer: els.chartLegend, fillIndex: activeIndex });
 
+    saveState();
+  }
+
+  function saveState() {
     try {
-      localStorage.setItem('zinseszinsrechner', JSON.stringify({
-        start: els.start.value,
-        currency: els.currency.value,
-        rate: els.rate.value,
-        ratePeriod: els.ratePeriod.value,
-        duration: els.duration.value,
-        durationUnit: els.durationUnit.value,
-        contribution: els.contribution.value,
-        contributionPeriod: els.contributionPeriod.value,
-        depositTiming: els.depositTiming.value,
-        compound: els.compound.value,
-        reinvestMode: els.reinvestMode.value,
-        scenarioValues: els.scenarioValues.value
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        scenarios: scenarios.map(sc => ({ id: sc.id, name: sc.name, values: sc.values })),
+        activeIndex,
+        scenarioSeq
       }));
     } catch(e) {}
   }
 
-  function restoreSaved() {
+  function loadState() {
     let saved = null;
     try {
-      saved = JSON.parse(localStorage.getItem('zinseszinsrechner') || 'null');
+      saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
     } catch(e) {}
 
-    if (!saved) return;
-    for (const [k, v] of Object.entries(saved)) {
-      if (els[k] && v !== undefined) els[k].value = v;
+    if (saved && Array.isArray(saved.scenarios) && saved.scenarios.length) {
+      scenarios = saved.scenarios;
+      activeIndex = Math.min(Math.max(0, saved.activeIndex || 0), scenarios.length - 1);
+      scenarioSeq = saved.scenarioSeq || scenarios.length + 1;
+      return true;
     }
+
+    let legacy = null;
+    try {
+      legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || 'null');
+    } catch(e) {}
+
+    if (legacy && legacy.start !== undefined) {
+      scenarios = [makeScenario({ ...defaultScenarioValues, ...legacy })];
+      activeIndex = 0;
+      return true;
+    }
+
+    return false;
   }
 
   function reset() {
-    for (const [k, v] of Object.entries(defaultValues)) {
-      if (els[k]) els[k].value = v;
-    }
-    try { localStorage.removeItem('zinseszinsrechner'); } catch(e) {}
+    scenarios = [makeScenario(defaultScenarioValues)];
+    activeIndex = 0;
+    applyValuesToInputs(scenarios[0].values);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+    } catch(e) {}
+    renderTabs();
     calculate();
   }
 
   els.calcBtn.addEventListener('click', calculate);
   els.resetBtn.addEventListener('click', reset);
 
-  [
-    els.start, els.currency, els.rate, els.ratePeriod,
-    els.duration, els.durationUnit, els.contribution,
-    els.contributionPeriod, els.depositTiming, els.compound,
-    els.reinvestMode, els.scenarioValues
-  ].forEach(el => {
-    el.addEventListener('input', calculate);
-    el.addEventListener('change', calculate);
+  FIELD_KEYS.forEach(key => {
+    els[key].addEventListener('input', calculate);
+    els[key].addEventListener('change', calculate);
   });
 
   window.addEventListener('resize', calculate);
 
-  restoreSaved();
+  if (!loadState()) {
+    scenarios = [makeScenario(defaultScenarioValues)];
+    activeIndex = 0;
+  }
+  applyValuesToInputs(scenarios[activeIndex].values);
+  renderTabs();
   calculate();
 })();
 </script>
