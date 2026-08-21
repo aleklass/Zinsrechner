@@ -1064,6 +1064,11 @@
   function syncActiveFromInputs() {
     if (!scenarios[activeIndex]) return;
     scenarios[activeIndex].values = readInputsIntoValues();
+
+    GLOBAL_FIELD_KEYS.forEach(key => {
+      const value = scenarios[activeIndex].values[key];
+      scenarios.forEach(sc => { sc.values[key] = value; });
+    });
   }
 
   function startRename(idx, labelEl) {
