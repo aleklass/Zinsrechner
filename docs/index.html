@@ -229,6 +229,40 @@
       border-radius: 18px;
       padding: 14px;
       overflow: hidden;
+      position: relative;
+    }
+
+    .chart-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: #0d1626;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 11px;
+      font-size: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+      display: none;
+      z-index: 5;
+      white-space: nowrap;
+    }
+
+    .chart-tooltip .tt-name {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-weight: 700;
+      margin-bottom: 3px;
+    }
+
+    .chart-tooltip .tt-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex: 0 0 8px;
+    }
+
+    .chart-tooltip .tt-value {
+      color: var(--muted);
     }
 
     .chart-title {
@@ -302,40 +336,8 @@
       color: var(--text);
     }
 
-    .scenario-tab .edit {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 18px;
-      height: 18px;
-      border-radius: 6px;
-      color: var(--muted);
-      opacity: .55;
-      font-size: 11px;
-    }
-
-    .scenario-tab .edit:hover {
-      opacity: 1;
-      background: rgba(255,255,255,.1);
-      color: var(--text);
-    }
-
-    .scenario-tab-rename {
-      width: 92px;
-      background: transparent;
-      border: none;
-      border-bottom: 1px solid rgba(255,255,255,.4);
-      border-radius: 0;
-      color: var(--text);
-      font-size: 13px;
-      font-weight: 650;
-      padding: 0 0 1px;
-      outline: none;
-    }
-
-    .scenario-tab-rename:focus {
-      border-color: var(--accent-2);
-      box-shadow: none;
+    .scenario-tab .name {
+      color: inherit;
     }
 
     .scenario-tab-add {
@@ -354,9 +356,10 @@
       background: var(--panel-2);
       transition: .15s ease;
       position: sticky;
-      left: 0;
+      right: 0;
+      margin-left: auto;
       z-index: 2;
-      box-shadow: 10px 0 12px -6px rgba(5,9,18,.65);
+      box-shadow: -10px 0 12px -6px rgba(5,9,18,.65);
     }
 
     .scenario-tab-add:hover {
@@ -381,6 +384,22 @@
       background: rgba(255,255,255,.03);
       color: var(--text);
       font-size: 12px;
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    .legend-item:hover {
+      border-color: rgba(117,167,255,.5);
+      background: rgba(255,255,255,.06);
+    }
+
+    .legend-item.active {
+      border-color: rgba(98,211,148,.5);
+      background: rgba(98,211,148,.12);
+    }
+
+    #chart {
+      cursor: default;
     }
 
     .legend-dot {
@@ -500,6 +519,11 @@
     <div class="grid">
       <section class="panel inputs">
         <div class="scenario-tabs" id="scenarioTabs"></div>
+
+        <div class="field">
+          <label for="scenarioName">Szenarioname</label>
+          <input id="scenarioName" type="text" value="Szenario 1">
+        </div>
 
         <div class="field">
           <label for="start">Startkapital</label>
@@ -622,6 +646,7 @@
             <span class="legend">Vergleich aller Szenarien</span>
           </div>
           <canvas id="chart"></canvas>
+          <div class="chart-tooltip" id="chartTooltip"></div>
           <div class="legend-list" id="chartLegend"></div>
         </div>
 
@@ -663,6 +688,7 @@
 
   const els = {
     scenarioTabs: $('scenarioTabs'),
+    scenarioName: $('scenarioName'),
     start: $('start'),
     currency: $('currency'),
     rate: $('rate'),
@@ -684,6 +710,7 @@
     rows: $('rows'),
     tableScenarioLabel: $('tableScenarioLabel'),
     chart: $('chart'),
+    chartTooltip: $('chartTooltip'),
     chartLegend: $('chartLegend'),
     calcBtn: $('calcBtn'),
     resetBtn: $('resetBtn'),
@@ -719,6 +746,8 @@
   let scenarios = [];
   let activeIndex = 0;
   let scenarioSeq = 1;
+  let lastDatasets = [];
+  let hoverState = { index: -1, datasetIndex: -1 };
 
   function colorFor(index) {
     return COLORS[index % COLORS.length];
@@ -927,7 +956,7 @@
     return `rgba(${r},${g},${b},${alpha})`;
   }
 
-  function drawLineChart(canvas, datasets, { legendContainer = null, fillIndex = -1 } = {}) {
+  function drawLineChart(canvas, datasets, { legendContainer = null, fillIndex = -1, hoverIndex = -1, hoverDatasetIndex = -1 } = {}) {
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.max(1, Math.round(rect.width * dpr));
@@ -957,6 +986,8 @@
     const maxLen = Math.max(...datasets.map(ds => ds.data.length));
     const x = i => pad.l + (i / Math.max(1, maxLen - 1)) * pw;
     const y = v => pad.t + ph - ((v - min) / (max - min)) * ph;
+
+    canvas._chartMeta = { pad, pw, ph, x, y, maxLen };
 
     // Grid
     ctx.strokeStyle = 'rgba(255,255,255,.09)';
@@ -1039,9 +1070,38 @@
       }
     });
 
+    // Hover crosshair + per-series markers at the hovered month
+    if (hoverIndex >= 0) {
+      const gx = x(hoverIndex);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,.25)';
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(gx, pad.t);
+      ctx.lineTo(gx, h - pad.b);
+      ctx.stroke();
+      ctx.restore();
+
+      datasets.forEach((ds, i) => {
+        const p = ds.data[hoverIndex];
+        if (!p) return;
+        const isHovered = i === hoverDatasetIndex;
+        ctx.beginPath();
+        ctx.arc(gx, y(p.value), isHovered ? 6 : 3, 0, Math.PI * 2);
+        ctx.fillStyle = isHovered ? ds.color : hexToRgba(ds.color, .55);
+        ctx.fill();
+        if (isHovered) {
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = 'rgba(255,255,255,.9)';
+          ctx.stroke();
+        }
+      });
+    }
+
     if (legendContainer) {
       legendContainer.innerHTML = datasets.map(ds => `
-        <span class="legend-item">
+        <span class="legend-item${ds.scenarioIndex === fillIndex ? ' active' : ''}" data-scenario-index="${ds.scenarioIndex}">
           <span class="legend-dot" style="background:${ds.color}"></span>
           ${ds.label}
         </span>
@@ -1061,9 +1121,17 @@
     });
   }
 
+  function applyScenarioToInputs(scenario) {
+    applyValuesToInputs(scenario.values);
+    els.scenarioName.value = scenario.name;
+  }
+
   function syncActiveFromInputs() {
     if (!scenarios[activeIndex]) return;
     scenarios[activeIndex].values = readInputsIntoValues();
+
+    const nameVal = els.scenarioName.value.trim();
+    if (nameVal) scenarios[activeIndex].name = nameVal;
 
     GLOBAL_FIELD_KEYS.forEach(key => {
       const value = scenarios[activeIndex].values[key];
@@ -1071,37 +1139,15 @@
     });
   }
 
-  function startRename(idx, labelEl) {
-    const sc = scenarios[idx];
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = sc.name;
-    input.className = 'scenario-tab-rename';
-    input.addEventListener('click', (e) => e.stopPropagation());
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
-      if (e.key === 'Escape') { e.preventDefault(); renderTabs(); }
+  function updateTabNames() {
+    const names = els.scenarioTabs.querySelectorAll('.name');
+    names.forEach((el, idx) => {
+      if (scenarios[idx]) el.textContent = scenarios[idx].name;
     });
-    input.addEventListener('blur', () => {
-      const val = input.value.trim();
-      sc.name = val || sc.name;
-      renderTabs();
-      calculate();
-    });
-    labelEl.replaceWith(input);
-    input.focus();
-    input.select();
   }
 
   function renderTabs() {
     els.scenarioTabs.innerHTML = '';
-
-    const addBtn = document.createElement('div');
-    addBtn.className = 'scenario-tab-add';
-    addBtn.textContent = '+';
-    addBtn.title = 'Aktuelles Szenario duplizieren';
-    addBtn.addEventListener('click', addScenario);
-    els.scenarioTabs.appendChild(addBtn);
 
     scenarios.forEach((sc, idx) => {
       const tab = document.createElement('div');
@@ -1112,20 +1158,10 @@
       dot.style.background = colorFor(idx);
       tab.appendChild(dot);
 
-      const label = document.createElement('span');
-      label.className = 'label';
-      label.textContent = sc.name;
-      tab.appendChild(label);
-
-      const edit = document.createElement('span');
-      edit.className = 'edit';
-      edit.textContent = '✎';
-      edit.title = 'Szenario umbenennen';
-      edit.addEventListener('click', (e) => {
-        e.stopPropagation();
-        startRename(idx, label);
-      });
-      tab.appendChild(edit);
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = sc.name;
+      tab.appendChild(name);
 
       if (scenarios.length > 1) {
         const close = document.createElement('span');
@@ -1142,13 +1178,20 @@
       tab.addEventListener('click', () => switchScenario(idx));
       els.scenarioTabs.appendChild(tab);
     });
+
+    const addBtn = document.createElement('div');
+    addBtn.className = 'scenario-tab-add';
+    addBtn.textContent = '+';
+    addBtn.title = 'Aktuelles Szenario duplizieren';
+    addBtn.addEventListener('click', addScenario);
+    els.scenarioTabs.appendChild(addBtn);
   }
 
   function switchScenario(idx) {
     if (idx === activeIndex) return;
     syncActiveFromInputs();
     activeIndex = idx;
-    applyValuesToInputs(scenarios[activeIndex].values);
+    applyScenarioToInputs(scenarios[activeIndex]);
     renderTabs();
     calculate();
   }
@@ -1158,7 +1201,7 @@
     const newScenario = makeScenario(scenarios[activeIndex].values);
     scenarios.push(newScenario);
     activeIndex = scenarios.length - 1;
-    applyValuesToInputs(newScenario.values);
+    applyScenarioToInputs(newScenario);
     renderTabs();
     calculate();
   }
@@ -1168,7 +1211,7 @@
     scenarios.splice(idx, 1);
     if (idx < activeIndex) activeIndex -= 1;
     if (activeIndex >= scenarios.length) activeIndex = scenarios.length - 1;
-    applyValuesToInputs(scenarios[activeIndex].values);
+    applyScenarioToInputs(scenarios[activeIndex]);
     renderTabs();
     calculate();
   }
@@ -1192,10 +1235,14 @@
 
     renderTable(main.rows);
     els.tableScenarioLabel.textContent = activeScenario.name;
+    updateTabNames();
 
-    const datasets = scenarios.map((sc, idx) => {
+    lastDatasets = scenarios.map((sc, idx) => {
       const result = idx === activeIndex ? main : simulate(sc.values);
       return {
+        scenarioIndex: idx,
+        name: sc.name,
+        currency: sc.values.currency,
         label: `${sc.name}: ${fmt(result.finalWealth, sc.values.currency)}`,
         color: colorFor(idx),
         data: result.series,
@@ -1203,10 +1250,101 @@
       };
     });
 
-    drawLineChart(els.chart, datasets, { legendContainer: els.chartLegend, fillIndex: activeIndex });
+    hoverState = { index: -1, datasetIndex: -1 };
+    els.chartTooltip.style.display = 'none';
+    renderChart();
 
     saveState();
   }
+
+  function renderChart() {
+    drawLineChart(els.chart, lastDatasets, {
+      legendContainer: els.chartLegend,
+      fillIndex: activeIndex,
+      hoverIndex: hoverState.index,
+      hoverDatasetIndex: hoverState.datasetIndex
+    });
+  }
+
+  function showTooltip(clientX, clientY, ds, idx) {
+    const wrap = els.chart.closest('.chart-wrap');
+    const wrapRect = wrap.getBoundingClientRect();
+    const point = ds.data[idx];
+
+    els.chartTooltip.innerHTML = `
+      <div class="tt-name"><span class="tt-dot" style="background:${ds.color}"></span>${ds.name}</div>
+      <div class="tt-value">Monat ${point.month} · ${fmt(point.value, ds.currency)}</div>
+    `;
+    els.chartTooltip.style.display = 'block';
+
+    const ttRect = els.chartTooltip.getBoundingClientRect();
+    let left = clientX - wrapRect.left + 14;
+    let top = clientY - wrapRect.top + 14;
+    if (left + ttRect.width > wrapRect.width) left = clientX - wrapRect.left - ttRect.width - 14;
+    if (top + ttRect.height > wrapRect.height) top = clientY - wrapRect.top - ttRect.height - 14;
+    if (left < 0) left = 4;
+    if (top < 0) top = 4;
+    els.chartTooltip.style.left = left + 'px';
+    els.chartTooltip.style.top = top + 'px';
+  }
+
+  function hideHover() {
+    if (hoverState.index === -1) return;
+    hoverState = { index: -1, datasetIndex: -1 };
+    renderChart();
+    els.chartTooltip.style.display = 'none';
+    els.chart.style.cursor = 'default';
+  }
+
+  function handleChartHover(e) {
+    const meta = els.chart._chartMeta;
+    if (!meta || !lastDatasets.length) return;
+
+    const rect = els.chart.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    if (mx < meta.pad.l || mx > rect.width - meta.pad.r || my < meta.pad.t || my > rect.height - meta.pad.b) {
+      hideHover();
+      return;
+    }
+
+    const rawIdx = Math.round((mx - meta.pad.l) / Math.max(1, meta.pw) * (meta.maxLen - 1));
+    const idx = Math.max(0, Math.min(meta.maxLen - 1, rawIdx));
+
+    let bestDs = -1, bestDist = Infinity;
+    lastDatasets.forEach((ds, i) => {
+      const p = ds.data[idx];
+      if (!p) return;
+      const dist = Math.abs(my - meta.y(p.value));
+      if (dist < bestDist) { bestDist = dist; bestDs = i; }
+    });
+
+    if (bestDs === -1 || bestDist > 45) {
+      hideHover();
+      return;
+    }
+
+    hoverState = { index: idx, datasetIndex: bestDs };
+    renderChart();
+    showTooltip(e.clientX, e.clientY, lastDatasets[bestDs], idx);
+    els.chart.style.cursor = 'pointer';
+  }
+
+  els.chart.addEventListener('mousemove', handleChartHover);
+  els.chart.addEventListener('mouseleave', hideHover);
+  els.chart.addEventListener('click', () => {
+    if (hoverState.datasetIndex >= 0 && hoverState.datasetIndex !== activeIndex) {
+      switchScenario(hoverState.datasetIndex);
+    }
+  });
+
+  els.chartLegend.addEventListener('click', (e) => {
+    const item = e.target.closest('.legend-item');
+    if (!item) return;
+    const idx = parseInt(item.dataset.scenarioIndex, 10);
+    if (Number.isFinite(idx)) switchScenario(idx);
+  });
 
   function saveState() {
     try {
@@ -1248,7 +1386,7 @@
   function reset() {
     scenarios = [makeScenario(defaultScenarioValues)];
     activeIndex = 0;
-    applyValuesToInputs(scenarios[0].values);
+    applyScenarioToInputs(scenarios[0]);
     try {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(LEGACY_STORAGE_KEY);
@@ -1265,13 +1403,16 @@
     els[key].addEventListener('change', calculate);
   });
 
+  els.scenarioName.addEventListener('input', calculate);
+  els.scenarioName.addEventListener('change', calculate);
+
   window.addEventListener('resize', calculate);
 
   if (!loadState()) {
     scenarios = [makeScenario(defaultScenarioValues)];
     activeIndex = 0;
   }
-  applyValuesToInputs(scenarios[activeIndex].values);
+  applyScenarioToInputs(scenarios[activeIndex]);
   renderTabs();
   calculate();
 })();
