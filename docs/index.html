@@ -799,7 +799,7 @@
 
     for (let m = 1; m <= settings.months; m++) {
       const openingActive = activeCapital;
-      const deposit = contributionThisMonth(m);
+      const deposit = contributionThisMonth(v, m);
       let interest = 0;
       let reinvested = 0;
 
@@ -809,7 +809,7 @@
         reinvested += reinvestAvailable();
       }
 
-      if (interestDue(m)) {
+      if (interestDue(v, m)) {
         interest = activeCapital * settings.creditRate;
         totalInterest += interest;
         interestReserve += interest;
