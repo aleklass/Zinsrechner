@@ -946,12 +946,12 @@
       ctx.fillText(label, xx, h - pad.b + 10);
     }
 
-    // Optional fill for first dataset
-    if (fillFirst && datasets[0] && datasets[0].data.length > 0) {
-      const base = datasets[0];
+    // Optional fill for the highlighted (active) dataset
+    if (fillIndex >= 0 && datasets[fillIndex] && datasets[fillIndex].data.length > 0) {
+      const base = datasets[fillIndex];
       const grad = ctx.createLinearGradient(0, pad.t, 0, h - pad.b);
-      grad.addColorStop(0, 'rgba(98,211,148,.24)');
-      grad.addColorStop(1, 'rgba(98,211,148,0)');
+      grad.addColorStop(0, hexToRgba(base.color, .24));
+      grad.addColorStop(1, hexToRgba(base.color, 0));
 
       ctx.beginPath();
       base.data.forEach((p, i) => {
@@ -966,16 +966,20 @@
       ctx.fill();
     }
 
-    // Lines
-    datasets.forEach(ds => {
+    // Lines — draw the highlighted dataset last so it sits on top
+    const drawOrder = datasets.map((_, i) => i)
+      .sort((a, b) => (a === fillIndex ? 1 : 0) - (b === fillIndex ? 1 : 0));
+
+    drawOrder.forEach(i => {
+      const ds = datasets[i];
       ctx.beginPath();
-      ds.data.forEach((p, i) => {
-        const xx = x(i), yy = y(p.value);
-        if (i === 0) ctx.moveTo(xx, yy);
+      ds.data.forEach((p, j) => {
+        const xx = x(j), yy = y(p.value);
+        if (j === 0) ctx.moveTo(xx, yy);
         else ctx.lineTo(xx, yy);
       });
       ctx.strokeStyle = ds.color;
-      ctx.lineWidth = ds.width || 2.5;
+      ctx.lineWidth = ds.width || (i === fillIndex ? 3 : 2);
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
       ctx.stroke();
@@ -983,7 +987,7 @@
       const last = ds.data[ds.data.length - 1];
       if (last) {
         ctx.beginPath();
-        ctx.arc(x(ds.data.length - 1), y(last.value), 4.5, 0, Math.PI * 2);
+        ctx.arc(x(ds.data.length - 1), y(last.value), i === fillIndex ? 5 : 4, 0, Math.PI * 2);
         ctx.fillStyle = ds.color;
         ctx.fill();
       }
