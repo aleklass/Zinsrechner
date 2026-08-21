@@ -1061,8 +1061,37 @@
     scenarios[activeIndex].values = readInputsIntoValues();
   }
 
+  function startRename(idx, labelEl) {
+    const sc = scenarios[idx];
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = sc.name;
+    input.className = 'scenario-tab-rename';
+    input.addEventListener('click', (e) => e.stopPropagation());
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+      if (e.key === 'Escape') { e.preventDefault(); renderTabs(); }
+    });
+    input.addEventListener('blur', () => {
+      const val = input.value.trim();
+      sc.name = val || sc.name;
+      renderTabs();
+      calculate();
+    });
+    labelEl.replaceWith(input);
+    input.focus();
+    input.select();
+  }
+
   function renderTabs() {
     els.scenarioTabs.innerHTML = '';
+
+    const addBtn = document.createElement('div');
+    addBtn.className = 'scenario-tab-add';
+    addBtn.textContent = '+';
+    addBtn.title = 'Aktuelles Szenario duplizieren';
+    addBtn.addEventListener('click', addScenario);
+    els.scenarioTabs.appendChild(addBtn);
 
     scenarios.forEach((sc, idx) => {
       const tab = document.createElement('div');
@@ -1077,6 +1106,16 @@
       label.className = 'label';
       label.textContent = sc.name;
       tab.appendChild(label);
+
+      const edit = document.createElement('span');
+      edit.className = 'edit';
+      edit.textContent = '✎';
+      edit.title = 'Szenario umbenennen';
+      edit.addEventListener('click', (e) => {
+        e.stopPropagation();
+        startRename(idx, label);
+      });
+      tab.appendChild(edit);
 
       if (scenarios.length > 1) {
         const close = document.createElement('span');
@@ -1093,13 +1132,6 @@
       tab.addEventListener('click', () => switchScenario(idx));
       els.scenarioTabs.appendChild(tab);
     });
-
-    const addBtn = document.createElement('div');
-    addBtn.className = 'scenario-tab-add';
-    addBtn.textContent = '+';
-    addBtn.title = 'Aktuelles Szenario duplizieren';
-    addBtn.addEventListener('click', addScenario);
-    els.scenarioTabs.appendChild(addBtn);
   }
 
   function switchScenario(idx) {
