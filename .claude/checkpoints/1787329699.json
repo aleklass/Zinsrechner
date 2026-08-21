@@ -1,0 +1,1 @@
+{"tag": "checkpoint-20260821-182819", "file": "/Users/alexanderklassen/Documents/Kunden/Privat/Zinsrechner/docs/index.html", "timestamp": "2026-08-21T16:28:19Z", "type": "post-edit", "branch": "main", "diff_summary": " .claude/checkpoints/task-1787329668.json | 1 +  docs/index.html                          | 7 +++++++  2 files changed, 8 insertions(+) "}

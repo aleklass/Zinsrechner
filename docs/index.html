@@ -338,6 +338,38 @@
     @media (max-width: 560px) {
       .two { grid-template-columns: 1fr; }
     }
+
+    @media (max-width: 640px) {
+      .wrap { width: calc(100% - 20px); margin: 18px auto 40px; }
+      h1 { font-size: clamp(24px, 7vw, 34px); }
+      .header { gap: 10px; margin-bottom: 16px; }
+      .badge { font-size: 11px; padding: 6px 10px; }
+      .panel { border-radius: 16px; }
+      .inputs, .results { padding: 16px; }
+
+      /* Prevent iOS Safari from zooming in on input focus */
+      input, select { font-size: 16px; padding: 11px 12px; }
+
+      .unit { width: 78px; flex: 0 0 78px; }
+      .actions { grid-template-columns: 1fr 52px; }
+      button { padding: 12px 10px; }
+
+      .cards { gap: 10px; margin-bottom: 16px; }
+      .card { padding: 14px; min-height: unset; }
+      .card .v { font-size: clamp(19px, 6vw, 26px); }
+
+      .chart-wrap { padding: 10px; border-radius: 14px; }
+      canvas { height: 220px; }
+
+      .table-wrap { border-radius: 12px; max-height: 320px; }
+      table { font-size: 12px; min-width: 560px; }
+      th, td { padding: 9px 8px; }
+    }
+
+    @media (max-width: 400px) {
+      .input-row { flex-wrap: wrap; }
+      .unit { width: 100%; flex: 1 1 100%; }
+    }
   </style>
 </head>
 <body>
