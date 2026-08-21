@@ -246,12 +246,27 @@
       white-space: nowrap;
     }
 
-    .chart-tooltip .tt-name {
+    .chart-tooltip .tt-month {
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--muted);
+      margin-bottom: 6px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .chart-tooltip .tt-row {
       display: flex;
       align-items: center;
-      gap: 7px;
-      font-weight: 700;
-      margin-bottom: 3px;
+      gap: 8px;
+      padding: 3px 4px;
+      border-radius: 6px;
+    }
+
+    .chart-tooltip .tt-row.hovered {
+      background: rgba(255,255,255,.08);
     }
 
     .chart-tooltip .tt-dot {
@@ -261,8 +276,14 @@
       flex: 0 0 8px;
     }
 
+    .chart-tooltip .tt-name {
+      font-weight: 650;
+      margin-right: 14px;
+    }
+
     .chart-tooltip .tt-value {
-      color: var(--muted);
+      margin-left: auto;
+      font-weight: 700;
     }
 
     .chart-title {
@@ -1266,14 +1287,26 @@
     });
   }
 
-  function showTooltip(clientX, clientY, ds, idx) {
+  function showTooltip(clientX, clientY, idx, highlightDs) {
     const wrap = els.chart.closest('.chart-wrap');
     const wrapRect = wrap.getBoundingClientRect();
-    const point = ds.data[idx];
+
+    const rows = lastDatasets
+      .map(ds => ({ ds, point: ds.data[idx] }))
+      .filter(r => r.point)
+      .sort((a, b) => b.point.value - a.point.value);
+
+    if (!rows.length) return;
 
     els.chartTooltip.innerHTML = `
-      <div class="tt-name"><span class="tt-dot" style="background:${ds.color}"></span>${ds.name}</div>
-      <div class="tt-value">Monat ${point.month} · ${fmt(point.value, ds.currency)}</div>
+      <div class="tt-month">Monat ${rows[0].point.month}</div>
+      ${rows.map(r => `
+        <div class="tt-row${r.ds.scenarioIndex === highlightDs ? ' hovered' : ''}">
+          <span class="tt-dot" style="background:${r.ds.color}"></span>
+          <span class="tt-name">${r.ds.name}</span>
+          <span class="tt-value">${fmt(r.point.value, r.ds.currency)}</span>
+        </div>
+      `).join('')}
     `;
     els.chartTooltip.style.display = 'block';
 
@@ -1312,6 +1345,8 @@
     const rawIdx = Math.round((mx - meta.pad.l) / Math.max(1, meta.pw) * (meta.maxLen - 1));
     const idx = Math.max(0, Math.min(meta.maxLen - 1, rawIdx));
 
+    // Find the line closest to the cursor — used for click-to-switch and
+    // the emphasized marker, not for whether the tooltip is shown at all.
     let bestDs = -1, bestDist = Infinity;
     lastDatasets.forEach((ds, i) => {
       const p = ds.data[idx];
@@ -1319,16 +1354,12 @@
       const dist = Math.abs(my - meta.y(p.value));
       if (dist < bestDist) { bestDist = dist; bestDs = i; }
     });
+    const closeEnough = bestDs !== -1 && bestDist <= 45;
 
-    if (bestDs === -1 || bestDist > 45) {
-      hideHover();
-      return;
-    }
-
-    hoverState = { index: idx, datasetIndex: bestDs };
+    hoverState = { index: idx, datasetIndex: closeEnough ? bestDs : -1 };
     renderChart();
-    showTooltip(e.clientX, e.clientY, lastDatasets[bestDs], idx);
-    els.chart.style.cursor = 'pointer';
+    showTooltip(e.clientX, e.clientY, idx, closeEnough ? bestDs : -1);
+    els.chart.style.cursor = closeEnough ? 'pointer' : 'default';
   }
 
   els.chart.addEventListener('mousemove', handleChartHover);
