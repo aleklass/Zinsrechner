@@ -694,6 +694,10 @@
     'contribution', 'contributionPeriod', 'depositTiming', 'compound', 'reinvestMode'
   ];
 
+  // These fields are shared across all scenarios: changing them in one
+  // scenario applies the same value to every other scenario as well.
+  const GLOBAL_FIELD_KEYS = ['duration', 'durationUnit'];
+
   const defaultScenarioValues = {
     start: 10000,
     currency: 'USD',
