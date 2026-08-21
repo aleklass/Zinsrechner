@@ -103,6 +103,11 @@
       gap: 8px;
     }
 
+    .input-row input,
+    .input-row select {
+      min-width: 0;
+    }
+
     input, select {
       width: 100%;
       border: 1px solid var(--border);
@@ -321,6 +326,10 @@
       .inputs { position: static; }
       .cards { grid-template-columns: 1fr; }
       .header { align-items: start; flex-direction: column; }
+    }
+
+    @media (max-width: 560px) {
+      .two { grid-template-columns: 1fr; }
     }
   </style>
 </head>
