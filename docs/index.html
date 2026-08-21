@@ -242,12 +242,85 @@
     .chart-title strong { font-size: 14px; }
     .legend { color: var(--muted); font-size: 11px; }
 
-    .scenario-config {
-      margin-top: 10px;
-      background: var(--panel-2);
+    .scenario-tabs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      margin-bottom: 18px;
+    }
+
+    .scenario-tab {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 10px 8px 12px;
+      border-radius: 999px;
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 12px;
+      background: var(--panel-2);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+      white-space: nowrap;
+      cursor: pointer;
+      flex: 0 0 auto;
+      transition: .15s ease;
+    }
+
+    .scenario-tab:hover { color: var(--text); }
+
+    .scenario-tab.active {
+      background: rgba(98,211,148,.14);
+      border-color: rgba(98,211,148,.5);
+      color: var(--text);
+    }
+
+    .scenario-tab .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex: 0 0 8px;
+    }
+
+    .scenario-tab .close {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      color: var(--muted);
+      opacity: .7;
+      font-size: 11px;
+    }
+
+    .scenario-tab .close:hover {
+      opacity: 1;
+      background: rgba(255,255,255,.1);
+      color: var(--text);
+    }
+
+    .scenario-tab-add {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      border: 1px dashed var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      flex: 0 0 auto;
+      font-size: 17px;
+      line-height: 1;
+      background: transparent;
+      transition: .15s ease;
+    }
+
+    .scenario-tab-add:hover {
+      color: var(--text);
+      border-color: rgba(117,167,255,.6);
     }
 
     .legend-list {
