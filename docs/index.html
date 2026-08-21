@@ -620,6 +620,7 @@
   const $ = id => document.getElementById(id);
 
   const els = {
+    scenarioTabs: $('scenarioTabs'),
     start: $('start'),
     currency: $('currency'),
     rate: $('rate'),
@@ -631,7 +632,6 @@
     depositTiming: $('depositTiming'),
     compound: $('compound'),
     reinvestMode: $('reinvestMode'),
-    scenarioValues: $('scenarioValues'),
     finalValue: $('finalValue'),
     activeValue: $('activeValue'),
     reserveValue: $('reserveValue'),
@@ -640,14 +640,19 @@
     growthText: $('growthText'),
     interestShare: $('interestShare'),
     rows: $('rows'),
+    tableScenarioLabel: $('tableScenarioLabel'),
     chart: $('chart'),
-    scenarioChart: $('scenarioChart'),
-    scenarioLegend: $('scenarioLegend'),
+    chartLegend: $('chartLegend'),
     calcBtn: $('calcBtn'),
     resetBtn: $('resetBtn'),
   };
 
-  const defaultValues = {
+  const FIELD_KEYS = [
+    'start', 'currency', 'rate', 'ratePeriod', 'duration', 'durationUnit',
+    'contribution', 'contributionPeriod', 'depositTiming', 'compound', 'reinvestMode'
+  ];
+
+  const defaultScenarioValues = {
     start: 10000,
     currency: 'USD',
     rate: 5,
@@ -658,12 +663,33 @@
     contributionPeriod: 'monthly',
     depositTiming: 'end',
     compound: 'monthly',
-    reinvestMode: 'thousand',
-    scenarioValues: '10000, 50000, 100000'
+    reinvestMode: 'thousand'
   };
 
-  function fmt(value) {
-    const cur = els.currency.value || 'USD';
+  const COLORS = ['#62d394', '#75a7ff', '#ffb86b', '#ff7a7a', '#c28cff', '#7fe7e7'];
+  const STORAGE_KEY = 'zinseszinsrechner_v2';
+  const LEGACY_STORAGE_KEY = 'zinseszinsrechner';
+
+  let scenarios = [];
+  let activeIndex = 0;
+  let scenarioSeq = 1;
+
+  function colorFor(index) {
+    return COLORS[index % COLORS.length];
+  }
+
+  function makeScenario(values, name) {
+    const scenario = {
+      id: 'sc' + scenarioSeq,
+      name: name || `Szenario ${scenarioSeq}`,
+      values: { ...values }
+    };
+    scenarioSeq += 1;
+    return scenario;
+  }
+
+  function fmt(value, currency) {
+    const cur = currency || els.currency.value || 'USD';
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
       currency: cur,
@@ -671,57 +697,58 @@
     }).format(value);
   }
 
-  function num(el) {
-    const v = parseFloat(el.value);
-    return Number.isFinite(v) ? v : 0;
+  function num(v) {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : 0;
   }
 
-  function monthsCount() {
-    const d = Math.max(1, Math.round(num(els.duration)));
-    return els.durationUnit.value === 'years' ? d * 12 : d;
+  function monthsCountFor(v) {
+    const d = Math.max(1, Math.round(num(v.duration)));
+    return v.durationUnit === 'years' ? d * 12 : d;
   }
 
-  function rateForCreditPeriod() {
-    const raw = num(els.rate) / 100;
-    const monthly = els.ratePeriod.value === 'monthly'
+  function rateForCreditPeriod(v) {
+    const raw = num(v.rate) / 100;
+    const monthly = v.ratePeriod === 'monthly'
       ? raw
       : Math.pow(1 + raw, 1 / 12) - 1;
 
-    const c = els.compound.value;
+    const c = v.compound;
     if (c === 'monthly') return monthly;
     if (c === 'quarterly') return Math.pow(1 + monthly, 3) - 1;
     return Math.pow(1 + monthly, 12) - 1;
   }
 
-  function interestDue(monthIndex) {
-    const c = els.compound.value;
+  function interestDue(v, monthIndex) {
+    const c = v.compound;
     if (c === 'monthly') return true;
     if (c === 'quarterly') return monthIndex % 3 === 0;
     if (c === 'annual') return monthIndex % 12 === 0;
     return true;
   }
 
-  function contributionThisMonth(monthIndex) {
-    const amount = Math.max(0, num(els.contribution));
-    if (els.contributionPeriod.value === 'monthly') return amount;
+  function contributionThisMonth(v, monthIndex) {
+    const amount = Math.max(0, num(v.contribution));
+    if (v.contributionPeriod === 'monthly') return amount;
     return monthIndex % 12 === 0 ? amount : 0;
   }
 
-  function getSettings() {
+  function getSettings(v) {
     return {
-      months: monthsCount(),
-      creditRate: rateForCreditPeriod(),
-      depositTiming: els.depositTiming.value,
-      reinvestMode: els.reinvestMode.value
+      months: monthsCountFor(v),
+      creditRate: rateForCreditPeriod(v),
+      depositTiming: v.depositTiming,
+      reinvestMode: v.reinvestMode
     };
   }
 
-  function simulate(startCapital) {
-    const settings = getSettings();
-    let activeCapital = Math.max(0, startCapital);
+  function simulate(v) {
+    const settings = getSettings(v);
+    const startCapital = Math.max(0, num(v.start));
+    let activeCapital = startCapital;
     let interestReserve = 0;
     let depositReserve = 0;
-    let totalPaid = Math.max(0, startCapital);
+    let totalPaid = startCapital;
     let totalInterest = 0;
     let totalReinvested = 0;
 
