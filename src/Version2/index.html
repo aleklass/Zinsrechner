@@ -704,11 +704,11 @@
         <div class="field">
           <label>Investment-Typ</label>
           <div class="type-tab-bar" id="investmentTypeToggle">
-            <button type="button" class="type-tab active" data-type="classic">Klassisch</button>
-            <button type="button" class="type-tab" data-type="nextforrest">NextForrest</button>
+            <button type="button" class="type-tab" data-type="classic">Klassisch</button>
+            <button type="button" class="type-tab active" data-type="nextforrest">NextForrest</button>
           </div>
           <div class="type-tab-panel">
-          <div id="classicFields">
+          <div id="classicFields" style="display:none;">
           <div class="field">
             <label for="rate">Zinssatz (% p.a.)</label>
             <input id="rate" type="number" step="0.01" value="5">
@@ -738,7 +738,7 @@
           </div>
         </div>
 
-          <div id="nextForrestFields" style="display:none;">
+          <div id="nextForrestFields">
             <div class="field">
               <label>Monatliche Rendite</label>
               <div class="toggle-row" id="nfRateToggle">
@@ -751,13 +751,13 @@
               <div class="field">
                 <label>Einzahlungsstrategie</label>
                 <div class="toggle-row" id="nfDepositStrategyToggle">
-                  <button type="button" class="toggle-btn active" data-value="roundup">1000er-Aufrundung</button>
-                  <button type="button" class="toggle-btn" data-value="fixed">Fester Betrag/Monat</button>
+                  <button type="button" class="toggle-btn active" data-value="fixed">Fester Betrag/Monat</button>
+                  <button type="button" class="toggle-btn" data-value="roundup">1000er-Aufrundung</button>
                 </div>
                 <div class="hint" id="nfDepositStrategyHint"></div>
               </div>
 
-              <div class="field" id="nfMonthlyDepositField" style="display:none;">
+              <div class="field" id="nfMonthlyDepositField">
                 <label for="nfMonthlyDeposit">Monatliche Einzahlung</label>
                 <div class="input-row">
                   <input id="nfMonthlyDeposit" type="number" min="0" step="50" value="500">
@@ -771,8 +771,8 @@
               <div class="field">
                 <label for="nfDepositGoal">Einzahlungsschwelle (0 = unbegrenzt)</label>
                 <div class="toggle-row" id="nfDepositGoalThresholdBasisToggle">
-                  <button type="button" class="toggle-btn active" data-value="capital">Aktives Kapital</button>
-                  <button type="button" class="toggle-btn" data-value="interest">Monatsrendite</button>
+                  <button type="button" class="toggle-btn active" data-value="interest">Monatsrendite</button>
+                  <button type="button" class="toggle-btn" data-value="capital">Aktives Kapital</button>
                 </div>
                 <input id="nfDepositGoal" type="number" min="0" step="1000" value="0" style="margin-top:8px;">
                 <div class="hint" id="nfDepositGoalHint"></div>
@@ -787,11 +787,11 @@
 
             <div class="field-group">
               <div class="field">
-                <label for="nfWithdrawalStrategy">Auszahlungsstrategie</label>
-                <select id="nfWithdrawalStrategy">
-                  <option value="fixed">Fester Betrag</option>
-                  <option value="percentage">Prozentualer Anteil der Rendite</option>
-                </select>
+                <label>Auszahlungsstrategie</label>
+                <div class="toggle-row" id="nfWithdrawalStrategyToggle">
+                  <button type="button" class="toggle-btn active" data-value="fixed">Fester Betrag</button>
+                  <button type="button" class="toggle-btn" data-value="percentage">Prozentualer Anteil</button>
+                </div>
               </div>
 
               <div class="field">
@@ -809,8 +809,8 @@
               <div class="field">
                 <label for="nfWithdrawalMinCapital">Auszahlungsschwelle</label>
                 <div class="toggle-row" id="nfWithdrawalThresholdBasisToggle">
-                  <button type="button" class="toggle-btn active" data-value="capital">Aktives Kapital</button>
-                  <button type="button" class="toggle-btn" data-value="interest">Monatsrendite</button>
+                  <button type="button" class="toggle-btn active" data-value="interest">Monatsrendite</button>
+                  <button type="button" class="toggle-btn" data-value="capital">Aktives Kapital</button>
                 </div>
                 <input id="nfWithdrawalMinCapital" type="number" min="0" step="500" value="0" style="margin-top:8px;">
                 <div class="hint" id="nfWithdrawalMinCapitalHint"></div>
@@ -924,7 +924,7 @@
     nfDepositGoal: $('nfDepositGoal'),
     nfDepositGoalHint: $('nfDepositGoalHint'),
     nfDepositGoalWarning: $('nfDepositGoalWarning'),
-    nfWithdrawalStrategy: $('nfWithdrawalStrategy'),
+    nfWithdrawalStrategyToggle: $('nfWithdrawalStrategyToggle'),
     nfWithdrawalAmount: $('nfWithdrawalAmount'),
     nfWithdrawalAmountLabel: $('nfWithdrawalAmountLabel'),
     nfWithdrawalPeriod: $('nfWithdrawalPeriod'),
@@ -946,7 +946,7 @@
     'start', 'currency', 'rate', 'duration', 'durationUnit',
     'contribution', 'contributionPeriod', 'compound',
     'nfMonthlyDeposit', 'nfMonthlyDepositPeriod', 'nfDepositGoal',
-    'nfWithdrawalStrategy', 'nfWithdrawalAmount', 'nfWithdrawalPeriod', 'nfWithdrawalMinCapital'
+    'nfWithdrawalAmount', 'nfWithdrawalPeriod', 'nfWithdrawalMinCapital'
   ];
 
   // These fields are shared across all scenarios: changing them in one
@@ -954,7 +954,7 @@
   const GLOBAL_FIELD_KEYS = ['duration', 'durationUnit'];
 
   const defaultScenarioValues = {
-    investmentType: 'classic',
+    investmentType: 'nextforrest',
     start: 10000,
     includeStartCapital: true,
     currency: 'USD',
@@ -972,7 +972,7 @@
     reinvestMode: 'accumulating',
     // NextForrest
     nfRate: 'low',
-    nfDepositStrategy: 'roundup',
+    nfDepositStrategy: 'fixed',
     nfMonthlyDeposit: 500,
     nfMonthlyDepositPeriod: 'monthly',
     nfDepositGoal: 0,
@@ -980,8 +980,8 @@
     nfWithdrawalAmount: 0,
     nfWithdrawalPeriod: 'monthly',
     nfWithdrawalMinCapital: 0,
-    nfWithdrawalThresholdBasis: 'capital',
-    nfDepositGoalThresholdBasis: 'capital'
+    nfWithdrawalThresholdBasis: 'interest',
+    nfDepositGoalThresholdBasis: 'interest'
   };
 
   const COLORS = ['#62d394', '#75a7ff', '#ffb86b', '#ff7a7a', '#c28cff', '#7fe7e7'];
@@ -1245,9 +1245,17 @@
   }
 
   function updateNfWithdrawalUI() {
-    const isPct = els.nfWithdrawalStrategy.value === 'percentage';
+    const isPct = els.nfWithdrawalStrategyToggle.dataset.value === 'percentage';
     els.nfWithdrawalAmountLabel.textContent = isPct ? 'Auszahlungs-Anteil (% der Rendite)' : 'Auszahlungsbetrag';
     els.nfWithdrawalPeriod.style.display = isPct ? 'none' : '';
+  }
+
+  function setNfWithdrawalStrategyUI(value) {
+    els.nfWithdrawalStrategyToggle.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === value);
+    });
+    els.nfWithdrawalStrategyToggle.dataset.value = value;
+    updateNfWithdrawalUI();
   }
 
   function setNfWithdrawalThresholdBasisUI(value) {
@@ -1288,12 +1296,12 @@
     applyValuesToInputs(scenario.values);
     els.scenarioName.value = scenario.name;
     els.includeStartCapital.checked = scenario.values.includeStartCapital !== false;
-    setInvestmentTypeUI(scenario.values.investmentType || 'classic');
+    setInvestmentTypeUI(scenario.values.investmentType || 'nextforrest');
     setNfRateUI(scenario.values.nfRate || 'low');
-    setNfDepositStrategyUI(scenario.values.nfDepositStrategy || 'roundup');
-    setNfWithdrawalThresholdBasisUI(scenario.values.nfWithdrawalThresholdBasis || 'capital');
-    setNfDepositGoalThresholdBasisUI(scenario.values.nfDepositGoalThresholdBasis || 'capital');
-    updateNfWithdrawalUI();
+    setNfDepositStrategyUI(scenario.values.nfDepositStrategy || 'fixed');
+    setNfWithdrawalStrategyUI(scenario.values.nfWithdrawalStrategy || 'fixed');
+    setNfWithdrawalThresholdBasisUI(scenario.values.nfWithdrawalThresholdBasis || 'interest');
+    setNfDepositGoalThresholdBasisUI(scenario.values.nfDepositGoalThresholdBasis || 'interest');
   }
 
   function syncActiveFromInputs() {
@@ -1302,12 +1310,13 @@
     // fixed Klassisch defaults for depositTiming/reinvestMode/reinvestThreshold —
     // must survive since they're not part of FIELD_KEYS anymore.
     Object.assign(scenarios[activeIndex].values, readInputsIntoValues());
-    scenarios[activeIndex].values.investmentType = els.typeToggle.dataset.type || 'classic';
+    scenarios[activeIndex].values.investmentType = els.typeToggle.dataset.type || 'nextforrest';
     scenarios[activeIndex].values.includeStartCapital = els.includeStartCapital.checked;
     scenarios[activeIndex].values.nfRate = els.nfRateToggle.dataset.value || 'low';
-    scenarios[activeIndex].values.nfDepositStrategy = els.nfDepositStrategyToggle.dataset.value || 'roundup';
-    scenarios[activeIndex].values.nfWithdrawalThresholdBasis = els.nfWithdrawalThresholdBasisToggle.dataset.value || 'capital';
-    scenarios[activeIndex].values.nfDepositGoalThresholdBasis = els.nfDepositGoalThresholdBasisToggle.dataset.value || 'capital';
+    scenarios[activeIndex].values.nfDepositStrategy = els.nfDepositStrategyToggle.dataset.value || 'fixed';
+    scenarios[activeIndex].values.nfWithdrawalStrategy = els.nfWithdrawalStrategyToggle.dataset.value || 'fixed';
+    scenarios[activeIndex].values.nfWithdrawalThresholdBasis = els.nfWithdrawalThresholdBasisToggle.dataset.value || 'interest';
+    scenarios[activeIndex].values.nfDepositGoalThresholdBasis = els.nfDepositGoalThresholdBasisToggle.dataset.value || 'interest';
 
     const nameVal = els.scenarioName.value.trim();
     if (nameVal) scenarios[activeIndex].name = nameVal;
@@ -1637,7 +1646,12 @@
     calculate();
   });
 
-  els.nfWithdrawalStrategy.addEventListener('change', updateNfWithdrawalUI);
+  els.nfWithdrawalStrategyToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    setNfWithdrawalStrategyUI(btn.dataset.value);
+    calculate();
+  });
 
   els.nfWithdrawalThresholdBasisToggle.addEventListener('click', (e) => {
     const btn = e.target.closest('.toggle-btn');
