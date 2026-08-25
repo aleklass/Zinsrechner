@@ -1,0 +1,1897 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zinseszinsrechner</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #121b2e;
+      --panel-2: #18243b;
+      --text: #f4f7fb;
+      --muted: #9eabc1;
+      --accent: #62d394;
+      --accent-2: #75a7ff;
+      --danger: #ff7a7a;
+      --border: rgba(255,255,255,.08);
+      --shadow: 0 20px 60px rgba(0,0,0,.28);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(117,167,255,.12), transparent 32%),
+        radial-gradient(circle at top right, rgba(98,211,148,.10), transparent 28%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .wrap {
+      width: min(1180px, calc(100% - 32px));
+      margin: 36px auto 60px;
+    }
+
+    @media (min-width: 1220px) and (orientation: landscape) {
+      .wrap {
+        width: calc(100% - 48px);
+        max-width: 2200px;
+      }
+    }
+
+    @supports (padding: max(0px)) {
+      .wrap {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      }
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 46px);
+      letter-spacing: -0.04em;
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .badge {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 390px 1fr;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015)), var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+
+    .inputs {
+      padding: 22px;
+      position: sticky;
+      top: 20px;
+    }
+
+    .field {
+      margin-bottom: 17px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 7px;
+      font-weight: 650;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .input-row input,
+    .input-row select {
+      min-width: 0;
+    }
+
+    input, select {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 12px 13px;
+      outline: none;
+      font-size: 15px;
+      transition: .18s ease;
+    }
+
+    input:focus, select:focus {
+      border-color: rgba(117,167,255,.7);
+      box-shadow: 0 0 0 3px rgba(117,167,255,.12);
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 2px;
+      padding: 12px 13px;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 18px;
+      padding: 0;
+      border-radius: 4px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .checkbox-row span {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .unit {
+      width: 92px;
+      flex: 0 0 92px;
+    }
+
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+      margin-top: 6px;
+    }
+
+    .field-warning {
+      display: none;
+      align-items: flex-start;
+      gap: 6px;
+      color: var(--danger);
+      font-size: 11px;
+      line-height: 1.45;
+      margin-top: 6px;
+    }
+
+    .field-warning.visible {
+      display: flex;
+    }
+
+    .type-tab-bar {
+      display: flex;
+      gap: 4px;
+      margin-bottom: -1px;
+      position: relative;
+      z-index: 1;
+      padding-left: 2px;
+    }
+
+    .type-tab {
+      border: 1px solid var(--border);
+      border-bottom: none;
+      background: rgba(255,255,255,.02);
+      color: var(--muted);
+      padding: 9px 16px;
+      border-radius: 10px 10px 0 0;
+      font-size: 13px;
+      font-weight: 750;
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    .type-tab:hover {
+      color: var(--text);
+    }
+
+    .type-tab.active {
+      background: var(--panel-2);
+      color: var(--accent);
+    }
+
+    .type-tab-panel {
+      border: 1px solid var(--border);
+      border-radius: 0 14px 14px 14px;
+      background: var(--panel-2);
+      padding: 16px 16px 2px;
+    }
+
+    #classicFields .field:last-child,
+    #nextForrestFields .field:last-child {
+      margin-bottom: 14px;
+    }
+
+    .field-group {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 14px 0;
+      margin-bottom: 17px;
+      background: rgba(255,255,255,.015);
+    }
+
+    .field-group .field:last-child {
+      margin-bottom: 14px;
+    }
+
+    .team-member-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: var(--panel-2);
+    }
+
+    .team-member-card-header {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .team-member-card-header .team-input {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .team-member-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .team-member-grid label {
+      display: block;
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      font-weight: 650;
+    }
+
+    .team-input {
+      padding: 9px 10px;
+      font-size: 13px;
+      border-radius: 9px;
+    }
+
+    .team-remove-btn {
+      flex: 0 0 auto;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .team-remove-btn:hover {
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+
+    .team-empty-hint {
+      color: var(--muted);
+      font-size: 12px;
+      padding: 4px 2px 10px;
+    }
+
+    .type-placeholder {
+      padding: 16px;
+      margin-bottom: 14px;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .toggle-row {
+      display: flex;
+      gap: 6px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px;
+    }
+
+    .toggle-btn {
+      flex: 1;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      padding: 9px 10px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    .toggle-btn:hover { color: var(--text); }
+
+    .toggle-btn.active {
+      background: var(--accent);
+      color: #062514;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 750;
+      cursor: pointer;
+      transition: transform .15s ease, opacity .15s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+
+    .primary {
+      background: var(--accent);
+      color: #062514;
+    }
+
+    .secondary {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .results {
+      padding: 22px;
+    }
+
+    .scenario-summary-wrap {
+      margin-top: 0;
+      margin-bottom: 20px;
+    }
+
+    .scenario-summary-wrap tr {
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    .scenario-summary-wrap tbody tr:hover td {
+      background: rgba(255,255,255,.03);
+    }
+
+    .scenario-summary-wrap tbody tr.active-row td {
+      background: rgba(98,211,148,.08);
+    }
+
+    .scenario-summary-wrap td:first-child {
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .row-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    .chart-wrap {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 14px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .chart-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: #0d1626;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 11px;
+      font-size: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+      display: none;
+      z-index: 5;
+      white-space: nowrap;
+    }
+
+    .chart-tooltip .tt-month {
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--muted);
+      margin-bottom: 6px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .chart-tooltip .tt-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 3px 4px;
+      border-radius: 6px;
+    }
+
+    .chart-tooltip .tt-row.hovered {
+      background: rgba(255,255,255,.08);
+    }
+
+    .chart-tooltip .tt-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex: 0 0 8px;
+    }
+
+    .chart-tooltip .tt-name {
+      font-weight: 650;
+      margin-right: 14px;
+    }
+
+    .chart-tooltip .tt-value {
+      margin-left: auto;
+      font-weight: 700;
+    }
+
+    .chart-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 2px 2px 12px;
+    }
+
+    .chart-title strong { font-size: 14px; }
+    .legend { color: var(--muted); font-size: 11px; }
+
+    .scenario-tabs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      margin-bottom: 18px;
+      position: relative;
+    }
+
+    .scenario-tab {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 10px 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+      white-space: nowrap;
+      cursor: pointer;
+      flex: 0 0 auto;
+      transition: .15s ease;
+    }
+
+    .scenario-tab:hover { color: var(--text); }
+
+    .scenario-tab.active {
+      background: rgba(98,211,148,.14);
+      border-color: rgba(98,211,148,.5);
+      color: var(--text);
+    }
+
+    .scenario-tab .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex: 0 0 8px;
+    }
+
+    .scenario-tab .close {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      color: var(--muted);
+      opacity: .7;
+      font-size: 11px;
+    }
+
+    .scenario-tab .close:hover {
+      opacity: 1;
+      background: rgba(255,255,255,.1);
+      color: var(--text);
+    }
+
+    .scenario-tab .name {
+      color: inherit;
+    }
+
+    .scenario-tab-add {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      border: 1px dashed rgba(98,211,148,.5);
+      color: var(--accent);
+      cursor: pointer;
+      flex: 0 0 auto;
+      font-size: 17px;
+      line-height: 1;
+      background: var(--panel-2);
+      transition: .15s ease;
+      position: sticky;
+      right: 0;
+      margin-left: auto;
+      z-index: 2;
+      box-shadow: -10px 0 12px -6px rgba(5,9,18,.65);
+    }
+
+    .scenario-tab-add:hover {
+      color: var(--text);
+      border-color: rgba(117,167,255,.6);
+    }
+
+    .legend-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 10px 2px 0;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      font-size: 12px;
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    .legend-item:hover {
+      border-color: rgba(117,167,255,.5);
+      background: rgba(255,255,255,.06);
+    }
+
+    .legend-item.active {
+      border-color: rgba(98,211,148,.5);
+      background: rgba(98,211,148,.12);
+    }
+
+    #chart {
+      cursor: default;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex: 0 0 10px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 330px;
+      display: block;
+    }
+
+    .table-wrap {
+      margin-top: 18px;
+      overflow: auto;
+      max-height: 420px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      min-width: 660px;
+    }
+
+    th, td {
+      padding: 11px 12px;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th:first-child, td:first-child { text-align: left; }
+
+    th {
+      color: var(--muted);
+      position: sticky;
+      top: 0;
+      background: #172239;
+      z-index: 1;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .footer {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 11px;
+      text-align: center;
+    }
+
+    @media (max-width: 860px) {
+      .grid { grid-template-columns: minmax(0, 1fr); }
+      .inputs { position: static; }
+      .header { align-items: start; flex-direction: column; }
+    }
+
+    @media (max-width: 560px) {
+      .two { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .wrap { width: calc(100% - 20px); margin: 18px auto 40px; }
+      h1 { font-size: clamp(24px, 7vw, 34px); }
+      .header { gap: 10px; margin-bottom: 16px; }
+      .badge { font-size: 11px; padding: 6px 10px; }
+      .panel { border-radius: 16px; }
+      .inputs, .results { padding: 16px; }
+
+      /* Prevent iOS Safari from zooming in on input focus */
+      input, select { font-size: 16px; padding: 11px 12px; }
+
+      .unit { width: 78px; flex: 0 0 78px; }
+      .actions { grid-template-columns: 1fr 52px; }
+      button { padding: 12px 10px; }
+
+      .chart-wrap { padding: 10px; border-radius: 14px; }
+      canvas { height: 220px; }
+
+      .table-wrap { border-radius: 12px; max-height: 320px; }
+      table { font-size: 12px; min-width: 560px; }
+      th, td { padding: 9px 8px; }
+    }
+
+    @media (max-width: 400px) {
+      .input-row { flex-wrap: wrap; }
+      .unit { width: 100%; flex: 1 1 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="header">
+      <div>
+        <h1>Zinseszinsrechner</h1>
+        <div class="subtitle">Läuft vollständig lokal im Browser – keine Daten werden übertragen.</div>
+      </div>
+      <div class="badge">Offline · HTML + JavaScript</div>
+    </div>
+
+    <div class="grid">
+      <section class="panel inputs">
+        <div class="scenario-tabs" id="scenarioTabs"></div>
+
+        <div class="field">
+          <label for="scenarioName">Szenarioname</label>
+          <input id="scenarioName" type="text" value="Szenario 1">
+        </div>
+
+        <div class="field">
+          <label>Laufzeit</label>
+          <div class="two">
+            <input id="duration" type="number" min="1" step="1" value="24">
+            <select id="durationUnit">
+              <option value="months">Monate</option>
+              <option value="years">Jahre</option>
+            </select>
+          </div>
+          <div class="hint">Gilt für alle Szenarien gleichermaßen.</div>
+        </div>
+
+        <div class="field">
+          <label for="start">Startkapital</label>
+          <div class="input-row">
+            <input id="start" type="number" min="0" step="100" value="10000">
+            <select id="currency" class="unit">
+              <option value="EUR">€</option>
+              <option value="USD">$</option>
+              <option value="CHF">CHF</option>
+            </select>
+          </div>
+          <label class="checkbox-row" for="includeStartCapital">
+            <input type="checkbox" id="includeStartCapital" checked>
+            <span>Als Einzahlung berücksichtigen</span>
+          </label>
+        </div>
+
+        <div class="field">
+          <label>Investment-Typ</label>
+          <div class="type-tab-bar" id="investmentTypeToggle">
+            <button type="button" class="type-tab" data-type="classic">Klassisch</button>
+            <button type="button" class="type-tab active" data-type="nextforrest">NextForrest</button>
+          </div>
+          <div class="type-tab-panel">
+          <div id="classicFields" style="display:none;">
+          <div class="field">
+            <label for="rate">Zinssatz (% p.a.)</label>
+            <input id="rate" type="number" step="0.01" value="5">
+            <div class="hint">Der Zinssatz gilt als Jahresrendite. Wie oft er gutgeschrieben wird, legt „Zinsgutschrift / Verzinsung“ unten fest.</div>
+          </div>
+
+          <div class="field">
+            <label for="contribution">Regelmäßige Einzahlung</label>
+            <div class="input-row">
+              <input id="contribution" type="number" min="0" step="50" value="0">
+              <select id="contributionPeriod" class="unit">
+                <option value="monthly">monatlich</option>
+                <option value="yearly">jährlich</option>
+              </select>
+            </div>
+            <div class="hint">Einzahlungen werden direkt am Monatsende investiert und ab dem Folgemonat mitverzinst.</div>
+          </div>
+
+          <div class="field">
+            <label for="compound">Zinsgutschrift / Verzinsung</label>
+            <select id="compound">
+              <option value="monthly">Monatlich</option>
+              <option value="quarterly">Vierteljährlich</option>
+              <option value="annual">Jährlich</option>
+            </select>
+            <div class="hint">Legt fest, wie oft die Jahresrendite anteilig gutgeschrieben und dem Kapital zugeschlagen wird.</div>
+          </div>
+        </div>
+
+          <div id="nextForrestFields">
+            <div class="field">
+              <label>Monatliche Rendite</label>
+              <div class="toggle-row" id="nfRateToggle">
+                <button type="button" class="toggle-btn active" data-value="low">5 % / Monat</button>
+                <button type="button" class="toggle-btn" data-value="high">5,2 % / Monat</button>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field">
+                <label>Einzahlungsstrategie</label>
+                <div class="toggle-row" id="nfDepositStrategyToggle">
+                  <button type="button" class="toggle-btn active" data-value="fixed">Fester Betrag/Monat</button>
+                  <button type="button" class="toggle-btn" data-value="roundup">1000er-Aufrundung</button>
+                </div>
+                <div class="hint" id="nfDepositStrategyHint"></div>
+              </div>
+
+              <div class="field" id="nfMonthlyDepositField">
+                <label for="nfMonthlyDeposit">Monatliche Einzahlung</label>
+                <div class="input-row">
+                  <input id="nfMonthlyDeposit" type="number" min="0" step="50" value="500">
+                  <select id="nfMonthlyDepositPeriod" class="unit">
+                    <option value="monthly">monatlich</option>
+                    <option value="yearly">jährlich</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="nfDepositGoal">Einzahlungsschwelle (0 = unbegrenzt)</label>
+                <div class="toggle-row" id="nfDepositGoalThresholdBasisToggle">
+                  <button type="button" class="toggle-btn active" data-value="interest">Monatsrendite</button>
+                  <button type="button" class="toggle-btn" data-value="capital">Aktives Kapital</button>
+                </div>
+                <input id="nfDepositGoal" type="number" min="0" step="1000" value="0" style="margin-top:8px;">
+                <div class="hint" id="nfDepositGoalHint"></div>
+                <div class="field-warning" id="nfDepositGoalWarning"></div>
+              </div>
+
+              <div class="field">
+                <label>Einzahlungsgebühr</label>
+                <div class="hint" style="margin-top:0;">Bei jeder Einzahlung fallen zusätzlich 1,5 % Gebühr an (z. B. 100 € Einzahlung → 101,50 € Gesamtkosten).</div>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field">
+                <label>Auszahlungsstrategie</label>
+                <div class="toggle-row" id="nfWithdrawalStrategyToggle">
+                  <button type="button" class="toggle-btn active" data-value="fixed">Fester Betrag</button>
+                  <button type="button" class="toggle-btn" data-value="percentage">Prozentualer Anteil</button>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="nfWithdrawalAmount" id="nfWithdrawalAmountLabel">Auszahlungsbetrag</label>
+                <div class="input-row">
+                  <input id="nfWithdrawalAmount" type="number" min="0" step="50" value="0">
+                  <select id="nfWithdrawalPeriod" class="unit">
+                    <option value="monthly">monatlich</option>
+                    <option value="yearly">jährlich</option>
+                  </select>
+                </div>
+                <div class="hint">Bei „Prozentualer Anteil“ gilt der Wert als % der jeweils erwirtschafteten monatlichen Rendite.</div>
+              </div>
+
+              <div class="field">
+                <label for="nfWithdrawalMinCapital">Auszahlungsschwelle</label>
+                <div class="toggle-row" id="nfWithdrawalThresholdBasisToggle">
+                  <button type="button" class="toggle-btn active" data-value="interest">Monatsrendite</button>
+                  <button type="button" class="toggle-btn" data-value="capital">Aktives Kapital</button>
+                </div>
+                <input id="nfWithdrawalMinCapital" type="number" min="0" step="500" value="0" style="margin-top:8px;">
+                <div class="hint" id="nfWithdrawalMinCapitalHint"></div>
+                <div class="field-warning" id="nfWithdrawalMinCapitalWarning"></div>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field">
+                <label>Team-Struktur</label>
+                <div class="hint" style="margin-top:0;">Tippgeber-Bonus: 50 € einmalig pro 1.000 €-Block, den eine direkt von dir geworbene Person (Ebene 1) investiert — unabhängig vom Rang. Dein Rang (Bronze bis Diamond) richtet sich nach deinem eigenen aktiven Kapital und dem Team-Volumen über alle Ebenen und schaltet monatliche Boni frei: auf dein eigenes Kapital (ab Gold) sowie auf das jeweilige aktive Kapital der Ebenen 1–3 (ab Bronze, Silver bzw. Platinum). Alle Boni werden direkt deinem eigenen Cash-Konto gutgeschrieben und wachsen dort mit.</div>
+              </div>
+
+              <div class="field">
+                <div id="teamMemberRows"></div>
+                <button type="button" class="secondary" id="addTeamMemberBtn">+ Empfehlung hinzufügen</button>
+              </div>
+            </div>
+          </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="calcBtn">Berechnen</button>
+          <button class="secondary" id="resetBtn" title="Standardwerte wiederherstellen">↺</button>
+        </div>
+      </section>
+
+      <section class="panel results">
+        <div class="table-wrap scenario-summary-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Szenario</th>
+                <th title="Aktives Kapital + Cash">Gesamtvermögen</th>
+                <th title="Kapital, auf das aktuell Rendite berechnet wird">Aktiv verzinst</th>
+                <th title="Erwirtschaftete Zinsen">Zinsen</th>
+                <th title="Nicht verzinstes Kapital">Cash</th>
+                <th title="Inkl. Startkapital (falls als Einzahlung berücksichtigt), ohne Gebühren">Einzahlungen</th>
+                <th title="Einzahlungs- + Auszahlungsgebühr">Gebühren</th>
+                <th title="Netto, nach Abzug der Auszahlungsgebühr">Auszahlungen</th>
+                <th title="Gegenüber den eigenen Einzahlungen">Wachstum</th>
+              </tr>
+            </thead>
+            <tbody id="scenarioSummaryRows"></tbody>
+          </table>
+        </div>
+
+        <div class="chart-wrap">
+          <div class="chart-title">
+            <strong>Kapitalentwicklung</strong>
+            <span class="legend">Vergleich aller Szenarien</span>
+          </div>
+          <canvas id="chart"></canvas>
+          <div class="chart-tooltip" id="chartTooltip"></div>
+          <div class="legend-list" id="chartLegend"></div>
+        </div>
+
+        <div class="chart-title" style="margin: 18px 2px 8px;">
+          <strong>Monatsverlauf</strong>
+          <span class="legend" id="tableScenarioLabel">–</span>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Monat</th>
+                <th>Start aktiv</th>
+                <th>Einzahlung</th>
+                <th>Auszahlung</th>
+                <th>Zinsen</th>
+                <th>Reinvestiert</th>
+                <th>Cash</th>
+                <th>Gebühren</th>
+                <th>Aktives Kapital</th>
+                <th>Gesamt</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+
+        <div id="teamBonusSection" style="display:none;">
+          <div class="chart-title" style="margin: 18px 2px 8px;">
+            <strong>Team-Bonus</strong>
+            <span class="legend" id="teamBonusStatusLabel">–</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Monat</th>
+                  <th title="Der aktuell erreichte Rang, dauerhaft ab Erreichen">Rang</th>
+                  <th title="Summe des aktiven (verzinsten) Kapitals aller Empfehlungen, über alle Ebenen — bestimmt den Rang">Team-Volumen</th>
+                  <th title="50 € je 1.000 €-Block, einmalig, nur Ebene 1">Tippgeber-Bonus</th>
+                  <th title="Prozentsatz auf dein eigenes aktives Kapital, ab Rang Gold">Eigen-Bonus</th>
+                  <th title="Prozentsatz auf das aktive Kapital der Ebene-1-Empfehlungen, ab Rang Bronze">E1-Bonus</th>
+                  <th title="Prozentsatz auf das aktive Kapital der Ebene-2-Empfehlungen, ab Rang Silver">E2-Bonus</th>
+                  <th title="Prozentsatz auf das aktive Kapital der Ebene-3-Empfehlungen, ab Rang Platinum">E3-Bonus</th>
+                  <th>Bonus gesamt</th>
+                </tr>
+              </thead>
+              <tbody id="teamBonusRows"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="footer">
+          Rechenhilfe ohne Gewähr. Renditen sind mathematische Annahmen und keine Prognose zukünftiger Ergebnisse.
+        </div>
+      </section>
+    </div>
+  </main>
+
+
+<script src="calc.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const {
+    NF_RATES, NF_DEPOSIT_FEE_PCT, NF_WITHDRAWAL_FEE_PCT, NF_BLOCK,
+    RANKS,
+    num, simulate, simulateNextForrest, runSimulation
+  } = ZinsCalc;
+
+  const els = {
+    scenarioTabs: $('scenarioTabs'),
+    scenarioName: $('scenarioName'),
+    typeToggle: $('investmentTypeToggle'),
+    classicFields: $('classicFields'),
+    nextForrestFields: $('nextForrestFields'),
+    start: $('start'),
+    includeStartCapital: $('includeStartCapital'),
+    currency: $('currency'),
+    rate: $('rate'),
+    duration: $('duration'),
+    durationUnit: $('durationUnit'),
+    contribution: $('contribution'),
+    contributionPeriod: $('contributionPeriod'),
+    compound: $('compound'),
+    nfRateToggle: $('nfRateToggle'),
+    nfDepositStrategyToggle: $('nfDepositStrategyToggle'),
+    nfDepositStrategyHint: $('nfDepositStrategyHint'),
+    nfMonthlyDepositField: $('nfMonthlyDepositField'),
+    nfMonthlyDeposit: $('nfMonthlyDeposit'),
+    nfMonthlyDepositPeriod: $('nfMonthlyDepositPeriod'),
+    nfDepositGoalThresholdBasisToggle: $('nfDepositGoalThresholdBasisToggle'),
+    nfDepositGoal: $('nfDepositGoal'),
+    nfDepositGoalHint: $('nfDepositGoalHint'),
+    nfDepositGoalWarning: $('nfDepositGoalWarning'),
+    nfWithdrawalStrategyToggle: $('nfWithdrawalStrategyToggle'),
+    nfWithdrawalAmount: $('nfWithdrawalAmount'),
+    nfWithdrawalAmountLabel: $('nfWithdrawalAmountLabel'),
+    nfWithdrawalPeriod: $('nfWithdrawalPeriod'),
+    nfWithdrawalThresholdBasisToggle: $('nfWithdrawalThresholdBasisToggle'),
+    nfWithdrawalMinCapital: $('nfWithdrawalMinCapital'),
+    nfWithdrawalMinCapitalHint: $('nfWithdrawalMinCapitalHint'),
+    nfWithdrawalMinCapitalWarning: $('nfWithdrawalMinCapitalWarning'),
+    teamMemberRows: $('teamMemberRows'),
+    addTeamMemberBtn: $('addTeamMemberBtn'),
+    teamBonusSection: $('teamBonusSection'),
+    teamBonusStatusLabel: $('teamBonusStatusLabel'),
+    teamBonusRows: $('teamBonusRows'),
+    scenarioSummaryRows: $('scenarioSummaryRows'),
+    rows: $('rows'),
+    tableScenarioLabel: $('tableScenarioLabel'),
+    chart: $('chart'),
+    chartTooltip: $('chartTooltip'),
+    chartLegend: $('chartLegend'),
+    calcBtn: $('calcBtn'),
+    resetBtn: $('resetBtn'),
+  };
+
+  const FIELD_KEYS = [
+    'start', 'currency', 'rate', 'duration', 'durationUnit',
+    'contribution', 'contributionPeriod', 'compound',
+    'nfMonthlyDeposit', 'nfMonthlyDepositPeriod', 'nfDepositGoal',
+    'nfWithdrawalAmount', 'nfWithdrawalPeriod', 'nfWithdrawalMinCapital'
+  ];
+
+  // These fields are shared across all scenarios: changing them in one
+  // scenario applies the same value to every other scenario as well.
+  const GLOBAL_FIELD_KEYS = ['duration', 'durationUnit'];
+
+  const defaultScenarioValues = {
+    investmentType: 'nextforrest',
+    start: 10000,
+    includeStartCapital: true,
+    currency: 'USD',
+    rate: 5,
+    duration: 24,
+    durationUnit: 'months',
+    contribution: 0,
+    contributionPeriod: 'monthly',
+    compound: 'monthly',
+    // Fixed for Klassisch (no longer user-editable there); reused as-is
+    // once NextForrest exposes its own controls for these.
+    ratePeriod: 'annual',
+    reinvestThreshold: 0,
+    depositTiming: 'end',
+    reinvestMode: 'accumulating',
+    // NextForrest
+    nfRate: 'low',
+    nfDepositStrategy: 'fixed',
+    nfMonthlyDeposit: 500,
+    nfMonthlyDepositPeriod: 'monthly',
+    nfDepositGoal: 0,
+    nfWithdrawalStrategy: 'fixed',
+    nfWithdrawalAmount: 0,
+    nfWithdrawalPeriod: 'monthly',
+    nfWithdrawalMinCapital: 0,
+    nfWithdrawalThresholdBasis: 'interest',
+    nfDepositGoalThresholdBasis: 'interest',
+    nfTeamMembers: []
+  };
+
+  const COLORS = ['#62d394', '#75a7ff', '#ffb86b', '#ff7a7a', '#c28cff', '#7fe7e7'];
+  const STORAGE_KEY = 'zinseszinsrechner_v2';
+  const LEGACY_STORAGE_KEY = 'zinseszinsrechner';
+
+  let scenarios = [];
+  let activeIndex = 0;
+  let scenarioSeq = 1;
+  let teamMemberSeq = 1;
+  let lastDatasets = [];
+  let hoverState = { index: -1, datasetIndex: -1 };
+
+  function colorFor(index) {
+    return COLORS[index % COLORS.length];
+  }
+
+  function makeScenario(values, name) {
+    const scenario = {
+      id: 'sc' + scenarioSeq,
+      name: name || `Szenario ${scenarioSeq}`,
+      // Flache Kopie reicht für alle primitiven Felder; nfTeamMembers ist das
+      // einzige Array-Feld und muss explizit tief kopiert werden, sonst
+      // teilen sich duplizierte Szenarien dieselbe Team-Liste.
+      values: {
+        ...values,
+        nfTeamMembers: Array.isArray(values.nfTeamMembers) ? values.nfTeamMembers.map(m => ({ ...m })) : []
+      }
+    };
+    scenarioSeq += 1;
+    return scenario;
+  }
+
+  function fmt(value, currency) {
+    const cur = currency || els.currency.value || 'USD';
+    return new Intl.NumberFormat('de-DE', {
+      style: 'currency',
+      currency: cur,
+      maximumFractionDigits: 2
+    }).format(value);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function activeTeamMembers() {
+    const v = scenarios[activeIndex] && scenarios[activeIndex].values;
+    if (!v) return [];
+    if (!Array.isArray(v.nfTeamMembers)) v.nfTeamMembers = [];
+    return v.nfTeamMembers;
+  }
+
+  function addTeamMember() {
+    const v = scenarios[activeIndex].values;
+    const members = Array.isArray(v.nfTeamMembers) ? v.nfTeamMembers : [];
+    v.nfTeamMembers = [...members, {
+      id: 'tm' + (teamMemberSeq++), name: '', level: 1, startCapital: 1000, monthlyDeposit: 0, joinMonth: 1
+    }];
+    renderTeamMemberRows();
+    calculate();
+  }
+
+  function removeTeamMember(id) {
+    const v = scenarios[activeIndex].values;
+    v.nfTeamMembers = activeTeamMembers().filter(m => m.id !== id);
+    renderTeamMemberRows();
+    calculate();
+  }
+
+  function renderTeamMemberRows() {
+    const members = activeTeamMembers();
+    els.teamMemberRows.innerHTML = members.length ? members.map(m => `
+      <div class="team-member-card" data-member-id="${m.id}">
+        <div class="team-member-card-header">
+          <input type="text" class="team-input" data-field="name" value="${escapeHtml(m.name || '')}" placeholder="Name (optional)">
+          <button type="button" class="team-remove-btn" data-remove-id="${m.id}" title="Empfehlung entfernen">✕</button>
+        </div>
+        <div class="team-member-grid">
+          <label>Ebene<input type="number" class="team-input" data-field="level" min="1" step="1" value="${m.level}"></label>
+          <label>Beitrittsmonat<input type="number" class="team-input" data-field="joinMonth" min="1" step="1" value="${m.joinMonth}"></label>
+          <label>Startkapital<input type="number" class="team-input" data-field="startCapital" min="0" step="500" value="${m.startCapital}"></label>
+          <label>Mtl. Einzahlung<input type="number" class="team-input" data-field="monthlyDeposit" min="0" step="50" value="${m.monthlyDeposit}"></label>
+        </div>
+      </div>
+    `).join('') : `<div class="team-empty-hint">Noch keine Empfehlungen erfasst.</div>`;
+  }
+
+  function renderTeamBonusSection(values, result) {
+    const members = Array.isArray(values.nfTeamMembers) ? values.nfTeamMembers : [];
+    if (values.investmentType !== 'nextforrest' || members.length === 0 || !result.team) {
+      els.teamBonusSection.style.display = 'none';
+      return;
+    }
+
+    const team = result.team;
+    const cur = values.currency;
+    els.teamBonusSection.style.display = '';
+
+    const nextRank = RANKS[team.rankIndex + 1];
+    const statusParts = [`Rang: ${team.rank}`];
+    statusParts.push(nextRank
+      ? `nächster Rang ${nextRank.name} ab ${fmt(nextRank.ownThreshold, cur)} eigen + ${fmt(nextRank.teamThreshold, cur)} Team-Volumen`
+      : 'höchster Rang erreicht');
+    statusParts.push(`Bonus gesamt ${fmt(team.totalBonus, cur)}`);
+    els.teamBonusStatusLabel.textContent = statusParts.join(' · ');
+
+    els.teamBonusRows.innerHTML = team.rows.map(row => `
+      <tr>
+        <td>${row.month}</td>
+        <td>${row.rank}</td>
+        <td>${fmt(row.teamVolume, cur)}</td>
+        <td>${fmt(row.tippgeberBonus, cur)}</td>
+        <td>${fmt(row.ownBonus, cur)}</td>
+        <td>${fmt(row.e1Bonus, cur)}</td>
+        <td>${fmt(row.e2Bonus, cur)}</td>
+        <td>${fmt(row.e3Bonus, cur)}</td>
+        <td><strong>${fmt(row.totalBonus, cur)}</strong></td>
+      </tr>
+    `).join('');
+  }
+
+  function renderTable(data) {
+    els.rows.innerHTML = data.map(r => `
+      <tr>
+        <td>${r.month}</td>
+        <td>${fmt(r.openingActive)}</td>
+        <td>${fmt(r.deposit)}</td>
+        <td>${fmt(r.withdrawn || 0)}</td>
+        <td>${fmt(r.interest)}</td>
+        <td>${fmt(r.reinvested)}</td>
+        <td>${fmt(r.cash)}</td>
+        <td>${fmt(r.fee || 0)}</td>
+        <td><strong>${fmt(r.active)}</strong></td>
+        <td><strong>${fmt(r.total)}</strong></td>
+      </tr>
+    `).join('');
+  }
+
+  function hexToRgba(hex, alpha) {
+    const h = hex.replace('#', '');
+    const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+    const bigint = parseInt(full, 16);
+    const r = (bigint >> 16) & 255, g = (bigint >> 8) & 255, b = bigint & 255;
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  function drawLineChart(canvas, datasets, { legendContainer = null, fillIndex = -1, hoverIndex = -1, hoverDatasetIndex = -1 } = {}) {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.round(rect.width * dpr));
+    canvas.height = Math.max(1, Math.round(rect.height * dpr));
+
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const w = rect.width;
+    const h = rect.height;
+    const pad = { l: 66, r: 18, t: 16, b: 34 };
+    const pw = w - pad.l - pad.r;
+    const ph = h - pad.t - pad.b;
+
+    ctx.clearRect(0, 0, w, h);
+
+    const allValues = datasets.flatMap(ds => ds.data.map(p => p.value));
+    let min = Math.min(...allValues);
+    let max = Math.max(...allValues);
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      min = 0;
+      max = 1;
+    }
+    if (max === min) max = min + 1;
+    min = Math.min(0, min);
+
+    const maxLen = Math.max(...datasets.map(ds => ds.data.length));
+    const x = i => pad.l + (i / Math.max(1, maxLen - 1)) * pw;
+    const y = v => pad.t + ph - ((v - min) / (max - min)) * ph;
+
+    canvas._chartMeta = { pad, pw, ph, x, y, maxLen };
+
+    // Grid
+    ctx.strokeStyle = 'rgba(255,255,255,.09)';
+    ctx.fillStyle = 'rgba(158,171,193,.95)';
+    ctx.font = '11px system-ui';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+
+    const ticks = 5;
+    for (let i = 0; i <= ticks; i++) {
+      const val = min + (max - min) * (i / ticks);
+      const yy = y(val);
+      ctx.beginPath();
+      ctx.moveTo(pad.l, yy);
+      ctx.lineTo(w - pad.r, yy);
+      ctx.stroke();
+
+      const short = new Intl.NumberFormat('de-DE', {
+        notation: 'compact',
+        maximumFractionDigits: 1
+      }).format(val);
+      ctx.fillText(short, pad.l - 8, yy);
+    }
+
+    // X labels
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const labelCount = Math.min(6, maxLen - 1);
+    for (let i = 0; i <= labelCount; i++) {
+      const idx = Math.round((maxLen - 1) * i / Math.max(1, labelCount));
+      const xx = x(idx);
+      const label = datasets[0]?.data[idx]?.month ?? idx;
+      ctx.fillText(label, xx, h - pad.b + 10);
+    }
+
+    // Optional fill for the highlighted (active) dataset
+    if (fillIndex >= 0 && datasets[fillIndex] && datasets[fillIndex].data.length > 0) {
+      const base = datasets[fillIndex];
+      const grad = ctx.createLinearGradient(0, pad.t, 0, h - pad.b);
+      grad.addColorStop(0, hexToRgba(base.color, .24));
+      grad.addColorStop(1, hexToRgba(base.color, 0));
+
+      ctx.beginPath();
+      base.data.forEach((p, i) => {
+        const xx = x(i), yy = y(p.value);
+        if (i === 0) ctx.moveTo(xx, yy);
+        else ctx.lineTo(xx, yy);
+      });
+      ctx.lineTo(x(base.data.length - 1), h - pad.b);
+      ctx.lineTo(x(0), h - pad.b);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    // Lines — draw the highlighted dataset last so it sits on top
+    const drawOrder = datasets.map((_, i) => i)
+      .sort((a, b) => (a === fillIndex ? 1 : 0) - (b === fillIndex ? 1 : 0));
+
+    drawOrder.forEach(i => {
+      const ds = datasets[i];
+      ctx.beginPath();
+      ds.data.forEach((p, j) => {
+        const xx = x(j), yy = y(p.value);
+        if (j === 0) ctx.moveTo(xx, yy);
+        else ctx.lineTo(xx, yy);
+      });
+      ctx.strokeStyle = ds.color;
+      ctx.lineWidth = ds.width || (i === fillIndex ? 3 : 2);
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      const last = ds.data[ds.data.length - 1];
+      if (last) {
+        ctx.beginPath();
+        ctx.arc(x(ds.data.length - 1), y(last.value), i === fillIndex ? 5 : 4, 0, Math.PI * 2);
+        ctx.fillStyle = ds.color;
+        ctx.fill();
+      }
+    });
+
+    // Hover crosshair + per-series markers at the hovered month
+    if (hoverIndex >= 0) {
+      const gx = x(hoverIndex);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,.25)';
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(gx, pad.t);
+      ctx.lineTo(gx, h - pad.b);
+      ctx.stroke();
+      ctx.restore();
+
+      datasets.forEach((ds, i) => {
+        const p = ds.data[hoverIndex];
+        if (!p) return;
+        const isHovered = i === hoverDatasetIndex;
+        ctx.beginPath();
+        ctx.arc(gx, y(p.value), isHovered ? 6 : 3, 0, Math.PI * 2);
+        ctx.fillStyle = isHovered ? ds.color : hexToRgba(ds.color, .55);
+        ctx.fill();
+        if (isHovered) {
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = 'rgba(255,255,255,.9)';
+          ctx.stroke();
+        }
+      });
+    }
+
+    if (legendContainer) {
+      legendContainer.innerHTML = datasets.map(ds => `
+        <span class="legend-item${ds.scenarioIndex === fillIndex ? ' active' : ''}" data-scenario-index="${ds.scenarioIndex}">
+          <span class="legend-dot" style="background:${ds.color}"></span>
+          ${ds.label}
+        </span>
+      `).join('');
+    }
+  }
+
+  function readInputsIntoValues() {
+    const values = {};
+    FIELD_KEYS.forEach(key => { values[key] = els[key].value; });
+    return values;
+  }
+
+  function applyValuesToInputs(values) {
+    FIELD_KEYS.forEach(key => {
+      if (values[key] !== undefined) els[key].value = values[key];
+    });
+  }
+
+  function setInvestmentTypeUI(type) {
+    els.typeToggle.querySelectorAll('.type-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.type === type);
+    });
+    els.classicFields.style.display = type === 'nextforrest' ? 'none' : '';
+    els.nextForrestFields.style.display = type === 'nextforrest' ? '' : 'none';
+    els.typeToggle.dataset.type = type;
+  }
+
+  function setNfRateUI(value) {
+    els.nfRateToggle.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === value);
+    });
+    els.nfRateToggle.dataset.value = value;
+  }
+
+  function setNfDepositStrategyUI(value) {
+    els.nfDepositStrategyToggle.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === value);
+    });
+    els.nfDepositStrategyToggle.dataset.value = value;
+    els.nfMonthlyDepositField.style.display = value === 'fixed' ? '' : 'none';
+    els.nfDepositStrategyHint.textContent = value === 'fixed'
+      ? 'Der feste Betrag fließt zusammen mit der Rendite ins Cash; investiert wird, sobald dort volle 1000er erreicht sind.'
+      : 'Die monatliche Rendite wird automatisch per Einzahlung auf den nächsten vollen 1000er-Block aufgerundet und investiert (z. B. Rendite 600 € → Einzahlung 400 € → 1000 € investiert).';
+  }
+
+  function setNfDepositGoalThresholdBasisUI(value) {
+    els.nfDepositGoalThresholdBasisToggle.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === value);
+    });
+    els.nfDepositGoalThresholdBasisToggle.dataset.value = value;
+    els.nfDepositGoalHint.textContent = value === 'interest'
+      ? 'Sobald die monatliche Rendite diesen Betrag erreicht, endet die Einzahlungsphase dauerhaft – danach fließt kein weiteres Geld mehr ein (die Rendite läuft normal weiter).'
+      : 'Sobald das aktiv verzinste Kapital diesen Betrag erreicht, endet die Einzahlungsphase – danach fließt kein weiteres Geld mehr ein (die Rendite läuft normal weiter).';
+  }
+
+  function updateNfWithdrawalUI() {
+    const isPct = els.nfWithdrawalStrategyToggle.dataset.value === 'percentage';
+    els.nfWithdrawalAmountLabel.textContent = isPct ? 'Auszahlungs-Anteil (% der Rendite)' : 'Auszahlungsbetrag';
+    els.nfWithdrawalPeriod.style.display = isPct ? 'none' : '';
+  }
+
+  function setNfWithdrawalStrategyUI(value) {
+    els.nfWithdrawalStrategyToggle.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === value);
+    });
+    els.nfWithdrawalStrategyToggle.dataset.value = value;
+    updateNfWithdrawalUI();
+  }
+
+  function setNfWithdrawalThresholdBasisUI(value) {
+    els.nfWithdrawalThresholdBasisToggle.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === value);
+    });
+    els.nfWithdrawalThresholdBasisToggle.dataset.value = value;
+    els.nfWithdrawalMinCapitalHint.textContent = value === 'interest'
+      ? 'Auszahlungen erfolgen nur in Monaten, in denen die erwirtschaftete Rendite diese Schwelle erreicht – schwankt monatlich und kann Auszahlungen wieder aussetzen lassen. Von jeder Auszahlung werden zusätzlich 3,5 % Gebühr abgezogen.'
+      : 'Auszahlungen erfolgen erst ab diesem aktiv verzinsten Kapital. Sollte mindestens der Einzahlungsschwelle entsprechen. Von jeder Auszahlung werden zusätzlich 3,5 % Gebühr abgezogen.';
+  }
+
+  // Flags rule violations without touching the entered values — the user
+  // decides whether/how to fix them.
+  function updateNfValidationWarnings(values) {
+    const start = Math.max(0, num(values.start));
+    const goal = Math.max(0, num(values.nfDepositGoal));
+    const minCap = Math.max(0, num(values.nfWithdrawalMinCapital));
+
+    const depositGoalIsCapital = (values.nfDepositGoalThresholdBasis || 'capital') === 'capital';
+    const goalTooLow = depositGoalIsCapital && goal > 0 && goal < start;
+    els.nfDepositGoalWarning.classList.toggle('visible', goalTooLow);
+    if (goalTooLow) {
+      els.nfDepositGoalWarning.textContent =
+        `⚠ Einzahlungsschwelle (${fmt(goal, values.currency)}) liegt unter dem Startkapital (${fmt(start, values.currency)}).`;
+    }
+
+    const withdrawalThresholdIsCapital = (values.nfWithdrawalThresholdBasis || 'capital') === 'capital';
+    const minCapTooLow = withdrawalThresholdIsCapital && depositGoalIsCapital && goal > 0 && minCap < goal;
+    els.nfWithdrawalMinCapitalWarning.classList.toggle('visible', minCapTooLow);
+    if (minCapTooLow) {
+      els.nfWithdrawalMinCapitalWarning.textContent =
+        `⚠ Auszahlungsschwelle (${fmt(minCap, values.currency)}) liegt unter der Einzahlungsschwelle (${fmt(goal, values.currency)}).`;
+    }
+  }
+
+  function applyScenarioToInputs(scenario) {
+    applyValuesToInputs(scenario.values);
+    els.scenarioName.value = scenario.name;
+    els.includeStartCapital.checked = scenario.values.includeStartCapital !== false;
+    setInvestmentTypeUI(scenario.values.investmentType || 'nextforrest');
+    setNfRateUI(scenario.values.nfRate || 'low');
+    setNfDepositStrategyUI(scenario.values.nfDepositStrategy || 'fixed');
+    setNfWithdrawalStrategyUI(scenario.values.nfWithdrawalStrategy || 'fixed');
+    setNfWithdrawalThresholdBasisUI(scenario.values.nfWithdrawalThresholdBasis || 'interest');
+    setNfDepositGoalThresholdBasisUI(scenario.values.nfDepositGoalThresholdBasis || 'interest');
+    renderTeamMemberRows();
+  }
+
+  function syncActiveFromInputs() {
+    if (!scenarios[activeIndex]) return;
+    // Merge (not replace): fields without a visible control — e.g. the
+    // fixed Klassisch defaults for depositTiming/reinvestMode/reinvestThreshold —
+    // must survive since they're not part of FIELD_KEYS anymore.
+    Object.assign(scenarios[activeIndex].values, readInputsIntoValues());
+    scenarios[activeIndex].values.investmentType = els.typeToggle.dataset.type || 'nextforrest';
+    scenarios[activeIndex].values.includeStartCapital = els.includeStartCapital.checked;
+    scenarios[activeIndex].values.nfRate = els.nfRateToggle.dataset.value || 'low';
+    scenarios[activeIndex].values.nfDepositStrategy = els.nfDepositStrategyToggle.dataset.value || 'fixed';
+    scenarios[activeIndex].values.nfWithdrawalStrategy = els.nfWithdrawalStrategyToggle.dataset.value || 'fixed';
+    scenarios[activeIndex].values.nfWithdrawalThresholdBasis = els.nfWithdrawalThresholdBasisToggle.dataset.value || 'interest';
+    scenarios[activeIndex].values.nfDepositGoalThresholdBasis = els.nfDepositGoalThresholdBasisToggle.dataset.value || 'interest';
+
+    const nameVal = els.scenarioName.value.trim();
+    if (nameVal) scenarios[activeIndex].name = nameVal;
+
+    GLOBAL_FIELD_KEYS.forEach(key => {
+      const value = scenarios[activeIndex].values[key];
+      scenarios.forEach(sc => { sc.values[key] = value; });
+    });
+  }
+
+  function updateTabNames() {
+    const names = els.scenarioTabs.querySelectorAll('.name');
+    names.forEach((el, idx) => {
+      if (scenarios[idx]) el.textContent = scenarios[idx].name;
+    });
+  }
+
+  function renderTabs() {
+    els.scenarioTabs.innerHTML = '';
+
+    scenarios.forEach((sc, idx) => {
+      const tab = document.createElement('div');
+      tab.className = 'scenario-tab' + (idx === activeIndex ? ' active' : '');
+
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.style.background = colorFor(idx);
+      tab.appendChild(dot);
+
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = sc.name;
+      tab.appendChild(name);
+
+      if (scenarios.length > 1) {
+        const close = document.createElement('span');
+        close.className = 'close';
+        close.textContent = '✕';
+        close.title = 'Szenario entfernen';
+        close.addEventListener('click', (e) => {
+          e.stopPropagation();
+          removeScenario(idx);
+        });
+        tab.appendChild(close);
+      }
+
+      tab.addEventListener('click', () => switchScenario(idx));
+      els.scenarioTabs.appendChild(tab);
+    });
+
+    const addBtn = document.createElement('div');
+    addBtn.className = 'scenario-tab-add';
+    addBtn.textContent = '+';
+    addBtn.title = 'Aktuelles Szenario duplizieren';
+    addBtn.addEventListener('click', addScenario);
+    els.scenarioTabs.appendChild(addBtn);
+  }
+
+  function switchScenario(idx) {
+    if (idx === activeIndex) return;
+    syncActiveFromInputs();
+    activeIndex = idx;
+    applyScenarioToInputs(scenarios[activeIndex]);
+    renderTabs();
+    calculate();
+  }
+
+  function addScenario() {
+    syncActiveFromInputs();
+    const newScenario = makeScenario(scenarios[activeIndex].values);
+    scenarios.push(newScenario);
+    activeIndex = scenarios.length - 1;
+    applyScenarioToInputs(newScenario);
+    renderTabs();
+    calculate();
+  }
+
+  function removeScenario(idx) {
+    if (scenarios.length <= 1) return;
+    scenarios.splice(idx, 1);
+    if (idx < activeIndex) activeIndex -= 1;
+    if (activeIndex >= scenarios.length) activeIndex = scenarios.length - 1;
+    applyScenarioToInputs(scenarios[activeIndex]);
+    renderTabs();
+    calculate();
+  }
+
+  function calculate() {
+    syncActiveFromInputs();
+    const activeScenario = scenarios[activeIndex];
+    updateNfValidationWarnings(activeScenario.values);
+    const main = runSimulation(activeScenario.values);
+
+    renderTable(main.rows);
+    els.tableScenarioLabel.textContent = activeScenario.name;
+    renderTeamBonusSection(activeScenario.values, main);
+    updateTabNames();
+
+    const results = scenarios.map((sc, idx) => ({
+      sc, idx, result: idx === activeIndex ? main : runSimulation(sc.values)
+    }));
+
+    lastDatasets = results.map(({ sc, idx, result }) => ({
+      scenarioIndex: idx,
+      name: sc.name,
+      currency: sc.values.currency,
+      label: `${sc.name}: ${fmt(result.finalWealth, sc.values.currency)}`,
+      color: colorFor(idx),
+      data: result.series,
+      width: idx === activeIndex ? 3 : 2
+    }));
+
+    renderScenarioSummaryTable(results);
+
+    hoverState = { index: -1, datasetIndex: -1 };
+    els.chartTooltip.style.display = 'none';
+    renderChart();
+
+    saveState();
+  }
+
+  function renderScenarioSummaryTable(results) {
+    els.scenarioSummaryRows.innerHTML = results.map(({ sc, idx, result }) => {
+      const cur = sc.values.currency;
+      const growth = `${result.growth >= 0 ? '+' : ''}${result.growth.toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`;
+      return `
+        <tr class="scenario-row${idx === activeIndex ? ' active-row' : ''}" data-scenario-index="${idx}">
+          <td><span class="row-dot" style="background:${colorFor(idx)}"></span>${sc.name}</td>
+          <td><strong>${fmt(result.finalWealth, cur)}</strong></td>
+          <td>${fmt(result.activeCapital, cur)}</td>
+          <td>${fmt(result.totalInterest, cur)}</td>
+          <td>${fmt(result.cash, cur)}</td>
+          <td>${fmt(result.totalDeposits, cur)}</td>
+          <td>${fmt(result.totalFees, cur)}</td>
+          <td>${fmt(result.totalWithdrawn, cur)}</td>
+          <td>${growth}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function renderChart() {
+    drawLineChart(els.chart, lastDatasets, {
+      legendContainer: els.chartLegend,
+      fillIndex: activeIndex,
+      hoverIndex: hoverState.index,
+      hoverDatasetIndex: hoverState.datasetIndex
+    });
+  }
+
+  function showTooltip(clientX, clientY, idx, highlightDs) {
+    const wrap = els.chart.closest('.chart-wrap');
+    const wrapRect = wrap.getBoundingClientRect();
+
+    const rows = lastDatasets
+      .map(ds => ({ ds, point: ds.data[idx] }))
+      .filter(r => r.point)
+      .sort((a, b) => b.point.value - a.point.value);
+
+    if (!rows.length) return;
+
+    els.chartTooltip.innerHTML = `
+      <div class="tt-month">Monat ${rows[0].point.month}</div>
+      ${rows.map(r => `
+        <div class="tt-row${r.ds.scenarioIndex === highlightDs ? ' hovered' : ''}">
+          <span class="tt-dot" style="background:${r.ds.color}"></span>
+          <span class="tt-name">${r.ds.name}</span>
+          <span class="tt-value">${fmt(r.point.value, r.ds.currency)}</span>
+        </div>
+      `).join('')}
+    `;
+    els.chartTooltip.style.display = 'block';
+
+    const ttRect = els.chartTooltip.getBoundingClientRect();
+    let left = clientX - wrapRect.left + 14;
+    let top = clientY - wrapRect.top + 14;
+    if (left + ttRect.width > wrapRect.width) left = clientX - wrapRect.left - ttRect.width - 14;
+    if (top + ttRect.height > wrapRect.height) top = clientY - wrapRect.top - ttRect.height - 14;
+    if (left < 0) left = 4;
+    if (top < 0) top = 4;
+    els.chartTooltip.style.left = left + 'px';
+    els.chartTooltip.style.top = top + 'px';
+  }
+
+  function hideHover() {
+    if (hoverState.index === -1) return;
+    hoverState = { index: -1, datasetIndex: -1 };
+    renderChart();
+    els.chartTooltip.style.display = 'none';
+    els.chart.style.cursor = 'default';
+  }
+
+  function handleChartHover(e) {
+    const meta = els.chart._chartMeta;
+    if (!meta || !lastDatasets.length) return;
+
+    const rect = els.chart.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    if (mx < meta.pad.l || mx > rect.width - meta.pad.r || my < meta.pad.t || my > rect.height - meta.pad.b) {
+      hideHover();
+      return;
+    }
+
+    const rawIdx = Math.round((mx - meta.pad.l) / Math.max(1, meta.pw) * (meta.maxLen - 1));
+    const idx = Math.max(0, Math.min(meta.maxLen - 1, rawIdx));
+
+    // Find the line closest to the cursor — used for click-to-switch and
+    // the emphasized marker, not for whether the tooltip is shown at all.
+    let bestDs = -1, bestDist = Infinity;
+    lastDatasets.forEach((ds, i) => {
+      const p = ds.data[idx];
+      if (!p) return;
+      const dist = Math.abs(my - meta.y(p.value));
+      if (dist < bestDist) { bestDist = dist; bestDs = i; }
+    });
+    const closeEnough = bestDs !== -1 && bestDist <= 45;
+
+    hoverState = { index: idx, datasetIndex: closeEnough ? bestDs : -1 };
+    renderChart();
+    showTooltip(e.clientX, e.clientY, idx, closeEnough ? bestDs : -1);
+    els.chart.style.cursor = closeEnough ? 'pointer' : 'default';
+  }
+
+  els.chart.addEventListener('mousemove', handleChartHover);
+  els.chart.addEventListener('mouseleave', hideHover);
+  els.chart.addEventListener('click', () => {
+    if (hoverState.datasetIndex >= 0 && hoverState.datasetIndex !== activeIndex) {
+      switchScenario(hoverState.datasetIndex);
+    }
+  });
+
+  els.chartLegend.addEventListener('click', (e) => {
+    const item = e.target.closest('.legend-item');
+    if (!item) return;
+    const idx = parseInt(item.dataset.scenarioIndex, 10);
+    if (Number.isFinite(idx)) switchScenario(idx);
+  });
+
+  els.scenarioSummaryRows.addEventListener('click', (e) => {
+    const row = e.target.closest('.scenario-row');
+    if (!row) return;
+    const idx = parseInt(row.dataset.scenarioIndex, 10);
+    if (Number.isFinite(idx)) switchScenario(idx);
+  });
+
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        scenarios: scenarios.map(sc => ({ id: sc.id, name: sc.name, values: sc.values })),
+        activeIndex,
+        scenarioSeq
+      }));
+    } catch(e) {}
+  }
+
+  function loadState() {
+    let saved = null;
+    try {
+      saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    } catch(e) {}
+
+    if (saved && Array.isArray(saved.scenarios) && saved.scenarios.length) {
+      scenarios = saved.scenarios;
+      activeIndex = Math.min(Math.max(0, saved.activeIndex || 0), scenarios.length - 1);
+      scenarioSeq = saved.scenarioSeq || scenarios.length + 1;
+      return true;
+    }
+
+    let legacy = null;
+    try {
+      legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || 'null');
+    } catch(e) {}
+
+    if (legacy && legacy.start !== undefined) {
+      scenarios = [makeScenario({ ...defaultScenarioValues, ...legacy })];
+      activeIndex = 0;
+      return true;
+    }
+
+    return false;
+  }
+
+  function reset() {
+    scenarios = [makeScenario(defaultScenarioValues)];
+    activeIndex = 0;
+    applyScenarioToInputs(scenarios[0]);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+    } catch(e) {}
+    renderTabs();
+    calculate();
+  }
+
+  els.calcBtn.addEventListener('click', calculate);
+  els.resetBtn.addEventListener('click', reset);
+
+  FIELD_KEYS.forEach(key => {
+    els[key].addEventListener('input', calculate);
+    els[key].addEventListener('change', calculate);
+  });
+
+  els.scenarioName.addEventListener('input', calculate);
+  els.scenarioName.addEventListener('change', calculate);
+
+  els.includeStartCapital.addEventListener('change', calculate);
+
+  els.typeToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.type-tab');
+    if (!btn) return;
+    setInvestmentTypeUI(btn.dataset.type);
+    calculate();
+  });
+
+  els.nfRateToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    setNfRateUI(btn.dataset.value);
+    calculate();
+  });
+
+  els.nfDepositStrategyToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    setNfDepositStrategyUI(btn.dataset.value);
+    calculate();
+  });
+
+  els.nfWithdrawalStrategyToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    setNfWithdrawalStrategyUI(btn.dataset.value);
+    calculate();
+  });
+
+  els.nfWithdrawalThresholdBasisToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    setNfWithdrawalThresholdBasisUI(btn.dataset.value);
+    calculate();
+  });
+
+  els.nfDepositGoalThresholdBasisToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    setNfDepositGoalThresholdBasisUI(btn.dataset.value);
+    calculate();
+  });
+
+  els.addTeamMemberBtn.addEventListener('click', addTeamMember);
+
+  els.teamMemberRows.addEventListener('input', (e) => {
+    const input = e.target.closest('.team-input');
+    if (!input) return;
+    const card = input.closest('.team-member-card');
+    const member = activeTeamMembers().find(m => m.id === (card && card.dataset.memberId));
+    if (!member) return;
+    const field = input.dataset.field;
+    member[field] = field === 'name' ? input.value : num(input.value);
+    calculate();
+  });
+
+  els.teamMemberRows.addEventListener('click', (e) => {
+    const btn = e.target.closest('.team-remove-btn');
+    if (!btn) return;
+    removeTeamMember(btn.dataset.removeId);
+  });
+
+  window.addEventListener('resize', calculate);
+
+  if (!loadState()) {
+    scenarios = [makeScenario(defaultScenarioValues)];
+    activeIndex = 0;
+  }
+  applyScenarioToInputs(scenarios[activeIndex]);
+  renderTabs();
+  calculate();
+})();
+</script>
+
+</body>
+</html>
