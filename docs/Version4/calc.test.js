@@ -271,17 +271,18 @@ describe('Team-Struktur / Rangsystem (simulateNextForrest.team)', () => {
       ]
     }));
     const byMonth = m => r.team.rows.find(row => row.month === m);
-    // Ebene 1: 3.000 € Startkapital = 3 Blöcke → 3 × 50 € = 150 €, in ihrem
-    // Beitrittsmonat. Ebene 2 zählt hier nicht mit, da sie nicht direkt vom
-    // Szenario-Inhaber geworben wurde. Rang ist hier noch "Forrest Member"
-    // (Schwellen längst nicht erreicht) — der Tippgeber-Bonus fließt trotzdem.
+    // Kein Monat 0 mehr — alle Bonuszahlungen laufen ab Monat 1. Ebene 1:
+    // 3.000 € Startkapital = 3 Blöcke → 3 × 50 € = 150 €, im tatsächlichen
+    // Beitrittsmonat 1. Ebene 2 zählt hier nicht mit, da sie nicht direkt
+    // vom Szenario-Inhaber geworben wurde.
+    assert.strictEqual(byMonth(0), undefined);
     assert.strictEqual(byMonth(1).rank, 'Forrest Member');
     close(byMonth(1).tippgeberBonus, 150);
     close(byMonth(2).tippgeberBonus, 0);
     close(r.team.totalTippgeberBonus, 150);
   });
 
-  test('Tippgeber-Bonus wird im Beitrittsmonat der Empfehlung gutgeschrieben, nicht in Monat 1 des Hauptszenarios', () => {
+  test('Tippgeber-Bonus wird im tatsächlichen Beitrittsmonat der Empfehlung gutgeschrieben', () => {
     const r = simulateNextForrest(baseTeam({
       duration: 6,
       nfTeamMembers: [
@@ -292,6 +293,52 @@ describe('Team-Struktur / Rangsystem (simulateNextForrest.team)', () => {
     close(byMonth(1).tippgeberBonus, 0);
     close(byMonth(3).tippgeberBonus, 0);
     close(byMonth(4).tippgeberBonus, 100); // 2 Blöcke × 50 €
+  });
+
+  test('Tippgeber-Bonus zählt JEDEN reinvestierten Block — auch aus Zinsen, nicht nur aus Einzahlungen', () => {
+    // 100.000 € Startkapital = 100 Blöcke (5.000 €). Die erste Monatsrendite
+    // (5 % von 100.000 € = 5.000 €) wird ebenfalls vollständig reinvestiert
+    // (5 weitere Blöcke) und zählt zusätzlich: 5.000 € + 250 € = 5.250 € in
+    // Monat 1. Danach läuft der Bonus auf die weiter anfallenden Zinsen
+    // dauerhaft weiter (250 €/Monat), solange das Kapital wächst.
+    const r = simulateNextForrest(baseTeam({
+      duration: 3,
+      nfTeamMembers: [
+        { name: 'Ebene1', level: 1, startCapital: 100000, monthlyDeposit: 0, joinMonth: 1 }
+      ]
+    }));
+    const byMonth = m => r.team.rows.find(row => row.month === m);
+    close(byMonth(1).tippgeberBonus, 5250);
+    close(byMonth(2).tippgeberBonus, 250);
+    close(byMonth(3).tippgeberBonus, 250);
+  });
+
+  test('"Als Einzahlung berücksichtigen" pro Mitglied: unchecked verhindert nur den Bonus auf den ursprünglichen Einzahlungsblock, nicht auf spätere Zins-Reinvestitionen', () => {
+    const r = simulateNextForrest(baseTeam({
+      duration: 2,
+      nfTeamMembers: [
+        { name: 'Ebene1', level: 1, startCapital: 50000, monthlyDeposit: 0, joinMonth: 1, includeStartCapital: false }
+      ]
+    }));
+    const byMonth = m => r.team.rows.find(row => row.month === m);
+    // Kein Bonus auf die ursprünglichen 50.000 € selbst (kein Einzahlungs-
+    // ereignis), aber die erste Monatsrendite (5 % von 50.000 € = 2.500 €)
+    // wird trotzdem reinvestiert (2 Blöcke) und zahlt normal.
+    close(byMonth(1).tippgeberBonus, 100);
+    close(byMonth(1).teamVolume, 50000);
+  });
+
+  test('"Als Einzahlung berücksichtigen" blockiert nur den Bonus auf das (bereits ausgezahlte) Startkapital — laufende Einzahlungen UND Zins-Reinvestitionen lösen weiterhin normal Tippgeber-Bonus aus', () => {
+    const r = simulateNextForrest(baseTeam({
+      duration: 3,
+      nfTeamMembers: [
+        { name: 'Ebene1', level: 1, startCapital: 50000, monthlyDeposit: 1000, joinMonth: 1, includeStartCapital: false }
+      ]
+    }));
+    const byMonth = m => r.team.rows.find(row => row.month === m);
+    close(byMonth(1).tippgeberBonus, 150);
+    close(byMonth(2).tippgeberBonus, 200);
+    close(byMonth(3).tippgeberBonus, 200);
   });
 
   test('Forrest Bronze (10K eigen + 100K Team): 1 % auf Ebene 1, kein Eigen-Bonus, kein E2/E3', () => {

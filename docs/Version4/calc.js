@@ -317,6 +317,7 @@
         withdrawn: 0,
       });
     }
+
     series.push({ month: 0, value: activeCapital + cash });
 
     for (let m = 1; m <= months; m++) {
@@ -348,8 +349,13 @@
           levelActive[level] = (levelActive[level] || 0) + active;
 
           // Tippgeber-Bonus (50 €/Block) gilt nur für direkt geworbene
-          // Personen (Ebene 1) — unabhängig vom aktuellen Rang.
+          // Personen (Ebene 1) — unabhängig vom aktuellen Rang. Jeder
+          // 1000er-Block zählt, der ins aktive Kapital des Mitglieds
+          // gesweept wird — egal ob aus einer neuen Einzahlung oder aus
+          // reinvestierten Zinsen. Läuft dauerhaft weiter, solange das
+          // Kapital des Mitglieds wächst.
           if (level !== 1) return;
+
           let reinvestedThisMonth = 0;
           if (m === sim.joinMonth) {
             const row0 = sim.result.rows.find((r) => r.month === 0);
@@ -357,9 +363,9 @@
           }
           const localRowM = localRow(sim, m);
           if (localRowM) reinvestedThisMonth += localRowM.reinvested;
+
           if (reinvestedThisMonth > 0) {
-            tippgeberBonus +=
-              (reinvestedThisMonth / NF_BLOCK) * TEAM_BLOCK_BONUS;
+            tippgeberBonus += (reinvestedThisMonth / NF_BLOCK) * TEAM_BLOCK_BONUS;
           }
         });
 
@@ -585,7 +591,11 @@
 
     const result = simulateNextForrest({
       start: num(member.startCapital),
-      includeStartCapital: true,
+      // Wie beim Hauptszenario: unchecked lässt das Startkapital direkt als
+      // aktives Kapital beginnen statt als Einzahlungsereignis — dadurch
+      // entsteht kein row0-Deposit und somit auch kein Tippgeber-Bonus im
+      // Beitrittsmonat auf diesen Betrag.
+      includeStartCapital: member.includeStartCapital !== false,
       duration: memberMonths,
       durationUnit: 'months',
       nfRate: v.nfRate,

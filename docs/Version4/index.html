@@ -287,6 +287,27 @@
       font-weight: 650;
     }
 
+    .team-checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      cursor: pointer;
+    }
+
+    .team-checkbox-row input[type="checkbox"] {
+      width: 15px;
+      height: 15px;
+      flex: 0 0 15px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .team-checkbox-row span {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
     .team-input {
       padding: 9px 10px;
       font-size: 13px;
@@ -1145,7 +1166,7 @@
     const v = scenarios[activeIndex].values;
     const members = Array.isArray(v.nfTeamMembers) ? v.nfTeamMembers : [];
     v.nfTeamMembers = [...members, {
-      id: 'tm' + (teamMemberSeq++), name: '', level: 1, startCapital: 1000, monthlyDeposit: 0, joinMonth: 1
+      id: 'tm' + (teamMemberSeq++), name: '', level: 1, startCapital: 1000, monthlyDeposit: 0, joinMonth: 1, includeStartCapital: true
     }];
     renderTeamMemberRows();
     calculate();
@@ -1172,6 +1193,10 @@
           <label>Startkapital<input type="number" class="team-input" data-field="startCapital" min="0" step="500" value="${m.startCapital}"></label>
           <label>Mtl. Einzahlung<input type="number" class="team-input" data-field="monthlyDeposit" min="0" step="50" value="${m.monthlyDeposit}"></label>
         </div>
+        <label class="team-checkbox-row" title="Deaktivieren, wenn das Startkapital bereits vor dieser Simulation investiert war und der Tippgeber-Bonus dafür schon ausgezahlt wurde — dann gibt's dafür keinen erneuten Bonus. Laufende Einzahlungen danach lösen weiterhin normal pro 1.000 €-Block einen Bonus aus, und das Kapital zählt unverändert fürs Team-Volumen.">
+          <input type="checkbox" class="team-input" data-field="includeStartCapital" ${m.includeStartCapital !== false ? 'checked' : ''}>
+          <span>Tippgeber-Bonus auf Startkapital (neu, nicht bereits ausgezahlt)</span>
+        </label>
       </div>
     `).join('') : `<div class="team-empty-hint">Noch keine Empfehlungen erfasst.</div>`;
   }
@@ -1871,7 +1896,13 @@
     const member = activeTeamMembers().find(m => m.id === (card && card.dataset.memberId));
     if (!member) return;
     const field = input.dataset.field;
-    member[field] = field === 'name' ? input.value : num(input.value);
+    if (field === 'name') {
+      member[field] = input.value;
+    } else if (field === 'includeStartCapital') {
+      member[field] = input.checked;
+    } else {
+      member[field] = num(input.value);
+    }
     calculate();
   });
 
