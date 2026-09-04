@@ -916,10 +916,14 @@
       background: #0e1830;
       padding: 0;
       cursor: default;
+      border-bottom: none;
     }
 
+    /* Kompakt & flach statt als eigene umrahmte Karte — passend zum
+       Monatsverlauf: kein Innenabstand um die innere Tabelle, sie steht
+       direkt flush an allen Seiten (kein Rand/Padding/Margin). */
     .detail-inner {
-      padding: 16px 18px 18px 44px;
+      padding: 0;
     }
 
     /* Aufgeklappte "Ich"/Mitglied-Zeilen im Monatsverlauf sind normale
@@ -933,35 +937,21 @@
       font-size: 12px;
     }
 
-    .detail-heading {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 11px;
-      font-weight: 750;
-      text-transform: uppercase;
-      letter-spacing: .05em;
-      color: var(--accent);
-      margin-bottom: 10px;
-    }
-
-    .detail-heading .dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--accent);
-      flex: 0 0 6px;
-    }
-
     .detail-table-wrap {
       margin-top: 0;
       max-height: none;
-      border-radius: 12px;
+      border: none;
+      border-radius: 0;
     }
 
     .detail-table-wrap table {
       min-width: 880px;
       font-size: 12px;
+    }
+
+    .detail-table-wrap th,
+    .detail-table-wrap td {
+      padding: 7px 10px;
     }
 
     .detail-table-wrap th {
@@ -1637,7 +1627,6 @@
       <tr>
         <td class="detail-cell" colspan="10">
           <div class="detail-inner">
-            <div class="detail-heading"><span class="dot"></span>Monatsverlauf der Team-Mitglieder — Monat ${row.month}</div>
             <div class="table-wrap detail-table-wrap">
               <table>
                 <thead>
