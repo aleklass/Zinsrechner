@@ -53,3 +53,7 @@ Die Anwendung läuft vollständig lokal im Browser. Es werden keine Daten an ein
 ## Hinweis
 
 Der Rechner dient ausschließlich als mathematische Rechenhilfe. Die Ergebnisse basieren auf angenommenen Renditen und stellen keine Finanzberatung oder Prognose zukünftiger Erträge dar.
+
+## Lizenz
+
+MIT – siehe [LICENSE](LICENSE).

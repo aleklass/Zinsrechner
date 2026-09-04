@@ -140,6 +140,32 @@
       box-shadow: 0 0 0 3px rgba(117,167,255,.12);
     }
 
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 2px;
+      padding: 12px 13px;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 18px;
+      padding: 0;
+      border-radius: 4px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .checkbox-row span {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
     .unit {
       width: 92px;
       flex: 0 0 92px;
@@ -156,6 +182,357 @@
       font-size: 11px;
       line-height: 1.45;
       margin-top: 6px;
+    }
+
+    /* Erklärtext hinter einem kleinen "i"-Kreis statt als eigener Absatz —
+       spart Platz, Inhalt erscheint als Tooltip bei Hover/Fokus. */
+    .info-tip {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 15px;
+      height: 15px;
+      flex: 0 0 15px;
+      border-radius: 50%;
+      border: 1px solid var(--muted);
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 750;
+      font-style: normal;
+      line-height: 1;
+      cursor: help;
+      vertical-align: middle;
+      margin-left: 2px;
+    }
+
+    .info-tip::before {
+      content: "i";
+    }
+
+    .info-tip:hover,
+    .info-tip:focus-visible {
+      border-color: var(--accent-2);
+      color: var(--accent-2);
+      outline: none;
+    }
+
+    .info-tip-bubble {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 0;
+      width: 260px;
+      max-width: min(320px, 70vw);
+      background: #0d1626;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: none;
+      letter-spacing: normal;
+      line-height: 1.5;
+      color: var(--text);
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+      z-index: 20;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(4px);
+      transition: opacity .15s ease, transform .15s ease;
+    }
+
+    .info-tip:hover .info-tip-bubble,
+    .info-tip:focus-visible .info-tip-bubble {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .field-warning {
+      display: none;
+      align-items: flex-start;
+      gap: 6px;
+      color: var(--danger);
+      font-size: 11px;
+      line-height: 1.45;
+      margin-top: 6px;
+    }
+
+    .field-warning.visible {
+      display: flex;
+    }
+
+    .type-tab-bar {
+      display: flex;
+      gap: 4px;
+      margin-bottom: -1px;
+      position: relative;
+      z-index: 1;
+      padding-left: 2px;
+    }
+
+    .type-tab {
+      border: 1px solid var(--border);
+      border-bottom: none;
+      background: rgba(255,255,255,.02);
+      color: var(--muted);
+      padding: 9px 16px;
+      border-radius: 10px 10px 0 0;
+      font-size: 13px;
+      font-weight: 750;
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    .type-tab:hover {
+      color: var(--text);
+    }
+
+    .type-tab.active {
+      background: var(--panel-2);
+      color: var(--accent);
+    }
+
+    .type-tab-panel {
+      border: 1px solid var(--border);
+      border-radius: 0 14px 14px 14px;
+      background: var(--panel-2);
+      padding: 16px 16px 2px;
+    }
+
+    #classicFields .field:last-child,
+    #nextForrestFields .field:last-child {
+      margin-bottom: 14px;
+    }
+
+    .field-group {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 14px 0;
+      margin-bottom: 17px;
+      background: rgba(255,255,255,.015);
+    }
+
+    .field-group .field:last-child {
+      margin-bottom: 14px;
+    }
+
+    .team-member-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: var(--panel-2);
+    }
+
+    .team-member-card-header {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .team-member-card-header .team-input {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .team-member-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .team-member-grid label {
+      display: block;
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      font-weight: 650;
+    }
+
+    .team-checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      cursor: pointer;
+    }
+
+    .team-checkbox-row input[type="checkbox"] {
+      width: 15px;
+      height: 15px;
+      flex: 0 0 15px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .team-checkbox-row span {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .team-input {
+      padding: 9px 10px;
+      font-size: 13px;
+      border-radius: 9px;
+    }
+
+    .team-remove-btn {
+      flex: 0 0 auto;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .team-remove-btn:hover {
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+
+    .expand-btn {
+      flex: 0 0 auto;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 8px 9px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .expand-btn:hover {
+      color: var(--text);
+      border-color: rgba(117,167,255,.5);
+    }
+
+    .expand-btn svg {
+      display: block;
+      transition: transform .15s ease;
+    }
+
+    .expand-btn.open {
+      color: var(--accent);
+      border-color: rgba(98,211,148,.4);
+    }
+
+    .expand-btn.open svg {
+      transform: rotate(180deg);
+    }
+
+    .scenario-panel {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--border);
+    }
+
+    .scenario-panel-label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 10px;
+      font-weight: 750;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+
+    .scenario-panel-label .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex: 0 0 6px;
+    }
+
+    .scenario-panel .mini-field {
+      margin-bottom: 10px;
+    }
+
+    .scenario-panel .mini-field:last-child {
+      margin-bottom: 0;
+    }
+
+    .scenario-panel .mini-field label {
+      font-size: 10px;
+      margin-bottom: 5px;
+    }
+
+    .scenario-panel .field-group {
+      padding: 10px 10px 0;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+
+    .scenario-panel .field-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .scenario-panel .toggle-row {
+      padding: 3px;
+      border-radius: 10px;
+    }
+
+    .scenario-panel .toggle-btn {
+      padding: 7px 8px;
+      font-size: 11px;
+      border-radius: 7px;
+    }
+
+    .scenario-panel .unit {
+      width: 76px;
+      flex: 0 0 76px;
+    }
+
+    .team-empty-hint {
+      color: var(--muted);
+      font-size: 12px;
+      padding: 4px 2px 10px;
+    }
+
+    .type-placeholder {
+      padding: 16px;
+      margin-bottom: 14px;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .toggle-row {
+      display: flex;
+      gap: 6px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px;
+    }
+
+    .toggle-btn {
+      flex: 1;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      padding: 9px 10px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    .toggle-btn:hover { color: var(--text); }
+
+    .toggle-btn.active {
+      background: var(--accent);
+      color: #062514;
     }
 
     .actions {
@@ -193,42 +570,37 @@
       padding: 22px;
     }
 
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0,1fr));
-      gap: 12px;
+    .scenario-summary-wrap {
+      margin-top: 0;
       margin-bottom: 20px;
     }
 
-    .card {
-      background: var(--panel-2);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 16px;
-      min-height: 112px;
+    .scenario-summary-wrap tr {
+      cursor: pointer;
+      transition: .15s ease;
     }
 
-    .card .k {
-      color: var(--muted);
-      font-size: 12px;
-      margin-bottom: 10px;
+    .scenario-summary-wrap tbody tr:hover td {
+      background: rgba(255,255,255,.03);
     }
 
-    .card .v {
-      font-size: clamp(21px, 3vw, 31px);
-      letter-spacing: -0.03em;
-      font-weight: 800;
-      overflow-wrap: anywhere;
+    .scenario-summary-wrap tbody tr.active-row td {
+      background: rgba(98,211,148,.08);
     }
 
-    .card .small {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 6px;
+    .scenario-summary-wrap td:first-child {
+      font-weight: 700;
+      white-space: nowrap;
     }
 
-    .accent { color: var(--accent); }
-    .blue { color: var(--accent-2); }
+    .row-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
 
     .chart-wrap {
       background: var(--panel-2);
@@ -303,6 +675,29 @@
 
     .chart-title strong { font-size: 14px; }
     .legend { color: var(--muted); font-size: 11px; }
+
+    .chart-mode-toggle {
+      max-width: 320px;
+      margin: 0 2px 14px;
+    }
+
+    .chart-legend-note {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin: 10px 2px 0;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .chart-legend-note .marker-swatch {
+      display: inline-block;
+      width: 14px;
+      height: 0;
+      border-top: 2px dashed currentColor;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
 
     .scenario-tabs {
       display: flex;
@@ -479,6 +874,115 @@
 
     tr:last-child td { border-bottom: 0; }
 
+    #teamBonusSection thead th:nth-child(2),
+    #teamBonusRows > tr > td:nth-child(2) {
+      text-align: left;
+    }
+
+    .expand-cell {
+      width: 30px;
+      padding: 11px 4px 11px 12px;
+    }
+
+    .expand-icon {
+      display: inline-flex;
+      color: var(--muted);
+      transition: transform .15s ease;
+    }
+
+    #teamBonusRows tr.month-row,
+    #rows tr.month-row {
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    #teamBonusRows tr.month-row:hover td,
+    #rows tr.month-row:hover td {
+      background: rgba(255,255,255,.03);
+    }
+
+    #teamBonusRows tr.month-row.open td,
+    #rows tr.month-row.open td {
+      background: rgba(98,211,148,.06);
+    }
+
+    #teamBonusRows tr.month-row.open .expand-icon,
+    #rows tr.month-row.open .expand-icon {
+      color: var(--accent);
+      transform: rotate(90deg);
+    }
+
+    .detail-cell {
+      background: #0e1830;
+      padding: 0;
+      cursor: default;
+      border-bottom: none;
+    }
+
+    /* Kompakt & flach statt als eigene umrahmte Karte — passend zum
+       Monatsverlauf: kein Innenabstand um die innere Tabelle, sie steht
+       direkt flush an allen Seiten (kein Rand/Padding/Margin). */
+    .detail-inner {
+      padding: 0;
+    }
+
+    /* Aufgeklappte "Ich"/Mitglied-Zeilen im Monatsverlauf sind normale
+       <tr> derselben Tabelle (siehe renderTable()) statt einer eigenen
+       umrahmten Tabelle, damit sie optisch in die Monatsverlauf-Tabelle
+       einfließen statt wie ein separater Block darin zu wirken. Name/Punkt
+       stehen bewusst ohne Einrückung ganz am linken Rand (Expand-Spalte und
+       Monat-Spalte sind zu einer Zelle verschmolzen, siehe subRow()). */
+    #rows tr.detail-sub-row td {
+      background: rgba(255,255,255,.02);
+      font-size: 12px;
+    }
+
+    .detail-table-wrap {
+      margin-top: 0;
+      max-height: none;
+      border: none;
+      border-radius: 0;
+    }
+
+    .detail-table-wrap table {
+      min-width: 880px;
+      font-size: 12px;
+    }
+
+    .detail-table-wrap th,
+    .detail-table-wrap td {
+      padding: 7px 10px;
+    }
+
+    .detail-table-wrap th {
+      background: #101b33;
+      font-size: 10px;
+    }
+
+    .member-name-cell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 650;
+    }
+
+    .member-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex: 0 0 7px;
+    }
+
+    .level-pill {
+      font-size: 9.5px;
+      font-weight: 750;
+      color: var(--accent-2);
+      background: rgba(117,167,255,.12);
+      border: 1px solid rgba(117,167,255,.35);
+      border-radius: 999px;
+      padding: 2px 7px;
+    }
+
     .footer {
       margin-top: 14px;
       color: var(--muted);
@@ -486,14 +990,9 @@
       text-align: center;
     }
 
-    @media (max-width: 1100px) {
-      .cards { grid-template-columns: repeat(2, minmax(0,1fr)); }
-    }
-
     @media (max-width: 860px) {
       .grid { grid-template-columns: minmax(0, 1fr); }
       .inputs { position: static; }
-      .cards { grid-template-columns: 1fr; }
       .header { align-items: start; flex-direction: column; }
     }
 
@@ -515,10 +1014,6 @@
       .unit { width: 78px; flex: 0 0 78px; }
       .actions { grid-template-columns: 1fr 52px; }
       button { padding: 12px 10px; }
-
-      .cards { gap: 10px; margin-bottom: 16px; }
-      .card { padding: 14px; min-height: unset; }
-      .card .v { font-size: clamp(19px, 6vw, 26px); }
 
       .chart-wrap { padding: 10px; border-radius: 14px; }
       canvas { height: 220px; }
@@ -554,6 +1049,17 @@
         </div>
 
         <div class="field">
+          <label>Laufzeit <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Gilt für alle Szenarien gleichermaßen.</span></span></label>
+          <div class="two">
+            <input id="duration" type="number" min="1" step="1" value="24">
+            <select id="durationUnit">
+              <option value="months">Monate</option>
+              <option value="years">Jahre</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
           <label for="start">Startkapital</label>
           <div class="input-row">
             <input id="start" type="number" min="0" step="100" value="10000">
@@ -563,73 +1069,132 @@
               <option value="CHF">CHF</option>
             </select>
           </div>
+          <label class="checkbox-row" for="includeStartCapital">
+            <input type="checkbox" id="includeStartCapital" checked>
+            <span>Als Einzahlung berücksichtigen</span>
+          </label>
         </div>
 
         <div class="field">
-          <label for="rate">Zinssatz / Rendite</label>
-          <div class="input-row">
+          <label>Investment-Typ</label>
+          <div class="type-tab-bar" id="investmentTypeToggle">
+            <button type="button" class="type-tab" data-type="classic">Klassisch</button>
+            <button type="button" class="type-tab active" data-type="nextforrest">NextForrest</button>
+          </div>
+          <div class="type-tab-panel">
+          <div id="classicFields" style="display:none;">
+          <div class="field">
+            <label for="rate">Zinssatz (% p.a.) <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Der Zinssatz gilt als Jahresrendite. Wie oft er gutgeschrieben wird, legt „Zinsgutschrift / Verzinsung“ unten fest.</span></span></label>
             <input id="rate" type="number" step="0.01" value="5">
-            <select id="ratePeriod" class="unit">
-              <option value="monthly">% / Monat</option>
-              <option value="annual">% / Jahr</option>
+          </div>
+
+          <div class="field">
+            <label for="contribution">Regelmäßige Einzahlung <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Einzahlungen werden direkt am Monatsende investiert und ab dem Folgemonat mitverzinst.</span></span></label>
+            <div class="input-row">
+              <input id="contribution" type="number" min="0" step="50" value="0">
+              <select id="contributionPeriod" class="unit">
+                <option value="monthly">monatlich</option>
+                <option value="yearly">jährlich</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="compound">Zinsgutschrift / Verzinsung <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Legt fest, wie oft die Jahresrendite anteilig gutgeschrieben und dem Kapital zugeschlagen wird.</span></span></label>
+            <select id="compound">
+              <option value="monthly">Monatlich</option>
+              <option value="quarterly">Vierteljährlich</option>
+              <option value="annual">Jährlich</option>
             </select>
           </div>
-          <div class="hint">Bei 5 % monatlich werden die 5 % in jedem Monat auf das jeweils aktuelle Kapital angewendet.</div>
         </div>
 
-        <div class="field">
-          <label>Laufzeit</label>
-          <div class="two">
-            <input id="duration" type="number" min="1" step="1" value="24">
-            <select id="durationUnit">
-              <option value="months">Monate</option>
-              <option value="years">Jahre</option>
-            </select>
+          <div id="nextForrestFields">
+            <div class="field">
+              <label>Monatliche Rendite</label>
+              <div class="toggle-row" id="nfRateToggle">
+                <button type="button" class="toggle-btn active" data-value="low">5 % / Monat</button>
+                <button type="button" class="toggle-btn" data-value="high">5,2 % / Monat</button>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field">
+                <label>Einzahlungsstrategie <span class="info-tip" tabindex="0"><span class="info-tip-bubble" id="nfDepositStrategyHint"></span></span></label>
+                <div class="toggle-row" id="nfDepositStrategyToggle">
+                  <button type="button" class="toggle-btn active" data-value="fixed">Fester Betrag/Monat</button>
+                  <button type="button" class="toggle-btn" data-value="roundup">1000er-Aufrundung</button>
+                </div>
+              </div>
+
+              <div class="field" id="nfMonthlyDepositField">
+                <label for="nfMonthlyDeposit">Monatliche Einzahlung</label>
+                <div class="input-row">
+                  <input id="nfMonthlyDeposit" type="number" min="0" step="50" value="500">
+                  <select id="nfMonthlyDepositPeriod" class="unit">
+                    <option value="monthly">monatlich</option>
+                    <option value="yearly">jährlich</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="nfDepositGoal">Einzahlungsschwelle (0 = unbegrenzt) <span class="info-tip" tabindex="0"><span class="info-tip-bubble" id="nfDepositGoalHint"></span></span></label>
+                <div class="toggle-row" id="nfDepositGoalThresholdBasisToggle">
+                  <button type="button" class="toggle-btn active" data-value="interest">Monatsrendite</button>
+                  <button type="button" class="toggle-btn" data-value="capital">Aktives Kapital</button>
+                </div>
+                <input id="nfDepositGoal" type="number" min="0" step="1000" value="0" style="margin-top:8px;">
+                <div class="field-warning" id="nfDepositGoalWarning"></div>
+              </div>
+
+              <div class="field">
+                <label>Einzahlungsgebühr <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Bei jeder Einzahlung fallen zusätzlich 1,5 % Gebühr an (z. B. 100 € Einzahlung → 101,50 € Gesamtkosten).</span></span></label>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field">
+                <label>Auszahlungsstrategie</label>
+                <div class="toggle-row" id="nfWithdrawalStrategyToggle">
+                  <button type="button" class="toggle-btn active" data-value="fixed">Fester Betrag</button>
+                  <button type="button" class="toggle-btn" data-value="percentage">Prozentualer Anteil</button>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="nfWithdrawalAmount"><span id="nfWithdrawalAmountLabel">Auszahlungsbetrag</span> <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Bei „Prozentualer Anteil“ gilt der Wert als % der jeweils erwirtschafteten monatlichen Rendite.</span></span></label>
+                <div class="input-row">
+                  <input id="nfWithdrawalAmount" type="number" min="0" step="50" value="0">
+                  <select id="nfWithdrawalPeriod" class="unit">
+                    <option value="monthly">monatlich</option>
+                    <option value="yearly">jährlich</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="nfWithdrawalMinCapital">Auszahlungsschwelle <span class="info-tip" tabindex="0"><span class="info-tip-bubble" id="nfWithdrawalMinCapitalHint"></span></span></label>
+                <div class="toggle-row" id="nfWithdrawalThresholdBasisToggle">
+                  <button type="button" class="toggle-btn active" data-value="interest">Monatsrendite</button>
+                  <button type="button" class="toggle-btn" data-value="capital">Aktives Kapital</button>
+                </div>
+                <input id="nfWithdrawalMinCapital" type="number" min="0" step="500" value="0" style="margin-top:8px;">
+                <div class="field-warning" id="nfWithdrawalMinCapitalWarning"></div>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field">
+                <label>Team-Struktur <span class="info-tip" tabindex="0"><span class="info-tip-bubble" style="width:320px;">Tippgeber-Bonus: 50 € einmalig pro 1.000 €-Block, den eine direkt von dir geworbene Person (Ebene 1) investiert — unabhängig vom Rang. Dein Rang (Bronze bis Diamond) richtet sich nach deinem eigenen aktiven Kapital und dem Team-Volumen über alle Ebenen und schaltet monatliche Boni frei: auf dein eigenes Kapital (ab Gold) sowie auf das jeweilige aktive Kapital der Ebenen 1–3 (ab Bronze, Silver bzw. Platinum). Alle Boni werden direkt deinem eigenen Cash-Konto gutgeschrieben und wachsen dort mit.</span></span></label>
+              </div>
+
+              <div class="field">
+                <div id="teamMemberRows"></div>
+                <button type="button" class="secondary" id="addTeamMemberBtn">+ Empfehlung hinzufügen</button>
+              </div>
+            </div>
           </div>
-          <div class="hint">Gilt für alle Szenarien gleichermaßen.</div>
-        </div>
-
-        <div class="field">
-          <label for="contribution">Regelmäßige Einzahlung</label>
-          <div class="input-row">
-            <input id="contribution" type="number" min="0" step="50" value="0">
-            <select id="contributionPeriod" class="unit">
-              <option value="monthly">monatlich</option>
-              <option value="yearly">jährlich</option>
-            </select>
-          </div>
-          <div class="hint">Einzahlungen werden zunächst separat gesammelt und nicht sofort verzinst.</div>
-        </div>
-
-        <div class="field">
-          <label for="depositTiming">Zeitpunkt der Einzahlung</label>
-          <select id="depositTiming">
-            <option value="end">Am Monatsende</option>
-            <option value="start">Am Monatsanfang</option>
-          </select>
-          <div class="hint">Die Einzahlung landet zunächst in der Einzahlungsreserve.</div>
-        </div>
-
-        <div class="field">
-          <label for="compound">Zinsgutschrift / Verzinsung</label>
-          <select id="compound">
-            <option value="monthly">Monatlich</option>
-            <option value="quarterly">Vierteljährlich</option>
-            <option value="annual">Jährlich</option>
-          </select>
-          <div class="hint">Bei monatlicher Rendite ist „monatlich“ meist die passende Auswahl.</div>
-        </div>
-
-        <div class="field">
-          <label for="reinvestMode">Reinvestition der Zinsen</label>
-          <select id="reinvestMode">
-            <option value="all">Alle Zinsen sofort reinvestieren</option>
-            <option value="thousand">Nur volle 1.000 reinvestieren</option>
-          </select>
-          <div class="hint">
-            Im 1.000er-Modus werden Zinsen und regelmäßige Einzahlungen separat gesammelt.
-            Für die Reinvestition werden beide Reserven zusammengezählt. Sobald insgesamt 1.000, 2.000, 3.000 usw.
-            verfügbar sind, werden nur volle 1.000er-Blöcke dem aktiv verzinsten Kapital zugeschlagen.
           </div>
         </div>
 
@@ -640,42 +1205,38 @@
       </section>
 
       <section class="panel results">
-        <div class="cards">
-          <div class="card">
-            <div class="k">Gesamtvermögen</div>
-            <div class="v accent" id="finalValue">–</div>
-            <div class="small" id="growthText">–</div>
-          </div>
-          <div class="card">
-            <div class="k">Aktiv verzinstes Kapital</div>
-            <div class="v" id="activeValue">–</div>
-            <div class="small">Kapital, auf das aktuell Rendite berechnet wird</div>
-          </div>
-          <div class="card">
-            <div class="k">Erwirtschaftete Zinsen</div>
-            <div class="v blue" id="interestValue">–</div>
-            <div class="small" id="interestShare">–</div>
-          </div>
-          <div class="card">
-            <div class="k">Zinsreserve</div>
-            <div class="v" id="reserveValue">–</div>
-            <div class="small">Noch nicht ins aktive Kapital übernommene Rendite</div>
-          </div>
-          <div class="card">
-            <div class="k">Einzahlungsreserve</div>
-            <div class="v" id="depositReserveValue">–</div>
-            <div class="small">Regelmäßige Einzahlungen, die noch nicht reinvestiert wurden</div>
-          </div>
+        <div class="table-wrap scenario-summary-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Szenario</th>
+                <th title="Aktives Kapital + Cash">Gesamtvermögen</th>
+                <th title="Kapital, auf das aktuell Rendite berechnet wird">Aktiv verzinst</th>
+                <th title="Erwirtschaftete Zinsen">Zinsen</th>
+                <th title="Nicht verzinstes Kapital">Cash</th>
+                <th title="Inkl. Startkapital (falls als Einzahlung berücksichtigt), ohne Gebühren">Einzahlungen</th>
+                <th title="Einzahlungs- + Auszahlungsgebühr">Gebühren</th>
+                <th title="Netto, nach Abzug der Auszahlungsgebühr">Auszahlungen</th>
+                <th title="Gegenüber den eigenen Einzahlungen">Wachstum</th>
+              </tr>
+            </thead>
+            <tbody id="scenarioSummaryRows"></tbody>
+          </table>
         </div>
 
         <div class="chart-wrap">
           <div class="chart-title">
             <strong>Kapitalentwicklung</strong>
-            <span class="legend">Vergleich aller Szenarien</span>
+            <span class="legend" id="chartModeLabel">Vergleich aller Szenarien</span>
+          </div>
+          <div class="toggle-row chart-mode-toggle" id="chartModeToggle">
+            <button type="button" class="toggle-btn" data-value="invested">Investiertes Kapital</button>
+            <button type="button" class="toggle-btn active" data-value="rendite">Rendite</button>
           </div>
           <canvas id="chart"></canvas>
           <div class="chart-tooltip" id="chartTooltip"></div>
           <div class="legend-list" id="chartLegend"></div>
+          <div class="chart-legend-note" id="chartMarkerLegend"></div>
         </div>
 
         <div class="chart-title" style="margin: 18px 2px 8px;">
@@ -685,15 +1246,16 @@
 
         <div class="table-wrap">
           <table>
-            <thead>
+            <thead id="rowsThead">
               <tr>
                 <th>Monat</th>
                 <th>Start aktiv</th>
                 <th>Einzahlung</th>
+                <th>Auszahlung</th>
                 <th>Zinsen</th>
                 <th>Reinvestiert</th>
-                <th>Zinsreserve</th>
-                <th>Einzahlungsreserve</th>
+                <th>Cash</th>
+                <th>Gebühren</th>
                 <th>Aktives Kapital</th>
                 <th>Gesamt</th>
               </tr>
@@ -702,51 +1264,108 @@
           </table>
         </div>
 
+        <div id="teamBonusSection" style="display:none;">
+          <div class="chart-title" style="margin: 18px 2px 8px;">
+            <strong>Team-Bonus</strong>
+            <span class="legend" id="teamBonusStatusLabel">–</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th class="expand-cell"></th>
+                  <th>Monat</th>
+                  <th title="Der aktuell erreichte Rang, dauerhaft ab Erreichen">Rang</th>
+                  <th title="Summe des aktiven (verzinsten) Kapitals aller Empfehlungen, über alle Ebenen — bestimmt den Rang">Team-Volumen</th>
+                  <th title="50 € je 1.000 €-Block, einmalig, nur Ebene 1">Tippgeber-Bonus</th>
+                  <th title="Prozentsatz auf dein eigenes aktives Kapital, ab Rang Gold">Eigen-Bonus</th>
+                  <th title="Prozentsatz auf das aktive Kapital der Ebene-1-Empfehlungen, ab Rang Bronze">E1-Bonus</th>
+                  <th title="Prozentsatz auf das aktive Kapital der Ebene-2-Empfehlungen, ab Rang Silver">E2-Bonus</th>
+                  <th title="Prozentsatz auf das aktive Kapital der Ebene-3-Empfehlungen, ab Rang Platinum">E3-Bonus</th>
+                  <th>Bonus gesamt</th>
+                </tr>
+              </thead>
+              <tbody id="teamBonusRows"></tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="footer">
-          Rechenhilfe ohne Gewähr. Renditen sind mathematische Annahmen und keine Prognose zukünftiger Ergebnisse.
+          Rechenhilfe ohne Gewähr. Renditen sind mathematische Annahmen und keine Prognose zukünftiger Ergebnisse.<br>
+          Lizenziert unter der <a href="LICENSE" target="_blank" rel="noopener">MIT-Lizenz</a>.
         </div>
       </section>
     </div>
   </main>
 
 
+<script src="calc.js"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
+  const {
+    NF_RATES, NF_DEPOSIT_FEE_PCT, NF_WITHDRAWAL_FEE_PCT, NF_BLOCK,
+    RANKS,
+    num, simulate, simulateNextForrest, runSimulation
+  } = ZinsCalc;
 
   const els = {
     scenarioTabs: $('scenarioTabs'),
     scenarioName: $('scenarioName'),
+    typeToggle: $('investmentTypeToggle'),
+    classicFields: $('classicFields'),
+    nextForrestFields: $('nextForrestFields'),
     start: $('start'),
+    includeStartCapital: $('includeStartCapital'),
     currency: $('currency'),
     rate: $('rate'),
-    ratePeriod: $('ratePeriod'),
     duration: $('duration'),
     durationUnit: $('durationUnit'),
     contribution: $('contribution'),
     contributionPeriod: $('contributionPeriod'),
-    depositTiming: $('depositTiming'),
     compound: $('compound'),
-    reinvestMode: $('reinvestMode'),
-    finalValue: $('finalValue'),
-    activeValue: $('activeValue'),
-    reserveValue: $('reserveValue'),
-    depositReserveValue: $('depositReserveValue'),
-    interestValue: $('interestValue'),
-    growthText: $('growthText'),
-    interestShare: $('interestShare'),
+    nfRateToggle: $('nfRateToggle'),
+    nfDepositStrategyToggle: $('nfDepositStrategyToggle'),
+    nfDepositStrategyHint: $('nfDepositStrategyHint'),
+    nfMonthlyDepositField: $('nfMonthlyDepositField'),
+    nfMonthlyDeposit: $('nfMonthlyDeposit'),
+    nfMonthlyDepositPeriod: $('nfMonthlyDepositPeriod'),
+    nfDepositGoalThresholdBasisToggle: $('nfDepositGoalThresholdBasisToggle'),
+    nfDepositGoal: $('nfDepositGoal'),
+    nfDepositGoalHint: $('nfDepositGoalHint'),
+    nfDepositGoalWarning: $('nfDepositGoalWarning'),
+    nfWithdrawalStrategyToggle: $('nfWithdrawalStrategyToggle'),
+    nfWithdrawalAmount: $('nfWithdrawalAmount'),
+    nfWithdrawalAmountLabel: $('nfWithdrawalAmountLabel'),
+    nfWithdrawalPeriod: $('nfWithdrawalPeriod'),
+    nfWithdrawalThresholdBasisToggle: $('nfWithdrawalThresholdBasisToggle'),
+    nfWithdrawalMinCapital: $('nfWithdrawalMinCapital'),
+    nfWithdrawalMinCapitalHint: $('nfWithdrawalMinCapitalHint'),
+    nfWithdrawalMinCapitalWarning: $('nfWithdrawalMinCapitalWarning'),
+    teamMemberRows: $('teamMemberRows'),
+    addTeamMemberBtn: $('addTeamMemberBtn'),
+    teamBonusSection: $('teamBonusSection'),
+    teamBonusStatusLabel: $('teamBonusStatusLabel'),
+    teamBonusRows: $('teamBonusRows'),
+    scenarioSummaryRows: $('scenarioSummaryRows'),
     rows: $('rows'),
+    rowsThead: $('rowsThead'),
     tableScenarioLabel: $('tableScenarioLabel'),
     chart: $('chart'),
     chartTooltip: $('chartTooltip'),
     chartLegend: $('chartLegend'),
+    chartMarkerLegend: $('chartMarkerLegend'),
+    chartModeToggle: $('chartModeToggle'),
+    chartModeLabel: $('chartModeLabel'),
     calcBtn: $('calcBtn'),
     resetBtn: $('resetBtn'),
   };
 
   const FIELD_KEYS = [
-    'start', 'currency', 'rate', 'ratePeriod', 'duration', 'durationUnit',
-    'contribution', 'contributionPeriod', 'depositTiming', 'compound', 'reinvestMode'
+    'start', 'currency', 'rate', 'duration', 'durationUnit',
+    'contribution', 'contributionPeriod', 'compound',
+    'nfMonthlyDeposit', 'nfMonthlyDepositPeriod', 'nfDepositGoal',
+    'nfWithdrawalAmount', 'nfWithdrawalPeriod', 'nfWithdrawalMinCapital'
   ];
 
   // These fields are shared across all scenarios: changing them in one
@@ -754,17 +1373,35 @@
   const GLOBAL_FIELD_KEYS = ['duration', 'durationUnit'];
 
   const defaultScenarioValues = {
+    investmentType: 'nextforrest',
     start: 10000,
+    includeStartCapital: true,
     currency: 'USD',
     rate: 5,
-    ratePeriod: 'monthly',
     duration: 24,
     durationUnit: 'months',
     contribution: 0,
     contributionPeriod: 'monthly',
-    depositTiming: 'end',
     compound: 'monthly',
-    reinvestMode: 'thousand'
+    // Fixed for Klassisch (no longer user-editable there); reused as-is
+    // once NextForrest exposes its own controls for these.
+    ratePeriod: 'annual',
+    reinvestThreshold: 0,
+    depositTiming: 'end',
+    reinvestMode: 'accumulating',
+    // NextForrest
+    nfRate: 'low',
+    nfDepositStrategy: 'fixed',
+    nfMonthlyDeposit: 500,
+    nfMonthlyDepositPeriod: 'monthly',
+    nfDepositGoal: 0,
+    nfWithdrawalStrategy: 'fixed',
+    nfWithdrawalAmount: 0,
+    nfWithdrawalPeriod: 'monthly',
+    nfWithdrawalMinCapital: 0,
+    nfWithdrawalThresholdBasis: 'interest',
+    nfDepositGoalThresholdBasis: 'interest',
+    nfTeamMembers: []
   };
 
   const COLORS = ['#62d394', '#75a7ff', '#ffb86b', '#ff7a7a', '#c28cff', '#7fe7e7'];
@@ -774,8 +1411,14 @@
   let scenarios = [];
   let activeIndex = 0;
   let scenarioSeq = 1;
+  let teamMemberSeq = 1;
+  const expandedTeamMemberIds = new Set();
+  const expandedTeamBonusMonths = new Set();
+  const expandedCombinedMonths = new Set();
+  const CHEVRON_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>`;
   let lastDatasets = [];
   let hoverState = { index: -1, datasetIndex: -1 };
+  let chartMode = 'rendite'; // 'invested' | 'rendite'
 
   function colorFor(index) {
     return COLORS[index % COLORS.length];
@@ -785,7 +1428,13 @@
     const scenario = {
       id: 'sc' + scenarioSeq,
       name: name || `Szenario ${scenarioSeq}`,
-      values: { ...values }
+      // Flache Kopie reicht für alle primitiven Felder; nfTeamMembers ist das
+      // einzige Array-Feld und muss explizit tief kopiert werden, sonst
+      // teilen sich duplizierte Szenarien dieselbe Team-Liste.
+      values: {
+        ...values,
+        nfTeamMembers: Array.isArray(values.nfTeamMembers) ? values.nfTeamMembers.map(m => ({ ...m })) : []
+      }
     };
     scenarioSeq += 1;
     return scenario;
@@ -800,181 +1449,355 @@
     }).format(value);
   }
 
-  function num(v) {
-    const n = parseFloat(v);
-    return Number.isFinite(n) ? n : 0;
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
-  function monthsCountFor(v) {
-    const d = Math.max(1, Math.round(num(v.duration)));
-    return v.durationUnit === 'years' ? d * 12 : d;
+  function activeTeamMembers() {
+    const v = scenarios[activeIndex] && scenarios[activeIndex].values;
+    if (!v) return [];
+    if (!Array.isArray(v.nfTeamMembers)) v.nfTeamMembers = [];
+    return v.nfTeamMembers;
   }
 
-  function rateForCreditPeriod(v) {
-    const raw = num(v.rate) / 100;
-    const monthly = v.ratePeriod === 'monthly'
-      ? raw
-      : Math.pow(1 + raw, 1 / 12) - 1;
-
-    const c = v.compound;
-    if (c === 'monthly') return monthly;
-    if (c === 'quarterly') return Math.pow(1 + monthly, 3) - 1;
-    return Math.pow(1 + monthly, 12) - 1;
+  function addTeamMember() {
+    const v = scenarios[activeIndex].values;
+    const members = Array.isArray(v.nfTeamMembers) ? v.nfTeamMembers : [];
+    v.nfTeamMembers = [...members, {
+      id: 'tm' + (teamMemberSeq++), name: '', level: 1, startCapital: 1000, monthlyDeposit: 0, joinMonth: 1, includeStartCapital: true,
+      // Wenn aktiv, wird dieses Mitglied im Diagramm und im Monatsverlauf zu
+      // einer gemeinsamen Summe mit dem eigenen Investment zusammengerechnet
+      // (siehe buildCombinedRows()). Der Team-Bonus-Bereich bleibt davon
+      // unberührt und zeigt das Mitglied unabhängig davon weiterhin einzeln.
+      mergeWithOwn: false,
+      // Eigene Szenario-Eigenschaften — Default entspricht dem bisherigen
+      // Verhalten (Rendite/Einzahlungsstrategie vom Hauptszenario zum
+      // Anlagezeitpunkt übernommen, Einzahlungsschwelle und Auszahlung aus).
+      nfRate: v.nfRate || 'low',
+      nfDepositStrategy: v.nfDepositStrategy || 'fixed',
+      nfMonthlyDepositPeriod: 'monthly',
+      nfDepositGoal: 0,
+      nfDepositGoalThresholdBasis: 'interest',
+      nfWithdrawalStrategy: 'fixed',
+      nfWithdrawalAmount: 0,
+      nfWithdrawalPeriod: 'monthly',
+      nfWithdrawalMinCapital: 0,
+      nfWithdrawalThresholdBasis: 'interest'
+    }];
+    renderTeamMemberRows();
+    calculate();
   }
 
-  function interestDue(v, monthIndex) {
-    const c = v.compound;
-    if (c === 'monthly') return true;
-    if (c === 'quarterly') return monthIndex % 3 === 0;
-    if (c === 'annual') return monthIndex % 12 === 0;
-    return true;
+  function removeTeamMember(id) {
+    const v = scenarios[activeIndex].values;
+    v.nfTeamMembers = activeTeamMembers().filter(m => m.id !== id);
+    renderTeamMemberRows();
+    calculate();
   }
 
-  function contributionThisMonth(v, monthIndex) {
-    const amount = Math.max(0, num(v.contribution));
-    if (v.contributionPeriod === 'monthly') return amount;
-    return monthIndex % 12 === 0 ? amount : 0;
+  function renderTeamMemberRows() {
+    const members = activeTeamMembers();
+    els.teamMemberRows.innerHTML = members.length ? members.map(m => {
+      const open = expandedTeamMemberIds.has(m.id);
+      const isRoundup = m.nfDepositStrategy === 'roundup';
+      const isWithdrawalPct = m.nfWithdrawalStrategy === 'percentage';
+      return `
+      <div class="team-member-card" data-member-id="${m.id}">
+        <div class="team-member-card-header">
+          <input type="text" class="team-input" data-field="name" value="${escapeHtml(m.name || '')}" placeholder="Name (optional)">
+          <button type="button" class="expand-btn${open ? ' open' : ''}" data-expand-id="${m.id}" title="Eigene Szenario-Eigenschaften ein-/ausblenden">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <button type="button" class="team-remove-btn" data-remove-id="${m.id}" title="Empfehlung entfernen">✕</button>
+        </div>
+        <div class="team-member-grid">
+          <label>Ebene<input type="number" class="team-input" data-field="level" min="1" step="1" value="${m.level}"></label>
+          <label>Beitrittsmonat<input type="number" class="team-input" data-field="joinMonth" min="1" step="1" value="${m.joinMonth}"></label>
+          <label>Startkapital<input type="number" class="team-input" data-field="startCapital" min="0" step="500" value="${m.startCapital}"></label>
+          <label>Mtl. Einzahlung<input type="number" class="team-input" data-field="monthlyDeposit" min="0" step="50" value="${m.monthlyDeposit}"></label>
+        </div>
+        <label class="team-checkbox-row" title="Deaktivieren, wenn das Startkapital bereits vor dieser Simulation investiert war und der Tippgeber-Bonus dafür schon ausgezahlt wurde — dann gibt's dafür keinen erneuten Bonus. Laufende Einzahlungen danach lösen weiterhin normal pro 1.000 €-Block einen Bonus aus, und das Kapital zählt unverändert fürs Team-Volumen.">
+          <input type="checkbox" class="team-input" data-field="includeStartCapital" ${m.includeStartCapital !== false ? 'checked' : ''}>
+          <span>Tippgeber-Bonus auf Startkapital (neu, nicht bereits ausgezahlt)</span>
+        </label>
+        <label class="team-checkbox-row" title="Rechnet das Investment dieses Mitglieds im Diagramm und im Monatsverlauf zum eigenen Investment hinzu (eine gemeinsame Linie/Zeile). Im Team-Bonus-Bereich bleibt das Mitglied davon unabhängig weiterhin einzeln sichtbar.">
+          <input type="checkbox" class="team-input" data-field="mergeWithOwn" ${m.mergeWithOwn ? 'checked' : ''}>
+          <span>Mit meinem Investment zusammenrechnen</span>
+        </label>
+
+        ${open ? `
+        <div class="scenario-panel">
+          <div class="scenario-panel-label"><span class="dot"></span>Eigene Szenario-Eigenschaften</div>
+
+          <div class="mini-field">
+            <label>Monatliche Rendite</label>
+            <div class="toggle-row team-toggle" data-member-id="${m.id}" data-toggle="nfRate">
+              <button type="button" class="toggle-btn${m.nfRate !== 'high' ? ' active' : ''}" data-value="low">5 % / Monat</button>
+              <button type="button" class="toggle-btn${m.nfRate === 'high' ? ' active' : ''}" data-value="high">5,2 % / Monat</button>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <div class="mini-field">
+              <label>Einzahlungsstrategie${isRoundup ? ` <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Ignoriert „Mtl. Einzahlung“ oben — die Rendite wird stattdessen automatisch auf volle 1000er-Blöcke aufgerundet investiert.</span></span>` : ''}</label>
+              <div class="toggle-row team-toggle" data-member-id="${m.id}" data-toggle="nfDepositStrategy">
+                <button type="button" class="toggle-btn${!isRoundup ? ' active' : ''}" data-value="fixed">Fester Betrag/Monat</button>
+                <button type="button" class="toggle-btn${isRoundup ? ' active' : ''}" data-value="roundup">1000er-Aufrundung</button>
+              </div>
+            </div>
+            <div class="mini-field">
+              <label>Einzahlungsperiode</label>
+              <select class="team-input" data-field="nfMonthlyDepositPeriod">
+                <option value="monthly"${m.nfMonthlyDepositPeriod !== 'yearly' ? ' selected' : ''}>monatlich</option>
+                <option value="yearly"${m.nfMonthlyDepositPeriod === 'yearly' ? ' selected' : ''}>jährlich</option>
+              </select>
+            </div>
+            <div class="mini-field">
+              <label>Einzahlungsschwelle (0 = unbegrenzt)</label>
+              <div class="toggle-row team-toggle" data-member-id="${m.id}" data-toggle="nfDepositGoalThresholdBasis">
+                <button type="button" class="toggle-btn${m.nfDepositGoalThresholdBasis !== 'capital' ? ' active' : ''}" data-value="interest">Monatsrendite</button>
+                <button type="button" class="toggle-btn${m.nfDepositGoalThresholdBasis === 'capital' ? ' active' : ''}" data-value="capital">Aktives Kapital</button>
+              </div>
+              <input type="number" class="team-input" data-field="nfDepositGoal" min="0" step="1000" value="${m.nfDepositGoal || 0}" style="margin-top:7px;">
+            </div>
+          </div>
+
+          <div class="field-group">
+            <div class="mini-field">
+              <label>Auszahlungsstrategie</label>
+              <div class="toggle-row team-toggle" data-member-id="${m.id}" data-toggle="nfWithdrawalStrategy">
+                <button type="button" class="toggle-btn${!isWithdrawalPct ? ' active' : ''}" data-value="fixed">Fester Betrag</button>
+                <button type="button" class="toggle-btn${isWithdrawalPct ? ' active' : ''}" data-value="percentage">Prozentualer Anteil</button>
+              </div>
+            </div>
+            <div class="mini-field">
+              <label>${isWithdrawalPct ? 'Auszahlungs-Anteil (% der Rendite)' : 'Auszahlungsbetrag'}</label>
+              <div class="input-row">
+                <input type="number" class="team-input" data-field="nfWithdrawalAmount" min="0" step="50" value="${m.nfWithdrawalAmount || 0}">
+                ${!isWithdrawalPct ? `
+                <select class="team-input unit" data-field="nfWithdrawalPeriod">
+                  <option value="monthly"${m.nfWithdrawalPeriod !== 'yearly' ? ' selected' : ''}>monatl.</option>
+                  <option value="yearly"${m.nfWithdrawalPeriod === 'yearly' ? ' selected' : ''}>jährl.</option>
+                </select>` : ''}
+              </div>
+            </div>
+            <div class="mini-field">
+              <label>Auszahlungsschwelle</label>
+              <div class="toggle-row team-toggle" data-member-id="${m.id}" data-toggle="nfWithdrawalThresholdBasis">
+                <button type="button" class="toggle-btn${m.nfWithdrawalThresholdBasis !== 'capital' ? ' active' : ''}" data-value="interest">Monatsrendite</button>
+                <button type="button" class="toggle-btn${m.nfWithdrawalThresholdBasis === 'capital' ? ' active' : ''}" data-value="capital">Aktives Kapital</button>
+              </div>
+              <input type="number" class="team-input" data-field="nfWithdrawalMinCapital" min="0" step="500" value="${m.nfWithdrawalMinCapital || 0}" style="margin-top:7px;">
+            </div>
+          </div>
+        </div>
+        ` : ''}
+      </div>
+    `;
+    }).join('') : `<div class="team-empty-hint">Noch keine Empfehlungen erfasst.</div>`;
   }
 
-  function getSettings(v) {
-    return {
-      months: monthsCountFor(v),
-      creditRate: rateForCreditPeriod(v),
-      depositTiming: v.depositTiming,
-      reinvestMode: v.reinvestMode
-    };
-  }
-
-  function simulate(v) {
-    const settings = getSettings(v);
-    const startCapital = Math.max(0, num(v.start));
-    let activeCapital = startCapital;
-    let interestReserve = 0;
-    let depositReserve = 0;
-    let totalPaid = startCapital;
-    let totalInterest = 0;
-    let totalReinvested = 0;
-
-    const series = [{ month: 0, value: activeCapital }];
-    const rows = [];
-
-    function reinvestAvailable() {
-      let reinvested = 0;
-
-      if (settings.reinvestMode === 'all') {
-        if (interestReserve > 0) {
-          activeCapital += interestReserve;
-          reinvested += interestReserve;
-          interestReserve = 0;
-        }
-
-        const depositBlocks = Math.floor((depositReserve + 1e-9) / 1000) * 1000;
-        if (depositBlocks > 0) {
-          activeCapital += depositBlocks;
-          depositReserve -= depositBlocks;
-          reinvested += depositBlocks;
-        }
-      } else {
-        const combined = interestReserve + depositReserve;
-        const blocks = Math.floor((combined + 1e-9) / 1000) * 1000;
-
-        if (blocks > 0) {
-          let remaining = blocks;
-          const fromInterest = Math.min(interestReserve, remaining);
-          interestReserve -= fromInterest;
-          remaining -= fromInterest;
-
-          const fromDeposits = Math.min(depositReserve, remaining);
-          depositReserve -= fromDeposits;
-          remaining -= fromDeposits;
-
-          activeCapital += blocks;
-          reinvested += blocks;
-        }
-      }
-
-      if (Math.abs(interestReserve) < 1e-8) interestReserve = 0;
-      if (Math.abs(depositReserve) < 1e-8) depositReserve = 0;
-
-      totalReinvested += reinvested;
-      return reinvested;
+  function renderTeamBonusSection(values, result) {
+    const members = Array.isArray(values.nfTeamMembers) ? values.nfTeamMembers : [];
+    if (values.investmentType !== 'nextforrest' || members.length === 0 || !result.team) {
+      els.teamBonusSection.style.display = 'none';
+      return;
     }
 
-    for (let m = 1; m <= settings.months; m++) {
-      const openingActive = activeCapital;
-      const deposit = contributionThisMonth(v, m);
-      let interest = 0;
-      let reinvested = 0;
+    const team = result.team;
+    const cur = values.currency;
+    els.teamBonusSection.style.display = '';
 
-      if (settings.depositTiming === 'start' && deposit > 0) {
-        depositReserve += deposit;
-        totalPaid += deposit;
-        reinvested += reinvestAvailable();
-      }
+    const nextRank = RANKS[team.rankIndex + 1];
+    const statusParts = [`Rang: ${team.rank}`];
+    statusParts.push(nextRank
+      ? `nächster Rang ${nextRank.name} ab ${fmt(nextRank.ownThreshold, cur)} eigen + ${fmt(nextRank.teamThreshold, cur)} Team-Volumen`
+      : 'höchster Rang erreicht');
+    statusParts.push(`Bonus gesamt ${fmt(team.totalBonus, cur)}`);
+    els.teamBonusStatusLabel.textContent = statusParts.join(' · ');
 
-      if (interestDue(v, m)) {
-        interest = activeCapital * settings.creditRate;
-        totalInterest += interest;
-        interestReserve += interest;
-        reinvested += reinvestAvailable();
-      }
+    // Stabile Farbe je Mitglied über alle Monate hinweg, in der Reihenfolge
+    // der Team-Struktur — dieselbe Palette wie für Szenarien.
+    const memberColor = new Map();
+    members.forEach((m, i) => memberColor.set(m.id || m.name, COLORS[i % COLORS.length]));
 
-      if (settings.depositTiming === 'end' && deposit > 0) {
-        depositReserve += deposit;
-        totalPaid += deposit;
-        reinvested += reinvestAvailable();
-      }
-
-      const totalWealth = activeCapital + interestReserve + depositReserve;
-
-      rows.push({
-        month: m,
-        openingActive,
-        deposit,
-        interest,
-        reinvested,
-        interestReserve,
-        depositReserve,
-        active: activeCapital,
-        total: totalWealth
-      });
-
-      series.push({ month: m, value: totalWealth });
-    }
-
-    const finalWealth = activeCapital + interestReserve + depositReserve;
-
-    return {
-      startCapital,
-      activeCapital,
-      interestReserve,
-      depositReserve,
-      totalPaid,
-      totalInterest,
-      totalReinvested,
-      finalWealth,
-      growth: totalPaid > 0 ? ((finalWealth / totalPaid) - 1) * 100 : 0,
-      interestPct: finalWealth > 0 ? (totalInterest / finalWealth) * 100 : 0,
-      series,
-      rows
-    };
-  }
-
-  function renderTable(data) {
-    els.rows.innerHTML = data.map(r => `
+    els.teamBonusRows.innerHTML = team.rows.map((row, idx) => {
+      const open = expandedTeamBonusMonths.has(row.month);
+      const monthMembers = Array.isArray(row.members) ? row.members : [];
+      const detailRow = open ? `
       <tr>
-        <td>${r.month}</td>
+        <td class="detail-cell" colspan="10">
+          <div class="detail-inner">
+            <div class="table-wrap detail-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mitglied</th>
+                    <th>Start aktiv</th>
+                    <th>Einzahlung</th>
+                    <th>Auszahlung</th>
+                    <th>Zinsen</th>
+                    <th>Reinvestiert</th>
+                    <th>Cash</th>
+                    <th>Gebühren</th>
+                    <th>Aktives Kapital</th>
+                    <th>Gesamt</th>
+                    <th title="Anteil dieses Mitglieds am Tippgeber-Bonus in diesem Monat">Tippgeber-Bonus</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${monthMembers.length ? monthMembers.map(mem => {
+                    const r = mem.row || {};
+                    const color = memberColor.get(mem.id || mem.name) || 'var(--muted)';
+                    return `
+                  <tr>
+                    <td>
+                      <span class="member-name-cell">
+                        <span class="member-dot" style="background:${color}"></span>
+                        ${escapeHtml(mem.name || 'Ohne Namen')}
+                        <span class="level-pill">E${mem.level}</span>
+                      </span>
+                    </td>
+                    <td>${fmt(r.openingActive || 0, cur)}</td>
+                    <td>${fmt(r.deposit || 0, cur)}</td>
+                    <td>${fmt(r.withdrawn || 0, cur)}</td>
+                    <td>${fmt(r.interest || 0, cur)}</td>
+                    <td>${fmt(r.reinvested || 0, cur)}</td>
+                    <td>${fmt(r.cash || 0, cur)}</td>
+                    <td>${fmt(r.fee || 0, cur)}</td>
+                    <td><strong>${fmt(r.active || 0, cur)}</strong></td>
+                    <td><strong>${fmt(r.total || 0, cur)}</strong></td>
+                    <td>${fmt(mem.tippgeberBonus || 0, cur)}</td>
+                  </tr>
+                  `;
+                  }).join('') : `<tr><td colspan="11" style="color:var(--muted);">Noch kein Mitglied beigetreten.</td></tr>`}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </td>
+      </tr>
+      ` : '';
+
+      return `
+      <tr class="month-row${open ? ' open' : ''}" data-month="${row.month}">
+        <td class="expand-cell"><span class="expand-icon">${CHEVRON_SVG}</span></td>
+        <td>${row.month}</td>
+        <td>${row.rank}</td>
+        <td>${fmt(row.teamVolume, cur)}</td>
+        <td>${fmt(row.tippgeberBonus, cur)}</td>
+        <td>${fmt(row.ownBonus, cur)}</td>
+        <td>${fmt(row.e1Bonus, cur)}</td>
+        <td>${fmt(row.e2Bonus, cur)}</td>
+        <td>${fmt(row.e3Bonus, cur)}</td>
+        <td><strong>${fmt(row.totalBonus, cur)}</strong></td>
+      </tr>
+      ${detailRow}
+    `;
+    }).join('');
+  }
+
+  // Unverändertes Original-<thead> der Monatsverlauf-Tabelle, einmalig beim
+  // Start gesichert — damit der No-Merge-Fall (Standardfall) exakt wie vorher
+  // rendert, ohne die Kopf-Zellen doppelt im Code zu pflegen.
+  const TABLE_HEAD_PLAIN = els.rowsThead.innerHTML;
+  const TABLE_HEAD_COMBINED = `<tr>
+    <th class="expand-cell"></th>
+    <th style="text-align:left">Monat</th>
+    <th>Start aktiv</th>
+    <th>Einzahlung</th>
+    <th>Auszahlung</th>
+    <th>Zinsen</th>
+    <th>Reinvestiert</th>
+    <th>Cash</th>
+    <th>Gebühren</th>
+    <th>Aktives Kapital</th>
+    <th>Gesamt</th>
+  </tr>`;
+
+  function monatsverlaufCells(r) {
+    return `
         <td>${fmt(r.openingActive)}</td>
         <td>${fmt(r.deposit)}</td>
+        <td>${fmt(r.withdrawn || 0)}</td>
         <td>${fmt(r.interest)}</td>
         <td>${fmt(r.reinvested)}</td>
-        <td>${fmt(r.interestReserve)}</td>
-        <td>${fmt(r.depositReserve)}</td>
+        <td>${fmt(r.cash)}</td>
+        <td>${fmt(r.fee || 0)}</td>
         <td><strong>${fmt(r.active)}</strong></td>
-        <td><strong>${fmt(r.total)}</strong></td>
+        <td><strong>${fmt(r.total)}</strong></td>`;
+  }
+
+  // `combinedList` ist entweder null/leer (Standardfall — keine Mitglieder
+  // zusammengerechnet, Tabelle rendert exakt wie bisher) oder das Ergebnis
+  // von buildCombinedRows(): pro Monat { month, own, members, combined }.
+  function renderTable(data, combinedList) {
+    const hasCombined = Array.isArray(combinedList) && combinedList.length > 0;
+    els.rowsThead.innerHTML = hasCombined ? TABLE_HEAD_COMBINED : TABLE_HEAD_PLAIN;
+
+    if (!hasCombined) {
+      els.rows.innerHTML = data.map(r => `
+      <tr>
+        <td>${r.month}</td>
+        ${monatsverlaufCells(r)}
       </tr>
     `).join('');
+      return;
+    }
+
+    const members = activeTeamMembers();
+    const memberColor = new Map();
+    members.forEach((m, i) => memberColor.set(m.id || m.name, COLORS[i % COLORS.length]));
+
+    // Aufgeklappte Detailzeilen sind ganz normale <tr> derselben Tabelle
+    // (dieselben 11 Spalten wie die Monatszeile) statt einer separat
+    // umrahmten inneren Tabelle — dadurch fließen sie optisch nahtlos in die
+    // Monatsverlauf-Tabelle ein, nur leicht eingerückt/abgesetzt per CSS
+    // (.detail-sub-row).
+    const subRow = ({ label, color, level, row }) => `
+      <tr class="detail-sub-row">
+        <td colspan="2">
+          <span class="member-name-cell">
+            <span class="member-dot" style="background:${color}"></span>
+            ${escapeHtml(label)}
+            ${level ? `<span class="level-pill">E${level}</span>` : ''}
+          </span>
+        </td>
+        ${monatsverlaufCells(row)}
+      </tr>`;
+
+    els.rows.innerHTML = combinedList.map(({ month, own, members: memberEntries, combined }) => {
+      const open = expandedCombinedMonths.has(month);
+      const detailRows = open ? [
+        subRow({ label: 'Ich', color: colorFor(activeIndex), level: null, row: own }),
+        ...memberEntries.map(mem => subRow({
+          label: mem.name || 'Ohne Namen',
+          color: memberColor.get(mem.id) || 'var(--muted)',
+          level: mem.level,
+          row: mem.row
+        }))
+      ].join('') : '';
+
+      return `
+      <tr class="month-row${open ? ' open' : ''}" data-month="${month}">
+        <td class="expand-cell"><span class="expand-icon">${CHEVRON_SVG}</span></td>
+        <td style="text-align:left">${month}</td>
+        ${monatsverlaufCells(combined)}
+      </tr>
+      ${detailRows}
+    `;
+    }).join('');
   }
+
+  els.rows.addEventListener('click', (e) => {
+    const row = e.target.closest('tr.month-row');
+    if (!row) return;
+    const month = parseInt(row.dataset.month, 10);
+    if (!Number.isFinite(month)) return;
+    if (expandedCombinedMonths.has(month)) expandedCombinedMonths.delete(month);
+    else expandedCombinedMonths.add(month);
+    calculate();
+  });
 
   function hexToRgba(hex, alpha) {
     const h = hex.replace('#', '');
@@ -982,6 +1805,181 @@
     const bigint = parseInt(full, 16);
     const r = (bigint >> 16) & 255, g = (bigint >> 8) & 255, b = bigint & 255;
     return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  // Splits a scenario's total-wealth series into two derived views, purely
+  // from the already-computed rows (no changes to the simulate() math):
+  // - invested: cumulative principal paid in so far (deposits, incl. start
+  //   capital), unaffected by growth or withdrawals.
+  // - rendite: cumulative profit so far — what's currently on the books plus
+  //   everything already paid out, minus everything paid in.
+  function buildDerivedSeries(result, overrideRows) {
+    const rowByMonth = new Map((overrideRows || result.rows).map(r => [r.month, r]));
+    // "Investiertes Kapital": das aktuell aktive, verzinste Kapital — direkt
+    // aus row.active übernommen. Das umfasst auch bereits reinvestierte
+    // Erträge (Zinsen/Rendite, die in volle 1000er-Blöcke gesweept wurden),
+    // nicht nur die ursprünglich eingezahlte Summe — sonst würde eine
+    // Einzahlungsschwelle (z. B. "Einzahlung endet, sobald Rendite 1000
+    // erreicht") das Diagramm fälschlich abflachen lassen, obwohl das
+    // Kapital durch Reinvestition weiterwächst.
+    // "Rendite": die in diesem Monat erwirtschaftete Rendite (row.interest),
+    // nicht kumuliert — zeigt direkt, wie sich die monatliche Rendite über
+    // die Laufzeit entwickelt.
+    const invested = [];
+    const rendite = [];
+
+    result.series.forEach(pt => {
+      const row = rowByMonth.get(pt.month);
+      const activeValue = row ? row.active : (result.startCapital || 0);
+      invested.push({ month: pt.month, value: activeValue });
+      rendite.push({ month: pt.month, value: row ? (row.interest || 0) : 0 });
+    });
+
+    return { invested, rendite };
+  }
+
+  const MERGE_ROW_FIELDS = ['openingActive', 'deposit', 'withdrawn', 'interest', 'reinvested', 'cash', 'fee', 'active', 'total'];
+
+  // Team-Mitglieder von `values`, deren "Mit meinem Investment
+  // zusammenrechnen"-Checkbox aktiv ist — nur relevant, wenn dieser Lauf
+  // überhaupt Team-Daten erzeugt hat (NextForrest + result.team vorhanden).
+  // Klassische Szenarien oder ein result ohne team liefern sofort [] — das
+  // ist der zentrale No-Op-Guard für die komplette Merge-Funktion.
+  function mergedTeamMembers(values, result) {
+    if (!result || !result.team) return [];
+    const members = Array.isArray(values.nfTeamMembers) ? values.nfTeamMembers : [];
+    return members.filter(m => m.mergeWithOwn);
+  }
+
+  // Ein Kalendermonat: eigene Zeile + die Zeilen der zusammengerechneten
+  // Mitglieder, feldweise summiert (identisches Zeilenformat auf beiden
+  // Seiten, siehe memberMonthSnapshot() in calc.js). `own` und `members`
+  // bleiben für die aufklappbare Detailansicht im Monatsverlauf erhalten.
+  function combineMonthRow(month, ownRow, memberEntries) {
+    const own = ownRow || { month, openingActive: 0, deposit: 0, withdrawn: 0, interest: 0, reinvested: 0, cash: 0, fee: 0, active: 0, total: 0 };
+    const combined = { ...own };
+    memberEntries.forEach(({ row }) => {
+      MERGE_ROW_FIELDS.forEach(k => { combined[k] = (combined[k] || 0) + (row[k] || 0); });
+    });
+    return { month, own, members: memberEntries, combined };
+  }
+
+  // Kombinierte Monatsansicht für ein Szenario-Ergebnis, oder null, wenn für
+  // dieses Szenario kein Mitglied zusammengerechnet wird (No-Op-Signal an
+  // die Aufrufer — Diagramm und Monatsverlauf bleiben dann unverändert).
+  // Monate vor dem Beitritt eines Mitglieds bzw. Monat 0 (kein
+  // result.team.rows-Eintrag) tragen automatisch 0 bei, da das Mitglied dort
+  // schlicht nicht in teamRow.members auftaucht (siehe calc.js).
+  function buildCombinedRows(values, result) {
+    const merged = mergedTeamMembers(values, result);
+    if (!merged.length) return null;
+
+    const teamRowByMonth = new Map(result.team.rows.map(r => [r.month, r]));
+
+    return result.rows.map(ownRow => {
+      const teamRow = teamRowByMonth.get(ownRow.month);
+      const memberEntries = merged
+        .map(m => {
+          const found = teamRow && teamRow.members.find(x => x.id === m.id);
+          return found ? { id: m.id, name: found.name, level: found.level, row: found.row } : null;
+        })
+        .filter(Boolean);
+      return combineMonthRow(ownRow.month, ownRow, memberEntries);
+    });
+  }
+
+  // Faltet eine optionale Monat-0-Zeile (Startkapital-Einzahlungsereignis,
+  // siehe Checkbox "Als Einzahlung berücksichtigen") in die Monat-1-Zeile —
+  // exakt nach demselben Muster wie memberMonthSnapshot() in calc.js für
+  // Team-Mitglieder. Dadurch entscheidet die Checkbox nur noch, OB die
+  // Einzahlung ab dem ersten Monat aufgelistet wird (Zeile vorhanden, wird
+  // reingefaltet) oder gar nicht (kein Startkapital-Einzahlungsereignis,
+  // Kapital startet direkt aktiv) — nie mehr als eigene "Monat 0"-Zeile in
+  // der Anzeige. Reine Anzeige-Zusammenfassung, rührt nicht an calc.js.
+  function foldRow0IntoRow1(rows) {
+    const row0 = rows.find(r => r.month === 0);
+    if (!row0) return rows;
+    const row1 = rows.find(r => r.month === 1);
+    if (!row1) return rows.filter(r => r.month !== 0);
+
+    const merged = {
+      month: 1,
+      openingActive: row0.openingActive,
+      deposit: row0.deposit + row1.deposit,
+      withdrawn: (row0.withdrawn || 0) + (row1.withdrawn || 0),
+      interest: row0.interest + row1.interest,
+      reinvested: row0.reinvested + row1.reinvested,
+      cash: row1.cash,
+      fee: (row0.fee || 0) + (row1.fee || 0),
+      active: row1.active,
+      total: row1.total,
+    };
+
+    return [merged, ...rows.filter(r => r.month !== 0 && r.month !== 1)];
+  }
+
+  // Kombinierte Gesamtsummen für die Szenario-Übersichtstabelle oben, wenn
+  // Mitglieder zusammengerechnet werden — sonst null (No-Op-Signal, Tabelle
+  // zeigt dann unverändert nur die eigenen Werte). Eigene Summen kommen
+  // direkt von `result` (bereits korrekt von calc.js berechnet); pro
+  // zusammengerechnetem Mitglied werden Zinsen/Gebühren/Auszahlungen/
+  // Einzahlungen aus den bereits vorhandenen Monatszeilen aufsummiert.
+  // `startActive` fängt den Sonderfall ab, dass ein Mitglied sein eigenes
+  // Startkapital NICHT als Einzahlung zählt (dann taucht es nie in einer
+  // deposit-Spalte auf, sondern nur als openingActive der ersten Zeile —
+  // exakt wie result.startCapital das beim eigenen Szenario schon abbildet).
+  function combinedScenarioTotals(result, combinedList, merged) {
+    if (!combinedList || !merged.length) return null;
+
+    let totalInterest = result.totalInterest;
+    let totalFees = result.totalFees;
+    let totalWithdrawn = result.totalWithdrawn;
+    let totalDeposits = result.totalDeposits;
+    let totalPaid = result.totalPaid;
+
+    merged.forEach(m => {
+      let startActive = 0;
+      let seen = false;
+      let memberDeposits = 0;
+      let memberFees = 0;
+      combinedList.forEach(({ members }) => {
+        const entry = members.find(x => x.id === m.id);
+        if (!entry) return;
+        if (!seen) { startActive = entry.row.openingActive || 0; seen = true; }
+        totalInterest += entry.row.interest || 0;
+        totalFees += entry.row.fee || 0;
+        totalWithdrawn += entry.row.withdrawn || 0;
+        totalDeposits += entry.row.deposit || 0;
+        memberDeposits += entry.row.deposit || 0;
+        memberFees += entry.row.fee || 0;
+      });
+      totalPaid += startActive + memberDeposits + memberFees;
+    });
+
+    const last = combinedList[combinedList.length - 1].combined;
+    const finalWealth = last.total;
+    const activeCapital = last.active;
+    const cash = last.cash;
+    const growth = totalPaid > 0 ? (finalWealth / totalPaid - 1) * 100 : 0;
+
+    return { finalWealth, activeCapital, cash, totalInterest, totalDeposits, totalFees, totalWithdrawn, growth };
+  }
+
+  // Month the deposit phase ends (last deposit, if it happens before the
+  // simulation's final month) and month the withdrawal phase begins (first
+  // payout) — both derived from the rows, used to draw chart markers.
+  function computeMarkers(result) {
+    const rows = result.rows;
+    const finalMonth = result.series.length ? result.series[result.series.length - 1].month : 0;
+
+    let lastDepositMonth = -1;
+    rows.forEach(r => { if ((r.deposit || 0) > 1e-9) lastDepositMonth = r.month; });
+    const depositEndMonth = (lastDepositMonth >= 0 && lastDepositMonth < finalMonth) ? lastDepositMonth : null;
+
+    const firstWithdrawalRow = rows.find(r => (r.withdrawn || 0) > 1e-9);
+    const withdrawalStartMonth = firstWithdrawalRow ? firstWithdrawalRow.month : null;
+
+    return { depositEndMonth, withdrawalStartMonth };
   }
 
   function drawLineChart(canvas, datasets, { legendContainer = null, fillIndex = -1, hoverIndex = -1, hoverDatasetIndex = -1 } = {}) {
@@ -1098,6 +2096,52 @@
       }
     });
 
+    // Vertical markers: end of the deposit phase / start of the withdrawal
+    // phase, per scenario — colors stay fixed (orange = deposit end, red =
+    // withdrawal start) so they read consistently across scenarios. Every
+    // scenario's markers get a label naming that scenario (rotated to run
+    // alongside the line, so several lines close together stay readable);
+    // the active scenario's markers are drawn bold, others fainter.
+    // Datasets now start at month 1 (month 0 is the start-capital stub, not
+    // plotted) — x() takes an array index, so a marker's real month needs
+    // converting via the first plotted month before it can be positioned.
+    const baseMonth = (datasets[0] && datasets[0].data.length) ? datasets[0].data[0].month : 0;
+    const drawMarker = (month, color, label, bold) => {
+      if (month === null || month === undefined) return;
+      const idx = month - baseMonth;
+      if (idx < 0 || idx > maxLen - 1) return;
+      const mx = x(idx);
+
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.setLineDash(bold ? [5, 4] : [3, 3]);
+      ctx.lineWidth = bold ? 1.5 : 1;
+      ctx.beginPath();
+      ctx.moveTo(mx, pad.t);
+      ctx.lineTo(mx, h - pad.b);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.font = bold ? '10px system-ui' : '9px system-ui';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.translate(mx + 4, h - pad.b - 6);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText(label, 0, 0);
+      ctx.restore();
+    };
+
+    datasets.forEach((ds, i) => {
+      if (!ds.markers) return;
+      const isActive = i === fillIndex;
+      const depositColor = isActive ? '#ffb86b' : 'rgba(255,184,107,.55)';
+      const withdrawalColor = isActive ? '#ff7a7a' : 'rgba(255,122,122,.55)';
+      drawMarker(ds.markers.depositEndMonth, depositColor, `${ds.name} · Einzahlung endet`, isActive);
+      drawMarker(ds.markers.withdrawalStartMonth, withdrawalColor, `${ds.name} · Auszahlung beginnt`, isActive);
+    });
+
     // Hover crosshair + per-series markers at the hovered month
     if (hoverIndex >= 0) {
       const gx = x(hoverIndex);
@@ -1149,14 +2193,117 @@
     });
   }
 
+  function setInvestmentTypeUI(type) {
+    els.typeToggle.querySelectorAll('.type-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.type === type);
+    });
+    els.classicFields.style.display = type === 'nextforrest' ? 'none' : '';
+    els.nextForrestFields.style.display = type === 'nextforrest' ? '' : 'none';
+    els.typeToggle.dataset.type = type;
+  }
+
+  function setNfRateUI(value) {
+    els.nfRateToggle.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === value);
+    });
+    els.nfRateToggle.dataset.value = value;
+  }
+
+  function setNfDepositStrategyUI(value) {
+    els.nfDepositStrategyToggle.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === value);
+    });
+    els.nfDepositStrategyToggle.dataset.value = value;
+    els.nfMonthlyDepositField.style.display = value === 'fixed' ? '' : 'none';
+    els.nfDepositStrategyHint.textContent = value === 'fixed'
+      ? 'Der feste Betrag fließt zusammen mit der Rendite ins Cash; investiert wird, sobald dort volle 1000er erreicht sind.'
+      : 'Die monatliche Rendite wird automatisch per Einzahlung auf den nächsten vollen 1000er-Block aufgerundet und investiert (z. B. Rendite 600 € → Einzahlung 400 € → 1000 € investiert).';
+  }
+
+  function setNfDepositGoalThresholdBasisUI(value) {
+    els.nfDepositGoalThresholdBasisToggle.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === value);
+    });
+    els.nfDepositGoalThresholdBasisToggle.dataset.value = value;
+    els.nfDepositGoalHint.textContent = value === 'interest'
+      ? 'Sobald die monatliche Rendite diesen Betrag erreicht, endet die Einzahlungsphase dauerhaft – danach fließt kein weiteres Geld mehr ein (die Rendite läuft normal weiter).'
+      : 'Sobald das aktiv verzinste Kapital diesen Betrag erreicht, endet die Einzahlungsphase – danach fließt kein weiteres Geld mehr ein (die Rendite läuft normal weiter).';
+  }
+
+  function updateNfWithdrawalUI() {
+    const isPct = els.nfWithdrawalStrategyToggle.dataset.value === 'percentage';
+    els.nfWithdrawalAmountLabel.textContent = isPct ? 'Auszahlungs-Anteil (% der Rendite)' : 'Auszahlungsbetrag';
+    els.nfWithdrawalPeriod.style.display = isPct ? 'none' : '';
+  }
+
+  function setNfWithdrawalStrategyUI(value) {
+    els.nfWithdrawalStrategyToggle.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === value);
+    });
+    els.nfWithdrawalStrategyToggle.dataset.value = value;
+    updateNfWithdrawalUI();
+  }
+
+  function setNfWithdrawalThresholdBasisUI(value) {
+    els.nfWithdrawalThresholdBasisToggle.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === value);
+    });
+    els.nfWithdrawalThresholdBasisToggle.dataset.value = value;
+    els.nfWithdrawalMinCapitalHint.textContent = value === 'interest'
+      ? 'Auszahlungen erfolgen nur in Monaten, in denen die erwirtschaftete Rendite diese Schwelle erreicht – schwankt monatlich und kann Auszahlungen wieder aussetzen lassen. Von jeder Auszahlung werden zusätzlich 3,5 % Gebühr abgezogen.'
+      : 'Auszahlungen erfolgen erst ab diesem aktiv verzinsten Kapital. Sollte mindestens der Einzahlungsschwelle entsprechen. Von jeder Auszahlung werden zusätzlich 3,5 % Gebühr abgezogen.';
+  }
+
+  // Flags rule violations without touching the entered values — the user
+  // decides whether/how to fix them.
+  function updateNfValidationWarnings(values) {
+    const start = Math.max(0, num(values.start));
+    const goal = Math.max(0, num(values.nfDepositGoal));
+    const minCap = Math.max(0, num(values.nfWithdrawalMinCapital));
+
+    const depositGoalIsCapital = (values.nfDepositGoalThresholdBasis || 'capital') === 'capital';
+    const goalTooLow = depositGoalIsCapital && goal > 0 && goal < start;
+    els.nfDepositGoalWarning.classList.toggle('visible', goalTooLow);
+    if (goalTooLow) {
+      els.nfDepositGoalWarning.textContent =
+        `⚠ Einzahlungsschwelle (${fmt(goal, values.currency)}) liegt unter dem Startkapital (${fmt(start, values.currency)}).`;
+    }
+
+    const withdrawalThresholdIsCapital = (values.nfWithdrawalThresholdBasis || 'capital') === 'capital';
+    const minCapTooLow = withdrawalThresholdIsCapital && depositGoalIsCapital && goal > 0 && minCap < goal;
+    els.nfWithdrawalMinCapitalWarning.classList.toggle('visible', minCapTooLow);
+    if (minCapTooLow) {
+      els.nfWithdrawalMinCapitalWarning.textContent =
+        `⚠ Auszahlungsschwelle (${fmt(minCap, values.currency)}) liegt unter der Einzahlungsschwelle (${fmt(goal, values.currency)}).`;
+    }
+  }
+
   function applyScenarioToInputs(scenario) {
     applyValuesToInputs(scenario.values);
     els.scenarioName.value = scenario.name;
+    els.includeStartCapital.checked = scenario.values.includeStartCapital !== false;
+    setInvestmentTypeUI(scenario.values.investmentType || 'nextforrest');
+    setNfRateUI(scenario.values.nfRate || 'low');
+    setNfDepositStrategyUI(scenario.values.nfDepositStrategy || 'fixed');
+    setNfWithdrawalStrategyUI(scenario.values.nfWithdrawalStrategy || 'fixed');
+    setNfWithdrawalThresholdBasisUI(scenario.values.nfWithdrawalThresholdBasis || 'interest');
+    setNfDepositGoalThresholdBasisUI(scenario.values.nfDepositGoalThresholdBasis || 'interest');
+    renderTeamMemberRows();
   }
 
   function syncActiveFromInputs() {
     if (!scenarios[activeIndex]) return;
-    scenarios[activeIndex].values = readInputsIntoValues();
+    // Merge (not replace): fields without a visible control — e.g. the
+    // fixed Klassisch defaults for depositTiming/reinvestMode/reinvestThreshold —
+    // must survive since they're not part of FIELD_KEYS anymore.
+    Object.assign(scenarios[activeIndex].values, readInputsIntoValues());
+    scenarios[activeIndex].values.investmentType = els.typeToggle.dataset.type || 'nextforrest';
+    scenarios[activeIndex].values.includeStartCapital = els.includeStartCapital.checked;
+    scenarios[activeIndex].values.nfRate = els.nfRateToggle.dataset.value || 'low';
+    scenarios[activeIndex].values.nfDepositStrategy = els.nfDepositStrategyToggle.dataset.value || 'fixed';
+    scenarios[activeIndex].values.nfWithdrawalStrategy = els.nfWithdrawalStrategyToggle.dataset.value || 'fixed';
+    scenarios[activeIndex].values.nfWithdrawalThresholdBasis = els.nfWithdrawalThresholdBasisToggle.dataset.value || 'interest';
+    scenarios[activeIndex].values.nfDepositGoalThresholdBasis = els.nfDepositGoalThresholdBasisToggle.dataset.value || 'interest';
 
     const nameVal = els.scenarioName.value.trim();
     if (nameVal) scenarios[activeIndex].name = nameVal;
@@ -1219,6 +2366,7 @@
     if (idx === activeIndex) return;
     syncActiveFromInputs();
     activeIndex = idx;
+    expandedCombinedMonths.clear();
     applyScenarioToInputs(scenarios[activeIndex]);
     renderTabs();
     calculate();
@@ -1229,6 +2377,7 @@
     const newScenario = makeScenario(scenarios[activeIndex].values);
     scenarios.push(newScenario);
     activeIndex = scenarios.length - 1;
+    expandedCombinedMonths.clear();
     applyScenarioToInputs(newScenario);
     renderTabs();
     calculate();
@@ -1239,6 +2388,7 @@
     scenarios.splice(idx, 1);
     if (idx < activeIndex) activeIndex -= 1;
     if (activeIndex >= scenarios.length) activeIndex = scenarios.length - 1;
+    expandedCombinedMonths.clear();
     applyScenarioToInputs(scenarios[activeIndex]);
     renderTabs();
     calculate();
@@ -1247,42 +2397,95 @@
   function calculate() {
     syncActiveFromInputs();
     const activeScenario = scenarios[activeIndex];
-    const main = simulate(activeScenario.values);
+    updateNfValidationWarnings(activeScenario.values);
+    const main = runSimulation(activeScenario.values);
+    const mainRows = foldRow0IntoRow1(main.rows);
+    const activeCombined = buildCombinedRows(activeScenario.values, { ...main, rows: mainRows });
 
-    els.finalValue.textContent = fmt(main.finalWealth);
-    els.activeValue.textContent = fmt(main.activeCapital);
-    els.reserveValue.textContent = fmt(main.interestReserve);
-    els.depositReserveValue.textContent = fmt(main.depositReserve);
-    els.interestValue.textContent = fmt(main.totalInterest);
-
-    els.growthText.textContent =
-      `${main.growth >= 0 ? '+' : ''}${main.growth.toLocaleString('de-DE', {maximumFractionDigits: 2})} % gegenüber den eigenen Einzahlungen`;
-
-    els.interestShare.textContent =
-      `${main.interestPct.toLocaleString('de-DE', {maximumFractionDigits: 1})} % des Gesamtvermögens · ${fmt(main.totalReinvested)} insgesamt reinvestiert`;
-
-    renderTable(main.rows);
+    renderTable(mainRows, activeCombined);
     els.tableScenarioLabel.textContent = activeScenario.name;
+    renderTeamBonusSection(activeScenario.values, main);
     updateTabNames();
 
-    lastDatasets = scenarios.map((sc, idx) => {
-      const result = idx === activeIndex ? main : simulate(sc.values);
+    const results = scenarios.map((sc, idx) => {
+      const result = idx === activeIndex ? main : runSimulation(sc.values);
+      const combined = idx === activeIndex ? activeCombined : buildCombinedRows(sc.values, result);
+      return { sc, idx, result, combined };
+    });
+
+    lastDatasets = results.map(({ sc, idx, result, combined }) => {
+      const derived = buildDerivedSeries(result, combined ? combined.map(c => c.combined) : null);
+      const modeSeries = chartMode === 'rendite' ? derived.rendite : derived.invested;
+      // Zeigt denselben Wert, den die Linie im letzten Monat tatsächlich
+      // erreicht — in der Rendite-Ansicht also die monatliche Rendite des
+      // letzten Monats (nicht die kumulierte Gesamtrendite über die
+      // Laufzeit), damit die Legende zur gezeichneten Linie passt.
+      const summaryValue = modeSeries.length ? modeSeries[modeSeries.length - 1].value : 0;
       return {
         scenarioIndex: idx,
         name: sc.name,
         currency: sc.values.currency,
-        label: `${sc.name}: ${fmt(result.finalWealth, sc.values.currency)}`,
+        label: `${sc.name}: ${fmt(summaryValue, sc.values.currency)}`,
         color: colorFor(idx),
-        data: result.series,
-        width: idx === activeIndex ? 3 : 2
+        // Monat 0 ist nur der Startkapital-Einzahlungsstichtag (Rendite dort
+        // immer 0) — das Diagramm beginnt bei Monat 1.
+        data: modeSeries.filter(pt => pt.month >= 1),
+        width: idx === activeIndex ? 3 : 2,
+        markers: computeMarkers(result)
       };
     });
+
+    renderScenarioSummaryTable(results);
 
     hoverState = { index: -1, datasetIndex: -1 };
     els.chartTooltip.style.display = 'none';
     renderChart();
 
     saveState();
+  }
+
+  function renderScenarioSummaryTable(results) {
+    els.scenarioSummaryRows.innerHTML = results.map(({ sc, idx, result, combined }) => {
+      const cur = sc.values.currency;
+      const merged = mergedTeamMembers(sc.values, result);
+      const totals = combinedScenarioTotals(result, combined, merged) || result;
+      const growth = `${totals.growth >= 0 ? '+' : ''}${totals.growth.toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`;
+      return `
+        <tr class="scenario-row${idx === activeIndex ? ' active-row' : ''}" data-scenario-index="${idx}">
+          <td><span class="row-dot" style="background:${colorFor(idx)}"></span>${sc.name}</td>
+          <td><strong>${fmt(totals.finalWealth, cur)}</strong></td>
+          <td>${fmt(totals.activeCapital, cur)}</td>
+          <td>${fmt(totals.totalInterest, cur)}</td>
+          <td>${fmt(totals.cash, cur)}</td>
+          <td>${fmt(totals.totalDeposits, cur)}</td>
+          <td>${fmt(totals.totalFees, cur)}</td>
+          <td>${fmt(totals.totalWithdrawn, cur)}</td>
+          <td>${growth}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function updateChartModeLabel() {
+    const modeText = chartMode === 'rendite' ? 'Rendite' : 'Investiertes Kapital';
+    els.chartModeLabel.textContent = `Vergleich aller Szenarien · ${modeText}`;
+  }
+
+  // Lists every scenario's deposit-end / withdrawal-start month, not just
+  // the active one — the canvas only labels the active scenario's markers,
+  // so this is how a threshold on a non-active scenario stays visible.
+  function renderMarkerLegend(datasets) {
+    const parts = [];
+    datasets.forEach(ds => {
+      if (!ds.markers) return;
+      if (ds.markers.depositEndMonth !== null) {
+        parts.push(`<span style="color:#ffb86b;"><span class="marker-swatch"></span>${escapeHtml(ds.name)}: Einzahlung endet (Monat ${ds.markers.depositEndMonth})</span>`);
+      }
+      if (ds.markers.withdrawalStartMonth !== null) {
+        parts.push(`<span style="color:#ff7a7a;"><span class="marker-swatch"></span>${escapeHtml(ds.name)}: Auszahlung beginnt (Monat ${ds.markers.withdrawalStartMonth})</span>`);
+      }
+    });
+    els.chartMarkerLegend.innerHTML = parts.join('');
   }
 
   function renderChart() {
@@ -1292,6 +2495,7 @@
       hoverIndex: hoverState.index,
       hoverDatasetIndex: hoverState.datasetIndex
     });
+    renderMarkerLegend(lastDatasets);
   }
 
   function showTooltip(clientX, clientY, idx, highlightDs) {
@@ -1384,6 +2588,23 @@
     if (Number.isFinite(idx)) switchScenario(idx);
   });
 
+  els.scenarioSummaryRows.addEventListener('click', (e) => {
+    const row = e.target.closest('.scenario-row');
+    if (!row) return;
+    const idx = parseInt(row.dataset.scenarioIndex, 10);
+    if (Number.isFinite(idx)) switchScenario(idx);
+  });
+
+  els.teamBonusRows.addEventListener('click', (e) => {
+    const row = e.target.closest('.month-row');
+    if (!row) return;
+    const month = parseInt(row.dataset.month, 10);
+    if (!Number.isFinite(month)) return;
+    if (expandedTeamBonusMonths.has(month)) expandedTeamBonusMonths.delete(month);
+    else expandedTeamBonusMonths.add(month);
+    calculate();
+  });
+
   function saveState() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -1444,6 +2665,116 @@
   els.scenarioName.addEventListener('input', calculate);
   els.scenarioName.addEventListener('change', calculate);
 
+  els.includeStartCapital.addEventListener('change', calculate);
+
+  els.typeToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.type-tab');
+    if (!btn) return;
+    setInvestmentTypeUI(btn.dataset.type);
+    calculate();
+  });
+
+  els.nfRateToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    setNfRateUI(btn.dataset.value);
+    calculate();
+  });
+
+  els.nfDepositStrategyToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    setNfDepositStrategyUI(btn.dataset.value);
+    calculate();
+  });
+
+  els.nfWithdrawalStrategyToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    setNfWithdrawalStrategyUI(btn.dataset.value);
+    calculate();
+  });
+
+  els.nfWithdrawalThresholdBasisToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    setNfWithdrawalThresholdBasisUI(btn.dataset.value);
+    calculate();
+  });
+
+  els.nfDepositGoalThresholdBasisToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    setNfDepositGoalThresholdBasisUI(btn.dataset.value);
+    calculate();
+  });
+
+  els.addTeamMemberBtn.addEventListener('click', addTeamMember);
+
+  // Felder, deren Wert ein String ist (nicht über num() geparst werden darf) —
+  // alle anderen .team-input-Felder sind numerisch, außer den Checkbox-
+  // Sonderfällen in BOOLEAN_TEAM_FIELDS unten.
+  const STRING_TEAM_FIELDS = new Set(['name', 'nfMonthlyDepositPeriod', 'nfWithdrawalPeriod']);
+  const BOOLEAN_TEAM_FIELDS = new Set(['includeStartCapital', 'mergeWithOwn']);
+
+  function handleTeamMemberFieldChange(e) {
+    const input = e.target.closest('.team-input');
+    if (!input) return;
+    const card = input.closest('.team-member-card');
+    const member = activeTeamMembers().find(m => m.id === (card && card.dataset.memberId));
+    if (!member) return;
+    const field = input.dataset.field;
+    if (BOOLEAN_TEAM_FIELDS.has(field)) {
+      member[field] = input.checked;
+    } else if (STRING_TEAM_FIELDS.has(field)) {
+      member[field] = input.value;
+    } else {
+      member[field] = num(input.value);
+    }
+    calculate();
+  }
+
+  els.teamMemberRows.addEventListener('input', handleTeamMemberFieldChange);
+  els.teamMemberRows.addEventListener('change', handleTeamMemberFieldChange);
+
+  els.teamMemberRows.addEventListener('click', (e) => {
+    const removeBtn = e.target.closest('.team-remove-btn');
+    if (removeBtn) {
+      removeTeamMember(removeBtn.dataset.removeId);
+      return;
+    }
+
+    const expandBtn = e.target.closest('.expand-btn');
+    if (expandBtn) {
+      const id = expandBtn.dataset.expandId;
+      if (expandedTeamMemberIds.has(id)) expandedTeamMemberIds.delete(id);
+      else expandedTeamMemberIds.add(id);
+      renderTeamMemberRows();
+      return;
+    }
+
+    const toggleBtn = e.target.closest('.team-toggle .toggle-btn');
+    if (toggleBtn) {
+      const group = toggleBtn.closest('.team-toggle');
+      const member = activeTeamMembers().find(m => m.id === group.dataset.memberId);
+      if (!member) return;
+      member[group.dataset.toggle] = toggleBtn.dataset.value;
+      renderTeamMemberRows();
+      calculate();
+    }
+  });
+
+  els.chartModeToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn || btn.dataset.value === chartMode) return;
+    chartMode = btn.dataset.value;
+    els.chartModeToggle.querySelectorAll('.toggle-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.value === chartMode);
+    });
+    updateChartModeLabel();
+    calculate();
+  });
+
   window.addEventListener('resize', calculate);
 
   if (!loadState()) {
@@ -1452,6 +2783,7 @@
   }
   applyScenarioToInputs(scenarios[activeIndex]);
   renderTabs();
+  updateChartModeLabel();
   calculate();
 })();
 </script>
