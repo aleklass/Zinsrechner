@@ -184,6 +184,69 @@
       margin-top: 6px;
     }
 
+    /* Erklärtext hinter einem kleinen "i"-Kreis statt als eigener Absatz —
+       spart Platz, Inhalt erscheint als Tooltip bei Hover/Fokus. */
+    .info-tip {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 15px;
+      height: 15px;
+      flex: 0 0 15px;
+      border-radius: 50%;
+      border: 1px solid var(--muted);
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 750;
+      font-style: normal;
+      line-height: 1;
+      cursor: help;
+      vertical-align: middle;
+      margin-left: 2px;
+    }
+
+    .info-tip::before {
+      content: "i";
+    }
+
+    .info-tip:hover,
+    .info-tip:focus-visible {
+      border-color: var(--accent-2);
+      color: var(--accent-2);
+      outline: none;
+    }
+
+    .info-tip-bubble {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 0;
+      width: 260px;
+      max-width: min(320px, 70vw);
+      background: #0d1626;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: none;
+      letter-spacing: normal;
+      line-height: 1.5;
+      color: var(--text);
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+      z-index: 20;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(4px);
+      transition: opacity .15s ease, transform .15s ease;
+    }
+
+    .info-tip:hover .info-tip-bubble,
+    .info-tip:focus-visible .info-tip-bubble {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
     .field-warning {
       display: none;
       align-items: flex-start;
@@ -996,7 +1059,7 @@
         </div>
 
         <div class="field">
-          <label>Laufzeit</label>
+          <label>Laufzeit <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Gilt für alle Szenarien gleichermaßen.</span></span></label>
           <div class="two">
             <input id="duration" type="number" min="1" step="1" value="24">
             <select id="durationUnit">
@@ -1004,7 +1067,6 @@
               <option value="years">Jahre</option>
             </select>
           </div>
-          <div class="hint">Gilt für alle Szenarien gleichermaßen.</div>
         </div>
 
         <div class="field">
@@ -1032,13 +1094,12 @@
           <div class="type-tab-panel">
           <div id="classicFields" style="display:none;">
           <div class="field">
-            <label for="rate">Zinssatz (% p.a.)</label>
+            <label for="rate">Zinssatz (% p.a.) <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Der Zinssatz gilt als Jahresrendite. Wie oft er gutgeschrieben wird, legt „Zinsgutschrift / Verzinsung“ unten fest.</span></span></label>
             <input id="rate" type="number" step="0.01" value="5">
-            <div class="hint">Der Zinssatz gilt als Jahresrendite. Wie oft er gutgeschrieben wird, legt „Zinsgutschrift / Verzinsung“ unten fest.</div>
           </div>
 
           <div class="field">
-            <label for="contribution">Regelmäßige Einzahlung</label>
+            <label for="contribution">Regelmäßige Einzahlung <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Einzahlungen werden direkt am Monatsende investiert und ab dem Folgemonat mitverzinst.</span></span></label>
             <div class="input-row">
               <input id="contribution" type="number" min="0" step="50" value="0">
               <select id="contributionPeriod" class="unit">
@@ -1046,17 +1107,15 @@
                 <option value="yearly">jährlich</option>
               </select>
             </div>
-            <div class="hint">Einzahlungen werden direkt am Monatsende investiert und ab dem Folgemonat mitverzinst.</div>
           </div>
 
           <div class="field">
-            <label for="compound">Zinsgutschrift / Verzinsung</label>
+            <label for="compound">Zinsgutschrift / Verzinsung <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Legt fest, wie oft die Jahresrendite anteilig gutgeschrieben und dem Kapital zugeschlagen wird.</span></span></label>
             <select id="compound">
               <option value="monthly">Monatlich</option>
               <option value="quarterly">Vierteljährlich</option>
               <option value="annual">Jährlich</option>
             </select>
-            <div class="hint">Legt fest, wie oft die Jahresrendite anteilig gutgeschrieben und dem Kapital zugeschlagen wird.</div>
           </div>
         </div>
 
@@ -1071,12 +1130,11 @@
 
             <div class="field-group">
               <div class="field">
-                <label>Einzahlungsstrategie</label>
+                <label>Einzahlungsstrategie <span class="info-tip" tabindex="0"><span class="info-tip-bubble" id="nfDepositStrategyHint"></span></span></label>
                 <div class="toggle-row" id="nfDepositStrategyToggle">
                   <button type="button" class="toggle-btn active" data-value="fixed">Fester Betrag/Monat</button>
                   <button type="button" class="toggle-btn" data-value="roundup">1000er-Aufrundung</button>
                 </div>
-                <div class="hint" id="nfDepositStrategyHint"></div>
               </div>
 
               <div class="field" id="nfMonthlyDepositField">
@@ -1091,19 +1149,17 @@
               </div>
 
               <div class="field">
-                <label for="nfDepositGoal">Einzahlungsschwelle (0 = unbegrenzt)</label>
+                <label for="nfDepositGoal">Einzahlungsschwelle (0 = unbegrenzt) <span class="info-tip" tabindex="0"><span class="info-tip-bubble" id="nfDepositGoalHint"></span></span></label>
                 <div class="toggle-row" id="nfDepositGoalThresholdBasisToggle">
                   <button type="button" class="toggle-btn active" data-value="interest">Monatsrendite</button>
                   <button type="button" class="toggle-btn" data-value="capital">Aktives Kapital</button>
                 </div>
                 <input id="nfDepositGoal" type="number" min="0" step="1000" value="0" style="margin-top:8px;">
-                <div class="hint" id="nfDepositGoalHint"></div>
                 <div class="field-warning" id="nfDepositGoalWarning"></div>
               </div>
 
               <div class="field">
-                <label>Einzahlungsgebühr</label>
-                <div class="hint" style="margin-top:0;">Bei jeder Einzahlung fallen zusätzlich 1,5 % Gebühr an (z. B. 100 € Einzahlung → 101,50 € Gesamtkosten).</div>
+                <label>Einzahlungsgebühr <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Bei jeder Einzahlung fallen zusätzlich 1,5 % Gebühr an (z. B. 100 € Einzahlung → 101,50 € Gesamtkosten).</span></span></label>
               </div>
             </div>
 
@@ -1117,7 +1173,7 @@
               </div>
 
               <div class="field">
-                <label for="nfWithdrawalAmount" id="nfWithdrawalAmountLabel">Auszahlungsbetrag</label>
+                <label for="nfWithdrawalAmount"><span id="nfWithdrawalAmountLabel">Auszahlungsbetrag</span> <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Bei „Prozentualer Anteil“ gilt der Wert als % der jeweils erwirtschafteten monatlichen Rendite.</span></span></label>
                 <div class="input-row">
                   <input id="nfWithdrawalAmount" type="number" min="0" step="50" value="0">
                   <select id="nfWithdrawalPeriod" class="unit">
@@ -1125,25 +1181,22 @@
                     <option value="yearly">jährlich</option>
                   </select>
                 </div>
-                <div class="hint">Bei „Prozentualer Anteil“ gilt der Wert als % der jeweils erwirtschafteten monatlichen Rendite.</div>
               </div>
 
               <div class="field">
-                <label for="nfWithdrawalMinCapital">Auszahlungsschwelle</label>
+                <label for="nfWithdrawalMinCapital">Auszahlungsschwelle <span class="info-tip" tabindex="0"><span class="info-tip-bubble" id="nfWithdrawalMinCapitalHint"></span></span></label>
                 <div class="toggle-row" id="nfWithdrawalThresholdBasisToggle">
                   <button type="button" class="toggle-btn active" data-value="interest">Monatsrendite</button>
                   <button type="button" class="toggle-btn" data-value="capital">Aktives Kapital</button>
                 </div>
                 <input id="nfWithdrawalMinCapital" type="number" min="0" step="500" value="0" style="margin-top:8px;">
-                <div class="hint" id="nfWithdrawalMinCapitalHint"></div>
                 <div class="field-warning" id="nfWithdrawalMinCapitalWarning"></div>
               </div>
             </div>
 
             <div class="field-group">
               <div class="field">
-                <label>Team-Struktur</label>
-                <div class="hint" style="margin-top:0;">Tippgeber-Bonus: 50 € einmalig pro 1.000 €-Block, den eine direkt von dir geworbene Person (Ebene 1) investiert — unabhängig vom Rang. Dein Rang (Bronze bis Diamond) richtet sich nach deinem eigenen aktiven Kapital und dem Team-Volumen über alle Ebenen und schaltet monatliche Boni frei: auf dein eigenes Kapital (ab Gold) sowie auf das jeweilige aktive Kapital der Ebenen 1–3 (ab Bronze, Silver bzw. Platinum). Alle Boni werden direkt deinem eigenen Cash-Konto gutgeschrieben und wachsen dort mit.</div>
+                <label>Team-Struktur <span class="info-tip" tabindex="0"><span class="info-tip-bubble" style="width:320px;">Tippgeber-Bonus: 50 € einmalig pro 1.000 €-Block, den eine direkt von dir geworbene Person (Ebene 1) investiert — unabhängig vom Rang. Dein Rang (Bronze bis Diamond) richtet sich nach deinem eigenen aktiven Kapital und dem Team-Volumen über alle Ebenen und schaltet monatliche Boni frei: auf dein eigenes Kapital (ab Gold) sowie auf das jeweilige aktive Kapital der Ebenen 1–3 (ab Bronze, Silver bzw. Platinum). Alle Boni werden direkt deinem eigenen Cash-Konto gutgeschrieben und wachsen dort mit.</span></span></label>
               </div>
 
               <div class="field">
@@ -1495,12 +1548,11 @@
 
           <div class="field-group">
             <div class="mini-field">
-              <label>Einzahlungsstrategie</label>
+              <label>Einzahlungsstrategie${isRoundup ? ` <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Ignoriert „Mtl. Einzahlung“ oben — die Rendite wird stattdessen automatisch auf volle 1000er-Blöcke aufgerundet investiert.</span></span>` : ''}</label>
               <div class="toggle-row team-toggle" data-member-id="${m.id}" data-toggle="nfDepositStrategy">
                 <button type="button" class="toggle-btn${!isRoundup ? ' active' : ''}" data-value="fixed">Fester Betrag/Monat</button>
                 <button type="button" class="toggle-btn${isRoundup ? ' active' : ''}" data-value="roundup">1000er-Aufrundung</button>
               </div>
-              ${isRoundup ? `<div class="hint">Ignoriert „Mtl. Einzahlung“ oben — die Rendite wird stattdessen automatisch auf volle 1000er-Blöcke aufgerundet investiert.</div>` : ''}
             </div>
             <div class="mini-field">
               <label>Einzahlungsperiode</label>
