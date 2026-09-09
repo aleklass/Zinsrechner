@@ -1607,7 +1607,11 @@
 
   // Gemeinsamer Baustein für beide Kartenarten: Start-/Endmonat plus
   // Stopp-Bedingung (Enddatum vs. Schwelle) und ggf. Schwellenbasis/-wert.
-  function strategyScheduleHtml(s, isOnce, startCapital, currency) {
+  // allowTotal: nur Auszahlungsstrategien bieten die Stopp-Bedingung
+  // "Zielbetrag" an (so lange auszahlen, bis eine kumulative Gesamtsumme
+  // erreicht ist) — bei Einzahlungsstrategien unverändert nur Keine/
+  // Enddatum/Schwelle.
+  function strategyScheduleHtml(s, isOnce, startCapital, currency, allowTotal) {
     const thresholdTooLow = s.stopMode === 'threshold' && s.thresholdBasis === 'capital'
       && s.thresholdValue > 0 && s.thresholdValue < startCapital;
     const sym = currencySymbol(currency);
@@ -1615,11 +1619,20 @@
     return `
       <div class="mini-field" style="margin-top:8px;">
         <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:5px;">Stopp-Bedingung</label>
+        ${allowTotal ? `
+        <select class="team-input" data-field="stopMode" style="width:100%;">
+          <option value="none"${s.stopMode === 'none' ? ' selected' : ''}>Keine</option>
+          <option value="date"${s.stopMode === 'date' ? ' selected' : ''}>Enddatum</option>
+          <option value="threshold"${s.stopMode === 'threshold' ? ' selected' : ''}>Schwelle</option>
+          <option value="total"${s.stopMode === 'total' ? ' selected' : ''}>Zielbetrag</option>
+        </select>
+        ` : `
         <div class="toggle-row strategy-toggle" data-strategy-id="${s.id}" data-toggle="stopMode">
           <button type="button" class="toggle-btn${s.stopMode === 'none' ? ' active' : ''}" data-value="none">Keine</button>
           <button type="button" class="toggle-btn${s.stopMode === 'date' ? ' active' : ''}" data-value="date">Enddatum</button>
           <button type="button" class="toggle-btn${s.stopMode === 'threshold' ? ' active' : ''}" data-value="threshold">Schwelle</button>
         </div>
+        `}
       </div>
       ${s.stopMode === 'date' ? `
       <div class="mini-field">
@@ -1637,6 +1650,14 @@
           <input type="number" class="team-input" data-field="thresholdValue" min="0" step="500" value="${s.thresholdValue || 0}">
         </div>
         <div class="field-warning${thresholdTooLow ? ' visible' : ''}">⚠ Schwelle liegt unter dem Startkapital.</div>
+      </div>` : ''}
+      ${allowTotal && s.stopMode === 'total' ? `
+      <div class="mini-field">
+        <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:5px;">Gesamtsumme, die insgesamt ausgezahlt werden soll (netto, nach Gebühr)</label>
+        <div class="amount-input">
+          <span class="amount-input-symbol">${sym}</span>
+          <input type="number" class="team-input" data-field="thresholdValue" min="0" step="500" value="${s.thresholdValue || 0}">
+        </div>
       </div>` : ''}
     `;
   }
@@ -1698,7 +1719,7 @@
           ${!isCashSurplus ? `<label>${amountLabel}<div class="amount-input"><span class="amount-input-symbol">${amountSymbol}</span><input type="number" class="team-input" data-field="amount" min="0" step="${isPercentage ? 1 : 50}" value="${s.amount || 0}"></div></label>` : ''}
           <label>Start (Monat)<input type="number" class="team-input" data-field="startMonth" min="1" step="1" value="${s.startMonth || 1}"></label>
         </div>
-        ${strategyScheduleHtml(s, isOnce, startCapital, currency)}
+        ${strategyScheduleHtml(s, isOnce, startCapital, currency, true)}
       </div>
     `;
   }
@@ -1735,6 +1756,16 @@
         strategy.endMonth = null;
         strategy.stopMode = 'none';
       }
+      if (memberId) renderTeamMemberRows(); else renderStrategyRows(listKind);
+      calculate();
+      return;
+    }
+    if (field === 'stopMode') {
+      // Nur bei Auszahlungsstrategien: eigenes <select> statt Toggle-Row, da
+      // dort 4 Optionen (inkl. "Zielbetrag") sonst zu eng werden. Bei
+      // Einzahlungsstrategien (3 Optionen) läuft das weiterhin über den
+      // Toggle-Klick-Handler unten.
+      strategy.stopMode = input.value;
       if (memberId) renderTeamMemberRows(); else renderStrategyRows(listKind);
       calculate();
       return;

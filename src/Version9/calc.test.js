@@ -582,6 +582,98 @@ describe('NextForrest (simulateNextForrest)', () => {
       close(month1.active, 20000 - 7000, 'Fehlbetrag 7.000€ (8.000 - 1.000 Rendite) → 7 Blöcke nachgezogen');
     });
   });
+
+  describe('Auszahlungsstrategie stopMode "total": so lange auszahlen, bis eine NETTO-Gesamtsumme erreicht ist', () => {
+    test('500 €/Monat (brutto) bis 3.000 € NETTO ausgezahlt sind: 6 volle Raten + eine gekappte Restrate', () => {
+      const r = simulateNextForrest(baseNextForrest({
+        start: 50000,
+        includeStartCapital: false,
+        nfRoundupEnabled: false,
+        nfDepositStrategies: [],
+        nfWithdrawalStrategies: [withdrawalStrategy({
+          type: 'monthly', amount: 500, stopMode: 'total', thresholdValue: 3000,
+        })],
+      }));
+      const netPerMonth = 500 * (1 - 0.035); // 482,50 €
+      for (let m = 1; m <= 6; m++) {
+        close(r.rows.find(row => row.month === m).withdrawn, netPerMonth, `Monat ${m}: volle Rate`);
+      }
+      // Nach 6 vollen Netto-Raten fehlen noch 3.000 - 6×482,50 = 105 € netto.
+      close(r.rows.find(row => row.month === 7).withdrawn, 105, 'Monat 7: Restrate exakt in Höhe des fehlenden Netto-Betrags');
+      for (let m = 8; m <= 12; m++) {
+        close(r.rows.find(row => row.month === m).withdrawn, 0, `Monat ${m}: Zielbetrag erreicht, dauerhaft aus`);
+      }
+      const totalNet = r.rows.reduce((sum, row) => sum + row.withdrawn, 0);
+      close(totalNet, 3000, 'kumulierte Netto-Auszahlung entspricht exakt dem Zielbetrag');
+    });
+
+    test('Zielbetrag ist kein glattes Vielfaches der Netto-Rate: letzte Rate wird gekappt, nicht die volle Rate ausgezahlt', () => {
+      const r = simulateNextForrest(baseNextForrest({
+        start: 50000,
+        includeStartCapital: false,
+        nfRoundupEnabled: false,
+        nfDepositStrategies: [],
+        nfWithdrawalStrategies: [withdrawalStrategy({
+          type: 'monthly', amount: 500, stopMode: 'total', thresholdValue: 2800,
+        })],
+      }));
+      const netPerMonth = 500 * (1 - 0.035); // 482,50 €
+      for (let m = 1; m <= 5; m++) {
+        close(r.rows.find(row => row.month === m).withdrawn, netPerMonth, `Monat ${m}: volle Rate`);
+      }
+      // Nach 5 vollen Raten (2.412,50 €) fehlen noch 387,50 € netto.
+      close(r.rows.find(row => row.month === 6).withdrawn, 387.5, 'Monat 6: nur noch der fehlende Netto-Restbetrag');
+      close(r.rows.find(row => row.month === 7).withdrawn, 0, 'Ziel bereits erreicht');
+    });
+
+    test('Zielbetrag bezieht sich auf den NETTO-Betrag (nach Gebühr) — eine einzelne Bruttozahlung in Zielhöhe reicht daher NICHT aus', () => {
+      const r = simulateNextForrest(baseNextForrest({
+        start: 50000,
+        includeStartCapital: false,
+        nfRoundupEnabled: false,
+        nfDepositStrategies: [],
+        nfWithdrawalStrategies: [withdrawalStrategy({
+          type: 'monthly', amount: 1000, stopMode: 'total', thresholdValue: 1000,
+        })],
+      }));
+      // Monat 1: 1.000 € brutto → 965 € netto, das Ziel (1.000 € netto) ist
+      // damit noch NICHT erreicht — es fehlen noch 35 € netto.
+      close(r.rows.find(row => row.month === 1).withdrawn, 965);
+      close(r.rows.find(row => row.month === 2).withdrawn, 35, 'Restrate für die fehlenden 35€ netto');
+      close(r.rows.find(row => row.month === 3).withdrawn, 0, 'Ziel jetzt erreicht');
+    });
+
+    test('Zielbetrag 0 bedeutet unbegrenzt (wie bei den anderen Stopp-Bedingungen)', () => {
+      const r = simulateNextForrest(baseNextForrest({
+        start: 50000,
+        includeStartCapital: false,
+        nfRoundupEnabled: false,
+        nfDepositStrategies: [],
+        nfWithdrawalStrategies: [withdrawalStrategy({
+          type: 'monthly', amount: 500, stopMode: 'total', thresholdValue: 0,
+        })],
+      }));
+      close(r.rows.find(row => row.month === 12).withdrawn, 500 * (1 - 0.035), 'läuft ohne Ziel unbegrenzt weiter');
+    });
+
+    test('"Cash-Überschuss" mit Zielbetrag: stoppt dauerhaft, sobald die kumulierte NETTO-Summe der ausgezahlten Reste erreicht ist', () => {
+      const r = simulateNextForrest(baseNextForrest({
+        start: 0,
+        includeStartCapital: false,
+        nfRoundupEnabled: false,
+        nfDepositStrategies: [depositStrategy({ kind: 'fixed', period: 'monthly', amount: 700 })],
+        nfWithdrawalStrategies: [withdrawalStrategy({
+          type: 'cashSurplus', stopMode: 'total', thresholdValue: 300,
+        })],
+      }));
+      // 700€ Einzahlung/Monat, kein Zins (Startkapital 0) → Cash-Überschuss
+      // (Rest unter 1000er-Block) wäre ohne Ziel konstant 700€ brutto/Monat.
+      // Mit Netto-Ziel 300€ wird die erste Auszahlung so gekappt, dass genau
+      // 300€ NETTO ankommen (Brutto dafür: 300/0,965 ≈ 310,88€).
+      close(r.rows.find(row => row.month === 1).withdrawn, 300);
+      close(r.rows.find(row => row.month === 2).withdrawn, 0);
+    });
+  });
 });
 
 describe('runSimulation', () => {

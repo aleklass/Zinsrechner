@@ -280,8 +280,13 @@
   }
 
   // Auszahlungs-Schwellen werden jeden Monat neu geprüft (nicht dauerhaft) —
-  // eine Auszahlung kann also pausieren und später wieder einsetzen.
-  function withdrawalStrategyActive(strategy, monthIndex, interestThisMonth, activeCapital) {
+  // eine Auszahlung kann also pausieren und später wieder einsetzen. Die
+  // Ausnahme ist stopMode 'total': dort wird derselbe thresholdValue als
+  // kumulativer Zielbetrag interpretiert (state.paidTotal, siehe unten) und
+  // der Stopp ist wie beim Einzahlungs-Schwellenwert dauerhaft, sobald der
+  // Zielbetrag erreicht ist.
+  function withdrawalStrategyActive(strategy, state, monthIndex, interestThisMonth, activeCapital) {
+    if (state && state.stopped) return false;
     if (monthIndex < strategy.startMonth) return false;
     if (strategy.type === 'once') return monthIndex === strategy.startMonth;
     if (strategy.stopMode === 'date' && strategy.endMonth != null) {
@@ -291,7 +296,38 @@
       const basisValue = strategy.thresholdBasis === 'interest' ? interestThisMonth : activeCapital;
       return basisValue >= strategy.thresholdValue - 1e-9;
     }
+    if (strategy.stopMode === 'total' && strategy.thresholdValue > 0) {
+      return !state || state.paidTotal < strategy.thresholdValue - 1e-9;
+    }
     return true;
+  }
+
+  // Kappt den für diesen Monat vorgesehenen Bruttobetrag einer Strategie mit
+  // stopMode 'total' so, dass der NETTO-Betrag (nach der 3,5%-
+  // Auszahlungsgebühr — das, was tatsächlich beim Empfänger ankommt) in
+  // Summe nie über den Zielbetrag hinausschießt. state.paidTotal führt
+  // daher die kumulierte NETTO-Summe fort, nicht die angeforderte
+  // Bruttosumme. Muss mit dem Bruttobetrag aufgerufen werden, der für diese
+  // Strategie in diesem Monat TATSÄCHLICH angesetzt wird (vor Cash-Clamping
+  // durch applyWithdrawal).
+  function capToWithdrawalTarget(strategy, state, grossAmount) {
+    if (strategy.stopMode !== 'total' || !(strategy.thresholdValue > 0) || !state) return grossAmount;
+    const remainingNet = Math.max(0, strategy.thresholdValue - state.paidTotal);
+    if (remainingNet <= 1e-9) {
+      state.stopped = true;
+      return 0;
+    }
+    const netIfFull = grossAmount * (1 - NF_WITHDRAWAL_FEE_PCT);
+    if (netIfFull <= remainingNet + 1e-9) {
+      state.paidTotal += netIfFull;
+      if (state.paidTotal >= strategy.thresholdValue - 1e-9) state.stopped = true;
+      return grossAmount;
+    }
+    // Letzte Rate: Bruttobetrag so kappen, dass nach Gebührenabzug exakt der
+    // fehlende Netto-Restbetrag übrig bleibt.
+    state.paidTotal = strategy.thresholdValue;
+    state.stopped = true;
+    return remainingNet / (1 - NF_WITHDRAWAL_FEE_PCT);
   }
 
   function withdrawalStrategyAmount(strategy, monthIndex, interestThisMonth, totalBonus) {
@@ -398,6 +434,7 @@
     const depositStrategies = Array.isArray(v.nfDepositStrategies) ? v.nfDepositStrategies : [];
     const depositState = depositStrategies.map(() => ({ stopped: false }));
     const withdrawalStrategies = Array.isArray(v.nfWithdrawalStrategies) ? v.nfWithdrawalStrategies : [];
+    const withdrawalState = withdrawalStrategies.map(() => ({ stopped: false, paidTotal: 0 }));
 
     // Team-/Empfehlungsstruktur: jedes Teammitglied läuft als eigene,
     // unabhängige simulateNextForrest()-Instanz ab seinem Beitrittsmonat.
@@ -609,10 +646,12 @@
       };
 
       let preDepositWithdrawalGross = 0;
-      withdrawalStrategies.forEach((s) => {
+      withdrawalStrategies.forEach((s, i) => {
         if (s.type === 'cashSurplus') return;
-        if (!withdrawalStrategyActive(s, m, interest, activeCapital)) return;
-        preDepositWithdrawalGross += withdrawalStrategyAmount(s, m, interest, totalBonus);
+        const state = withdrawalState[i];
+        if (!withdrawalStrategyActive(s, state, m, interest, activeCapital)) return;
+        const amount = capToWithdrawalTarget(s, state, withdrawalStrategyAmount(s, m, interest, totalBonus));
+        preDepositWithdrawalGross += amount;
       });
       if (preDepositWithdrawalGross > 0) {
         // Reicht das laufende Cash (Zins/Boni dieses Monats) nicht aus,
@@ -677,14 +716,20 @@
       // Cash — computed after deposits so it matches the actual sweep rest.
       // Multiple simultaneously active cashSurplus strategies still only pay
       // out the one shared remainder once (there is nothing left for a
-      // second one to skim).
-      const hasActiveCashSurplus = withdrawalStrategies.some(
-        (s) => s.type === 'cashSurplus' && withdrawalStrategyActive(s, m, interest, activeCapital),
-      );
-      if (hasActiveCashSurplus) {
-        const blockRemainder =
-          cash - Math.floor((cash + 1e-9) / NF_BLOCK) * NF_BLOCK;
-        applyWithdrawal(Math.max(0, blockRemainder));
+      // second one to skim); if one of them has stopMode 'total', the shared
+      // remainder is capped to whatever that strategy still has left, and
+      // every active cashSurplus strategy's own paidTotal is advanced by the
+      // amount actually paid (each tracks its own target independently, even
+      // though they share the same underlying cash).
+      const activeCashSurplus = withdrawalStrategies
+        .map((s, i) => ({ s, state: withdrawalState[i] }))
+        .filter(({ s, state }) => s.type === 'cashSurplus' && withdrawalStrategyActive(s, state, m, interest, activeCapital));
+      if (activeCashSurplus.length) {
+        let blockRemainder = Math.max(0, cash - Math.floor((cash + 1e-9) / NF_BLOCK) * NF_BLOCK);
+        activeCashSurplus.forEach(({ s, state }) => {
+          blockRemainder = capToWithdrawalTarget(s, state, blockRemainder);
+        });
+        applyWithdrawal(blockRemainder);
       }
 
       // 3) Sweep full 1000 blocks from Cash into active capital.
@@ -949,6 +994,7 @@
     depositStrategyActive,
     withdrawalStrategyActive,
     withdrawalStrategyAmount,
+    capToWithdrawalTarget,
     toDepositStrategiesMigration,
     toWithdrawalStrategiesMigration,
     migrateScenarioValues,
