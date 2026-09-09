@@ -1,6 +1,13 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const { simulate, simulateNextForrest, runSimulation, simulateTeamMember, NF_RATES } = require('./calc.js');
+const {
+  simulate,
+  simulateNextForrest,
+  runSimulation,
+  simulateTeamMember,
+  migrateScenarioValues,
+  NF_RATES,
+} = require('./calc.js');
 
 const EPS = 0.01;
 const close = (a, b, msg) => assert.ok(Math.abs(a - b) < EPS, msg || `expected ${a} ≈ ${b}`);
@@ -27,6 +34,8 @@ function baseClassic(overrides) {
   };
 }
 
+// Default: entspricht dem alten Default `nfDepositStrategy: 'roundup'` —
+// eine Einzahlungsstrategie vom Typ Roundup, keine Auszahlungsstrategien.
 function baseNextForrest(overrides) {
   return {
     investmentType: 'nextforrest',
@@ -36,14 +45,41 @@ function baseNextForrest(overrides) {
     duration: 24,
     durationUnit: 'months',
     nfRate: 'low',
-    nfDepositStrategy: 'roundup',
-    nfMonthlyDeposit: 500,
-    nfMonthlyDepositPeriod: 'monthly',
-    nfDepositGoal: 0,
-    nfWithdrawalStrategy: 'fixed',
-    nfWithdrawalAmount: 0,
-    nfWithdrawalPeriod: 'monthly',
-    nfWithdrawalMinCapital: 0,
+    nfDepositStrategies: [depositStrategy({ kind: 'roundup' })],
+    nfWithdrawalStrategies: [],
+    ...overrides
+  };
+}
+
+// kind: 'fixed' (fester Betrag, mit period 'monthly'/'yearly'/'once') oder
+// 'roundup' (1000er-Aufrundung, amount/period irrelevant) — entspricht
+// genau den zwei bisherigen Einzahlungsarten, jetzt mehrfach mit eigenem
+// Start/Ende bzw. Schwelle (stopMode) pro Eintrag.
+function depositStrategy(overrides) {
+  return {
+    id: 'd1',
+    kind: 'fixed',
+    amount: 0,
+    period: 'monthly',
+    startMonth: 1,
+    endMonth: null,
+    stopMode: 'none',
+    thresholdBasis: 'interest',
+    thresholdValue: 0,
+    ...overrides
+  };
+}
+
+function withdrawalStrategy(overrides) {
+  return {
+    id: 'w1',
+    type: 'monthly',
+    amount: 0,
+    startMonth: 1,
+    endMonth: null,
+    stopMode: 'none',
+    thresholdBasis: 'interest',
+    thresholdValue: 0,
     ...overrides
   };
 }
@@ -94,7 +130,14 @@ describe('Klassisch (simulate)', () => {
 
 describe('NextForrest (simulateNextForrest)', () => {
   test('Golden scenario: 10.000 € Start, 5%/Monat, 1000er-Aufrundung, Sparziel 20.000, 24 Monate', () => {
-    const r = simulateNextForrest(baseNextForrest({ nfDepositGoal: 20000 }));
+    const r = simulateNextForrest(baseNextForrest({
+      nfDepositStrategies: [depositStrategy({
+        kind: 'roundup',
+        stopMode: 'threshold',
+        thresholdBasis: 'capital',
+        thresholdValue: 20000,
+      })],
+    }));
     close(r.finalWealth, 39300.00);
     close(r.activeCapital, 39000.00);
     close(r.totalInterest, 26550.00);
@@ -119,17 +162,25 @@ describe('NextForrest (simulateNextForrest)', () => {
   });
 
   test('Summe aller "Einzahlung"-Spalten (inkl. Zeile 0) = totalDeposits', () => {
-    const r = simulateNextForrest(baseNextForrest({ nfDepositGoal: 20000 }));
+    const r = simulateNextForrest(baseNextForrest());
     close(sum(r.rows, 'deposit'), r.totalDeposits);
   });
 
   test('Summe aller "Gebühren"-Spalten (inkl. Zeile 0) = totalFees', () => {
-    const r = simulateNextForrest(baseNextForrest({ nfDepositGoal: 20000 }));
+    const r = simulateNextForrest(baseNextForrest());
     close(sum(r.rows, 'fee'), r.totalFees);
   });
 
   test('Sparziel: Einzahlungsstrategie stoppt, sobald aktives Kapital das Ziel erreicht', () => {
-    const r = simulateNextForrest(baseNextForrest({ nfDepositGoal: 20000 }));
+    const r = simulateNextForrest(baseNextForrest({
+      nfDepositStrategies: [depositStrategy({
+        period: 'monthly',
+        amount: 500,
+        stopMode: 'threshold',
+        thresholdBasis: 'capital',
+        thresholdValue: 20000,
+      })],
+    }));
     const monthlyRows = r.rows.filter(row => row.month >= 1);
     const afterGoal = monthlyRows.filter(row => row.openingActive >= 20000);
     assert.ok(afterGoal.length > 0, 'Sparziel sollte innerhalb von 24 Monaten erreicht werden');
@@ -138,27 +189,22 @@ describe('NextForrest (simulateNextForrest)', () => {
     });
   });
 
-  test('Sparziel = 0 bedeutet kein dauerhafter Stopp der Einzahlungsstrategie', () => {
+  test('stopMode "none" bedeutet kein dauerhafter Stopp der Einzahlungsstrategie', () => {
     // Vereinzelt kann ein Monat zufällig exakt auf einem 1000er-Block landen
     // (deposit = 0, weil kein Aufrunden nötig ist) — das ist kein Stopp,
     // solange spätere Monate wieder Einzahlungen zeigen.
-    const r = simulateNextForrest(baseNextForrest({ nfDepositGoal: 0 }));
+    const r = simulateNextForrest(baseNextForrest({
+      nfDepositStrategies: [depositStrategy({ period: 'monthly', amount: 500, stopMode: 'none' })],
+    }));
     const monthlyRows = r.rows.filter(row => row.month >= 1);
-    monthlyRows.forEach((row, i) => {
-      if (row.deposit === 0 && i < monthlyRows.length - 1) {
-        assert.ok(
-          monthlyRows.slice(i + 1).some(later => later.deposit > 0),
-          `Monat ${row.month}: Einzahlung ist 0, sollte aber kein dauerhafter Stopp sein`
-        );
-      }
+    monthlyRows.forEach(row => {
+      close(row.deposit, 500, `Monat ${row.month}: konstante Einzahlung ohne Stopp-Bedingung`);
     });
   });
 
   test('Auszahlung: Gebühr wird vom Bruttobetrag abgezogen', () => {
     const r = simulateNextForrest(baseNextForrest({
-      nfWithdrawalStrategy: 'fixed',
-      nfWithdrawalAmount: 100,
-      nfWithdrawalMinCapital: 0
+      nfWithdrawalStrategies: [withdrawalStrategy({ type: 'monthly', amount: 100 })],
     }));
     const withdrawingRows = r.rows.filter(row => row.withdrawn > 0);
     assert.ok(withdrawingRows.length > 0, 'es sollte Auszahlungen geben');
@@ -169,9 +215,13 @@ describe('NextForrest (simulateNextForrest)', () => {
 
   test('Mindestkapital für Auszahlung: keine Auszahlung unterhalb der Schwelle', () => {
     const r = simulateNextForrest(baseNextForrest({
-      nfWithdrawalStrategy: 'fixed',
-      nfWithdrawalAmount: 100,
-      nfWithdrawalMinCapital: 15000
+      nfWithdrawalStrategies: [withdrawalStrategy({
+        type: 'monthly',
+        amount: 100,
+        stopMode: 'threshold',
+        thresholdBasis: 'capital',
+        thresholdValue: 15000,
+      })],
     }));
     const tooEarly = r.rows.filter(row => row.month >= 1 && row.openingActive < 15000);
     tooEarly.forEach(row => {
@@ -181,8 +231,7 @@ describe('NextForrest (simulateNextForrest)', () => {
 
   test('Einzahlungsstrategie "Fester Betrag": Gebühr = 1,5% des festen Betrags', () => {
     const r = simulateNextForrest(baseNextForrest({
-      nfDepositStrategy: 'fixed',
-      nfMonthlyDeposit: 200
+      nfDepositStrategies: [depositStrategy({ period: 'monthly', amount: 200 })],
     }));
     const monthlyRows = r.rows.filter(row => row.month >= 1);
     monthlyRows.forEach(row => {
@@ -193,10 +242,13 @@ describe('NextForrest (simulateNextForrest)', () => {
   test('Einzahlungsschwelle auf Monatsrendite: Stopp erst wenn die Rendite des Monats die Schwelle erreicht (dauerhaft)', () => {
     const r = simulateNextForrest(baseNextForrest({
       includeStartCapital: false,
-      nfDepositStrategy: 'fixed',
-      nfMonthlyDeposit: 500,
-      nfDepositGoal: 550,
-      nfDepositGoalThresholdBasis: 'interest'
+      nfDepositStrategies: [depositStrategy({
+        period: 'monthly',
+        amount: 500,
+        stopMode: 'threshold',
+        thresholdBasis: 'interest',
+        thresholdValue: 550,
+      })],
     }));
     const byMonth = m => r.rows.find(row => row.month === m);
     // Monat 1: Rendite 10.000 × 5 % = 500 € < 550 € → Einzahlung läuft noch.
@@ -212,13 +264,14 @@ describe('NextForrest (simulateNextForrest)', () => {
   test('Auszahlungsschwelle auf Monatsrendite: Auszahlung erst sobald die Rendite des Monats die Schwelle erreicht', () => {
     const r = simulateNextForrest(baseNextForrest({
       includeStartCapital: false,
-      nfDepositStrategy: 'fixed',
-      nfMonthlyDeposit: 0,
-      nfDepositGoal: 0,
-      nfWithdrawalStrategy: 'fixed',
-      nfWithdrawalAmount: 50,
-      nfWithdrawalMinCapital: 550,
-      nfWithdrawalThresholdBasis: 'interest'
+      nfDepositStrategies: [],
+      nfWithdrawalStrategies: [withdrawalStrategy({
+        type: 'monthly',
+        amount: 50,
+        stopMode: 'threshold',
+        thresholdBasis: 'interest',
+        thresholdValue: 550,
+      })],
     }));
     const byMonth = m => r.rows.find(row => row.month === m);
     const netWithdrawal = 50 * (1 - 0.035);
@@ -237,10 +290,8 @@ describe('NextForrest (simulateNextForrest)', () => {
   test('Auszahlungsstrategie "cashSurplus": zahlt genau den Rest aus, der sonst nicht in einen 1000er-Block passt', () => {
     const r = simulateNextForrest(baseNextForrest({
       includeStartCapital: false,
-      nfDepositStrategy: 'fixed',
-      nfMonthlyDeposit: 200,
-      nfWithdrawalStrategy: 'cashSurplus',
-      nfWithdrawalMinCapital: 0
+      nfDepositStrategies: [depositStrategy({ period: 'monthly', amount: 200 })],
+      nfWithdrawalStrategies: [withdrawalStrategy({ type: 'cashSurplus' })],
     }));
     // Aktives Kapital bleibt bei 10.000 € (kein Sweep, da der gesamte Rest
     // jeden Monat ausgezahlt wird) → Rendite und damit der Cash-Zufluss
@@ -257,17 +308,193 @@ describe('NextForrest (simulateNextForrest)', () => {
   test('Auszahlungsstrategie "cashSurplus": wird nach den Einzahlungen berechnet, nicht davor', () => {
     const r = simulateNextForrest(baseNextForrest({
       includeStartCapital: false,
-      nfDepositStrategy: 'fixed',
       // Rendite (500 €) + Einzahlung (500 €) ergeben in Monat 1 exakt einen
       // vollen 1000er-Block. Würde der Überschuss vor der Einzahlung
       // berechnet, bliebe fälschlich ein Rest von 500 € übrig.
-      nfMonthlyDeposit: 500,
-      nfWithdrawalStrategy: 'cashSurplus',
-      nfWithdrawalMinCapital: 0
+      nfDepositStrategies: [depositStrategy({ period: 'monthly', amount: 500 })],
+      nfWithdrawalStrategies: [withdrawalStrategy({ type: 'cashSurplus' })],
     }));
     const month1 = r.rows.find(row => row.month === 1);
     close(month1.withdrawn, 0, 'kein Rest übrig → keine Auszahlung');
     close(month1.reinvested, 1000, 'der volle Block sollte gesweept werden');
+  });
+
+  test('Mehrere gleichzeitige Einzahlungsstrategien summieren sich pro Monat', () => {
+    const r = simulateNextForrest(baseNextForrest({
+      includeStartCapital: false,
+      nfDepositStrategies: [
+        depositStrategy({ id: 'a', period: 'monthly', amount: 500, startMonth: 1, stopMode: 'date', endMonth: 12 }),
+        depositStrategy({ id: 'b', period: 'monthly', amount: 300, startMonth: 13, stopMode: 'none' }),
+      ],
+    }));
+    close(r.rows.find(row => row.month === 6).deposit, 500);
+    close(r.rows.find(row => row.month === 18).deposit, 300);
+    close(r.rows.find(row => row.month === 12).deposit, 500);
+    close(r.rows.find(row => row.month === 13).deposit, 300);
+  });
+
+  test('Überlappende gleichzeitige Einzahlungsstrategien summieren sich', () => {
+    const r = simulateNextForrest(baseNextForrest({
+      includeStartCapital: false,
+      nfDepositStrategies: [
+        depositStrategy({ id: 'a', period: 'monthly', amount: 400, startMonth: 1 }),
+        depositStrategy({ id: 'b', period: 'monthly', amount: 250, startMonth: 1 }),
+      ],
+    }));
+    close(r.rows.find(row => row.month === 5).deposit, 650);
+  });
+
+  test('Einmaleinzahlung gemischt mit wiederkehrender Strategie: Gebühr auf die Summe des Monats', () => {
+    const r = simulateNextForrest(baseNextForrest({
+      includeStartCapital: false,
+      nfDepositStrategies: [
+        depositStrategy({ id: 'a', period: 'monthly', amount: 500, startMonth: 1 }),
+        depositStrategy({ id: 'b', period: 'once', amount: 5000, startMonth: 6 }),
+      ],
+    }));
+    const month6 = r.rows.find(row => row.month === 6);
+    close(month6.deposit, 5500);
+    close(month6.fee, 5500 * 0.015);
+    const month7 = r.rows.find(row => row.month === 7);
+    close(month7.deposit, 500, 'Einmalzahlung wirkt nur in ihrem eigenen Monat');
+  });
+
+  test('stopMode "date" ignoriert eine gleichzeitig gesetzte Schwelle', () => {
+    // Schwelle würde bereits in Monat 3 greifen (aktives Kapital 11.000,
+    // wenn capital-basiert, oder Rendite 550 wenn interest-basiert) — mit
+    // stopMode "date" bleibt das Enddatum (Monat 6) allein maßgeblich.
+    const r = simulateNextForrest(baseNextForrest({
+      includeStartCapital: false,
+      nfDepositStrategies: [depositStrategy({
+        period: 'monthly',
+        amount: 500,
+        stopMode: 'date',
+        endMonth: 6,
+        thresholdBasis: 'interest',
+        thresholdValue: 550,
+      })],
+    }));
+    close(r.rows.find(row => row.month === 3).deposit, 500, 'Schwelle wird bei stopMode "date" ignoriert');
+    close(r.rows.find(row => row.month === 6).deposit, 500, 'letzter Monat im Datumsfenster');
+    close(r.rows.find(row => row.month === 7).deposit, 0, 'Enddatum überschritten');
+  });
+
+  test('stopMode "threshold" ignoriert ein gleichzeitig gesetztes Enddatum', () => {
+    // Identische Strategie wie oben, aber stopMode "threshold": das
+    // Enddatum (Monat 6) wird ignoriert, die Schwelle (Rendite ≥ 550, ab
+    // Monat 2) ist allein maßgeblich.
+    const r = simulateNextForrest(baseNextForrest({
+      includeStartCapital: false,
+      nfDepositStrategies: [depositStrategy({
+        period: 'monthly',
+        amount: 500,
+        stopMode: 'threshold',
+        endMonth: 6,
+        thresholdBasis: 'interest',
+        thresholdValue: 550,
+      })],
+    }));
+    close(r.rows.find(row => row.month === 1).deposit, 500, 'Rendite 500 < 550 → läuft noch');
+    close(r.rows.find(row => row.month === 2).deposit, 0, 'Rendite erreicht 550 → Stopp, Enddatum wird ignoriert');
+  });
+
+  test('Einzahlungs-Schwellen-Stopp bleibt pro Strategie unabhängig: eine gestoppte Strategie hält andere nicht auf', () => {
+    const r = simulateNextForrest(baseNextForrest({
+      includeStartCapital: false,
+      nfDepositStrategies: [
+        depositStrategy({
+          id: 'stops-early', period: 'monthly', amount: 500,
+          stopMode: 'threshold', thresholdBasis: 'interest', thresholdValue: 550,
+        }),
+        depositStrategy({ id: 'keeps-going', period: 'monthly', amount: 100, stopMode: 'none' }),
+      ],
+    }));
+    // Monat 1: beide aktiv (500 + 100). Ab Monat 2 stoppt die erste dauerhaft,
+    // die zweite läuft unverändert weiter.
+    close(r.rows.find(row => row.month === 1).deposit, 600);
+    close(r.rows.find(row => row.month === 2).deposit, 100);
+    close(r.rows.find(row => row.month === 24).deposit, 100, 'dauerhafter Stopp bleibt bis zum Ende bestehen');
+  });
+
+  test('Auszahlungs-Schwelle ist nicht dauerhaft: Auszahlung kann pausieren und wieder einsetzen', () => {
+    // Rendite auf Kapitalbasis: solange keine Einzahlung/Reinvestition
+    // stattfindet, bleibt das aktive Kapital konstant, also auch die
+    // Rendite — daher hier ein Enddatum + erneuter Start über zwei separate
+    // Strategien, um "Pause dann wieder aktiv" auf der Zeitachse zu zeigen.
+    const r = simulateNextForrest(baseNextForrest({
+      includeStartCapital: false,
+      nfWithdrawalStrategies: [
+        withdrawalStrategy({ id: 'early', type: 'monthly', amount: 50, startMonth: 1, stopMode: 'date', endMonth: 2 }),
+        withdrawalStrategy({ id: 'late', type: 'monthly', amount: 50, startMonth: 10, stopMode: 'none' }),
+      ],
+    }));
+    close(r.rows.find(row => row.month === 1).withdrawn, 50 * (1 - 0.035));
+    close(r.rows.find(row => row.month === 5).withdrawn, 0, 'zwischen den beiden Fenstern keine Auszahlung');
+    close(r.rows.find(row => row.month === 10).withdrawn, 50 * (1 - 0.035));
+  });
+
+  test('Gemischte Auszahlungstypen gleichzeitig: prozentual + cashSurplus im selben Monat', () => {
+    const r = simulateNextForrest(baseNextForrest({
+      includeStartCapital: false,
+      nfDepositStrategies: [depositStrategy({ period: 'monthly', amount: 300 })],
+      nfWithdrawalStrategies: [
+        withdrawalStrategy({ id: 'pct', type: 'percentage', amount: 10 }),
+        withdrawalStrategy({ id: 'surplus', type: 'cashSurplus' }),
+      ],
+    }));
+    const month1 = r.rows.find(row => row.month === 1);
+    // Rendite Monat 1 = 500 €, 10% davon = 50 € brutto (prozentual, vor
+    // Einzahlung). Danach: Cash = 500 - 50(brutto) + 300(Einzahlung) = 750,
+    // Rest zum nächsten 1000er-Block ist 0 (750 < 1000, kein Sweep) →
+    // cashSurplus zahlt die vollen 750 € brutto aus.
+    const pctNet = 50 * (1 - 0.035);
+    const surplusNet = 750 * (1 - 0.035);
+    close(month1.withdrawn, pctNet + surplusNet);
+  });
+
+  test('Auszahlungstyp "once": zahlt genau einmal im angegebenen Monat aus', () => {
+    // Hoher Startbetrag ohne Roundup/Einzahlungen: die monatliche Rendite
+    // allein (2.500 €) übersteigt den einmaligen Auszahlungsbetrag (1.000 €)
+    // in jedem Monat sicher, damit die Auszahlung nie am verfügbaren Cash
+    // geclamped wird (Auszahlung läuft VOR dem Sweep dieses Monats).
+    const r = simulateNextForrest(baseNextForrest({
+      start: 50000,
+      includeStartCapital: false,
+      nfDepositStrategies: [],
+      nfWithdrawalStrategies: [withdrawalStrategy({ type: 'once', amount: 1000, startMonth: 6 })],
+    }));
+    close(r.rows.find(row => row.month === 5).withdrawn, 0);
+    close(r.rows.find(row => row.month === 6).withdrawn, 1000 * (1 - 0.035));
+    close(r.rows.find(row => row.month === 7).withdrawn, 0);
+  });
+
+  test('Roundup gemeinsam mit einer festen Einzahlungsstrategie aktiv (zwei Einträge derselben Liste): beide tragen im selben Monat zum Cash-Pool bei', () => {
+    const r = simulateNextForrest(baseNextForrest({
+      includeStartCapital: false,
+      nfDepositStrategies: [
+        depositStrategy({ id: 'fixed1', kind: 'fixed', period: 'monthly', amount: 200 }),
+        depositStrategy({ id: 'round1', kind: 'roundup' }),
+      ],
+    }));
+    const month1 = r.rows.find(row => row.month === 1);
+    // Rendite 500 € + 200 € feste Einzahlung = 700 €, Roundup füllt auf den
+    // nächsten 1000er-Block auf: +300 € → insgesamt 500 € "deposit"-Anteil
+    // aus Strategie(200) + Roundup(300) = 500, voller Sweep von 1000.
+    close(month1.deposit, 500);
+    close(month1.reinvested, 1000);
+  });
+
+  test('Zwei gleichzeitige Roundup-Einträge: der zweite hat nichts mehr aufzurunden (kein doppeltes Aufrunden)', () => {
+    const r = simulateNextForrest(baseNextForrest({
+      includeStartCapital: false,
+      nfDepositStrategies: [
+        depositStrategy({ id: 'round1', kind: 'roundup' }),
+        depositStrategy({ id: 'round2', kind: 'roundup' }),
+      ],
+    }));
+    const month1 = r.rows.find(row => row.month === 1);
+    close(month1.deposit, 500, 'Rendite 500€ auf den vollen 1000er-Block aufgerundet, nur einmal');
+    close(month1.reinvested, 1000);
   });
 });
 
@@ -280,14 +507,138 @@ describe('runSimulation', () => {
   });
 });
 
+describe('migrateScenarioValues: alte flache Felder → neues Array-Schema', () => {
+  test('bereits im neuen Schema vorliegende Werte bleiben unverändert', () => {
+    const values = baseNextForrest({
+      nfDepositStrategies: [depositStrategy({ amount: 111 })],
+      nfWithdrawalStrategies: [withdrawalStrategy({ amount: 22 })],
+    });
+    const migrated = migrateScenarioValues(values);
+    assert.strictEqual(migrated.nfDepositStrategies[0].amount, 111);
+    assert.strictEqual(migrated.nfWithdrawalStrategies[0].amount, 22);
+  });
+
+  test('fixed-Einzahlung + Sparziel + fixed-Auszahlung + Mindestkapital: identisches Simulationsergebnis vor/nach Migration', () => {
+    const oldShape = {
+      investmentType: 'nextforrest',
+      start: 10000,
+      includeStartCapital: true,
+      duration: 24,
+      durationUnit: 'months',
+      nfRate: 'low',
+      nfDepositStrategy: 'fixed',
+      nfMonthlyDeposit: 500,
+      nfMonthlyDepositPeriod: 'monthly',
+      nfDepositGoal: 20000,
+      nfDepositGoalThresholdBasis: 'capital',
+      nfWithdrawalStrategy: 'fixed',
+      nfWithdrawalAmount: 50,
+      nfWithdrawalPeriod: 'monthly',
+      nfWithdrawalMinCapital: 15000,
+      nfWithdrawalThresholdBasis: 'capital',
+    };
+    // Referenzergebnis: von Hand über die neuen Bausteine nachgebaut (exakt
+    // das migrierte Schema), um sicherzustellen, dass migrateScenarioValues
+    // dieselben Werte erzeugt wie eine direkt im neuen Schema formulierte,
+    // äquivalente Konfiguration.
+    const expectedShape = baseNextForrest({
+      start: 10000,
+      includeStartCapital: true,
+      nfDepositStrategies: [depositStrategy({
+        id: 'nfd-migrated-1', period: 'monthly', amount: 500, startMonth: 1,
+        stopMode: 'threshold', thresholdBasis: 'capital', thresholdValue: 20000,
+      })],
+      nfWithdrawalStrategies: [withdrawalStrategy({
+        id: 'nfw-migrated-1', type: 'monthly', amount: 50, startMonth: 1,
+        stopMode: 'threshold', thresholdBasis: 'capital', thresholdValue: 15000,
+      })],
+    });
+
+    const migrated = migrateScenarioValues(oldShape);
+    assert.deepStrictEqual(migrated.nfDepositStrategies, expectedShape.nfDepositStrategies);
+    assert.deepStrictEqual(migrated.nfWithdrawalStrategies, expectedShape.nfWithdrawalStrategies);
+    assert.strictEqual(migrated.nfRoundupEnabled, undefined, 'das alte separate Flag gibt es nicht mehr');
+    assert.strictEqual(migrated.nfDepositStrategy, undefined, 'alte Felder werden entfernt');
+
+    const before = simulateNextForrest(migrated);
+    const after = simulateNextForrest(expectedShape);
+    close(before.finalWealth, after.finalWealth);
+    close(before.totalDeposits, after.totalDeposits);
+    close(before.totalWithdrawn, after.totalWithdrawn);
+  });
+
+  test('roundup-Strategie mit Sparziel migriert verlustfrei zu einem einzelnen Roundup-Eintrag mit Schwelle', () => {
+    const oldShape = {
+      investmentType: 'nextforrest',
+      start: 10000,
+      includeStartCapital: true,
+      duration: 6,
+      durationUnit: 'months',
+      nfRate: 'low',
+      nfDepositStrategy: 'roundup',
+      nfMonthlyDeposit: 500, // wird bei kind 'roundup' ignoriert, wie schon vorher
+      nfDepositGoal: 20000,
+      nfDepositGoalThresholdBasis: 'capital',
+      nfWithdrawalStrategy: 'fixed',
+      nfWithdrawalAmount: 0,
+      nfWithdrawalMinCapital: 0,
+    };
+    const migrated = migrateScenarioValues(oldShape);
+    assert.strictEqual(migrated.nfDepositStrategies.length, 1);
+    assert.strictEqual(migrated.nfDepositStrategies[0].kind, 'roundup');
+    assert.strictEqual(migrated.nfDepositStrategies[0].stopMode, 'threshold');
+    assert.strictEqual(migrated.nfDepositStrategies[0].thresholdBasis, 'capital');
+    assert.strictEqual(migrated.nfDepositStrategies[0].thresholdValue, 20000);
+    assert.strictEqual(migrated.nfRoundupEnabled, undefined);
+  });
+
+  test('cashSurplus-Auszahlung ohne Betrag/Schwelle migriert trotzdem zu einer aktiven Strategie', () => {
+    const oldShape = {
+      investmentType: 'nextforrest',
+      start: 10000,
+      includeStartCapital: false,
+      duration: 3,
+      durationUnit: 'months',
+      nfRate: 'low',
+      nfDepositStrategy: 'fixed',
+      nfMonthlyDeposit: 500,
+      nfWithdrawalStrategy: 'cashSurplus',
+      nfWithdrawalAmount: 0,
+      nfWithdrawalMinCapital: 0,
+    };
+    const migrated = migrateScenarioValues(oldShape);
+    assert.strictEqual(migrated.nfWithdrawalStrategies.length, 1);
+    assert.strictEqual(migrated.nfWithdrawalStrategies[0].type, 'cashSurplus');
+  });
+
+  test('yearly-Kadenz wird auf Monat 12 verankert (entspricht der alten monthIndex % 12 === 0 Logik)', () => {
+    const oldShape = {
+      investmentType: 'nextforrest',
+      start: 0,
+      includeStartCapital: false,
+      duration: 24,
+      durationUnit: 'months',
+      nfRate: 'low',
+      nfDepositStrategy: 'fixed',
+      nfMonthlyDeposit: 1000,
+      nfMonthlyDepositPeriod: 'yearly',
+    };
+    const migrated = migrateScenarioValues(oldShape);
+    const r = simulateNextForrest(migrated);
+    close(r.rows.find(row => row.month === 11).deposit, 0);
+    close(r.rows.find(row => row.month === 12).deposit, 1000);
+    close(r.rows.find(row => row.month === 13).deposit, 0);
+    close(r.rows.find(row => row.month === 24).deposit, 1000);
+  });
+});
+
 describe('Team-Struktur / Rangsystem (simulateNextForrest.team)', () => {
   function baseTeam(overrides) {
     return baseNextForrest({
       start: 15000,
       includeStartCapital: false,
       duration: 1,
-      nfDepositStrategy: 'fixed',
-      nfMonthlyDeposit: 0,
+      nfDepositStrategies: [],
       nfTeamMembers: [],
       ...overrides
     });
@@ -511,8 +862,7 @@ describe('Team-Struktur / Rangsystem (simulateNextForrest.team)', () => {
   test('Prozentuale Auszahlung basiert standardmäßig auf Rendite + Bonus', () => {
     const values = baseTeam({
       start: 30000,
-      nfWithdrawalStrategy: 'percentage',
-      nfWithdrawalAmount: 10,
+      nfWithdrawalStrategies: [withdrawalStrategy({ type: 'percentage', amount: 10 })],
       nfTeamMembers: [
         { name: 'Ebene1', level: 1, startCapital: 150000, monthlyDeposit: 0, joinMonth: 1 },
         { name: 'Ebene2', level: 2, startCapital: 100000, monthlyDeposit: 0, joinMonth: 1 }
@@ -555,8 +905,7 @@ describe('Team-Mitglieder: eigene Szenario-Eigenschaften (simulateTeamMember)', 
     return baseNextForrest({
       duration: 3,
       nfRate: 'low',
-      nfDepositStrategy: 'fixed',
-      nfMonthlyDeposit: 0,
+      nfDepositStrategies: [],
       ...overrides
     });
   }
@@ -583,7 +932,7 @@ describe('Team-Mitglieder: eigene Szenario-Eigenschaften (simulateTeamMember)', 
     const v = baseMain({ nfDepositGoal: 0 });
     const sim = simulateTeamMember(v, {
       startCapital: 0, monthlyDeposit: 1000, joinMonth: 1, includeStartCapital: false,
-      nfDepositGoal: 2000, nfDepositGoalThresholdBasis: 'capital'
+      nfDepositStrategy: 'fixed', nfDepositGoal: 2000, nfDepositGoalThresholdBasis: 'capital'
     });
     const lastRow = sim.result.rows[sim.result.rows.length - 1];
     assert.ok(lastRow.active <= 2000 + 1e-6, `aktives Kapital ${lastRow.active} sollte die Schwelle nicht überschreiten`);

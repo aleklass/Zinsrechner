@@ -213,14 +213,174 @@
 
   // NextForrest: interest and deposits both land in a shared Cash pool;
   // Cash only ever moves into active capital in full 1000 blocks.
-  function nfWithdrawalGross(v, monthIndex, interestThisMonth, bonusThisMonth) {
-    if (v.nfWithdrawalStrategy === 'percentage') {
-      const pct = Math.max(0, num(v.nfWithdrawalAmount)) / 100;
-      return (interestThisMonth + bonusThisMonth) * pct;
+  //
+  // Mehrfach-Einzahlungsstrategien: jede Strategie ist
+  // { id, kind: 'fixed'|'roundup', amount, period: 'once'|'monthly'|'yearly'
+  // (nur bei kind 'fixed' relevant), startMonth, endMonth, stopMode:
+  // 'date'|'threshold'|'none', thresholdBasis: 'interest'|'capital',
+  // thresholdValue }. Die beiden Einzahlungsarten selbst (fester Betrag vs.
+  // 1000er-Aufrundung) entsprechen weiterhin genau den bisherigen — neu ist
+  // nur, dass mehrere davon gleichzeitig laufen können und jede ihr eigenes
+  // Start-/Endfenster (bzw. wahlweise eine Schwelle, siehe stopMode) hat.
+  //
+  // Mehrfach-Auszahlungsstrategien: { id, type: 'once'|'monthly'|'yearly'
+  // |'percentage'|'cashSurplus', amount, startMonth, endMonth, stopMode,
+  // thresholdBasis, thresholdValue } — unverändert gegenüber der bisherigen
+  // Auszahlungsstrategie, nur ebenfalls mehrfach und mit Start/Ende.
+  //
+  // `stopMode` legt bei beiden fest, ob endMonth ODER die Schwelle greift —
+  // nie beide gleichzeitig.
+
+  function strategyPeriodicAmount(strategy, monthIndex) {
+    const amount = Math.max(0, num(strategy.amount));
+    if (strategy.type === 'once') {
+      return monthIndex === strategy.startMonth ? amount : 0;
     }
-    const amount = Math.max(0, num(v.nfWithdrawalAmount));
-    if (v.nfWithdrawalPeriod === 'monthly') return amount;
-    return monthIndex % 12 === 0 ? amount : 0;
+    if (strategy.type === 'monthly') return amount;
+    if (strategy.type === 'yearly') {
+      return (monthIndex - strategy.startMonth) % 12 === 0 ? amount : 0;
+    }
+    return 0; // 'percentage'/'cashSurplus' werden separat behandelt
+  }
+
+  // Betrag einer Einzahlungsstrategie vom Typ 'fixed' für diesen Monat
+  // (kind 'roundup' hat keinen festen Betrag/Periode — siehe Sweep-Schritt).
+  function fixedDepositAmount(strategy, monthIndex) {
+    const amount = Math.max(0, num(strategy.amount));
+    if (strategy.period === 'once') {
+      return monthIndex === strategy.startMonth ? amount : 0;
+    }
+    if (strategy.period === 'yearly') {
+      return (monthIndex - strategy.startMonth) % 12 === 0 ? amount : 0;
+    }
+    return amount; // 'monthly' (Default)
+  }
+
+  // Einzahlungs-Strategien stoppen dauerhaft, sobald ihre Schwelle erreicht
+  // ist (state.stopped bleibt danach für die restliche Laufzeit gesetzt) —
+  // genau wie das bisherige einzelne Sparziel. Gilt für beide Arten (fest
+  // wie Roundup) gleichermaßen; nur 'once' (nur bei kind 'fixed' möglich)
+  // ignoriert Enddatum/Schwelle, da es ohnehin nur einen Monat betrifft.
+  function depositStrategyActive(strategy, state, monthIndex, interestThisMonth, activeCapital) {
+    if (state.stopped) return false;
+    if (monthIndex < strategy.startMonth) return false;
+    if (strategy.period === 'once') return monthIndex === strategy.startMonth;
+    if (strategy.stopMode === 'date' && strategy.endMonth != null) {
+      return monthIndex <= strategy.endMonth;
+    }
+    if (strategy.stopMode === 'threshold' && strategy.thresholdValue > 0) {
+      const basisValue = strategy.thresholdBasis === 'interest' ? interestThisMonth : activeCapital;
+      if (basisValue >= strategy.thresholdValue - 1e-9) {
+        state.stopped = true;
+        return false;
+      }
+      return true;
+    }
+    return true;
+  }
+
+  // Auszahlungs-Schwellen werden jeden Monat neu geprüft (nicht dauerhaft) —
+  // eine Auszahlung kann also pausieren und später wieder einsetzen.
+  function withdrawalStrategyActive(strategy, monthIndex, interestThisMonth, activeCapital) {
+    if (monthIndex < strategy.startMonth) return false;
+    if (strategy.type === 'once') return monthIndex === strategy.startMonth;
+    if (strategy.stopMode === 'date' && strategy.endMonth != null) {
+      return monthIndex <= strategy.endMonth;
+    }
+    if (strategy.stopMode === 'threshold' && strategy.thresholdValue > 0) {
+      const basisValue = strategy.thresholdBasis === 'interest' ? interestThisMonth : activeCapital;
+      return basisValue >= strategy.thresholdValue - 1e-9;
+    }
+    return true;
+  }
+
+  function withdrawalStrategyAmount(strategy, monthIndex, interestThisMonth, totalBonus) {
+    if (strategy.type === 'percentage') {
+      const pct = Math.max(0, num(strategy.amount)) / 100;
+      return (interestThisMonth + totalBonus) * pct;
+    }
+    if (strategy.type === 'cashSurplus') return 0; // separat, nach den Einzahlungen
+    return strategyPeriodicAmount(strategy, monthIndex);
+  }
+
+  // Migriert die alten flachen Einzahlungsfelder (nfDepositStrategy,
+  // nfMonthlyDeposit, nfMonthlyDepositPeriod, nfDepositGoal,
+  // nfDepositGoalThresholdBasis) in ein einzelnes nfDepositStrategies-Array
+  // mit genau einem Eintrag, der exakt das bisherige Verhalten abbildet
+  // (inkl. eines eventuellen Sparziels — auch bei kind 'roundup', was vorher
+  // nicht separat modellierbar war). 'yearly' wird auf startMonth 12
+  // verankert, damit die Kadenz exakt der alten `monthIndex % 12 === 0`-
+  // Logik entspricht (Monat 12, 24, …).
+  function toDepositStrategiesMigration(flat) {
+    const kind = flat.nfDepositStrategy === 'fixed' ? 'fixed' : 'roundup';
+    const amount = Math.max(0, num(flat.nfMonthlyDeposit));
+    const goal = Math.max(0, num(flat.nfDepositGoal));
+    const isYearly = flat.nfMonthlyDepositPeriod === 'yearly';
+    const active = kind === 'roundup' || amount > 0 || goal > 0;
+    const strategies = active ? [{
+      id: 'nfd-migrated-1',
+      kind,
+      amount: kind === 'fixed' ? amount : 0,
+      period: isYearly ? 'yearly' : 'monthly',
+      startMonth: kind === 'fixed' && isYearly ? 12 : 1,
+      endMonth: null,
+      stopMode: goal > 0 ? 'threshold' : 'none',
+      thresholdBasis: flat.nfDepositGoalThresholdBasis === 'interest' ? 'interest' : 'capital',
+      thresholdValue: goal,
+    }] : [];
+    return strategies;
+  }
+
+  // Migriert die alten flachen Auszahlungsfelder in ein nfWithdrawalStrategies-
+  // Array. 'percentage'/'cashSurplus' laufen unverändert durch; 'fixed' wird
+  // je nach Periode zu 'monthly'/'yearly' (yearly ebenfalls auf Monat 12
+  // verankert, wie bei den Einzahlungen).
+  function toWithdrawalStrategiesMigration(flat) {
+    const type =
+      flat.nfWithdrawalStrategy === 'percentage' || flat.nfWithdrawalStrategy === 'cashSurplus'
+        ? flat.nfWithdrawalStrategy
+        : 'fixed';
+    const amount = Math.max(0, num(flat.nfWithdrawalAmount));
+    const minCapital = Math.max(0, num(flat.nfWithdrawalMinCapital));
+    const isYearly = flat.nfWithdrawalPeriod === 'yearly';
+    const active = type === 'cashSurplus' || amount > 0;
+    if (!active) return [];
+    return [{
+      id: 'nfw-migrated-1',
+      type: type === 'fixed' ? (isYearly ? 'yearly' : 'monthly') : type,
+      amount,
+      startMonth: type === 'fixed' && isYearly ? 12 : 1,
+      endMonth: null,
+      stopMode: minCapital > 0 ? 'threshold' : 'none',
+      thresholdBasis: flat.nfWithdrawalThresholdBasis === 'interest' ? 'interest' : 'capital',
+      thresholdValue: minCapital,
+    }];
+  }
+
+  // Wandelt ein gespeichertes Szenario (aus localStorage) mit den alten
+  // flachen NextForrest-Feldern in das neue Array-Schema um. Bereits im
+  // neuen Schema vorliegende Szenarien bleiben unverändert. Muss dieselben
+  // Simulationsergebnisse liefern wie vorher (siehe calc.test.js).
+  function migrateScenarioValues(values) {
+    const out = { ...values };
+    if (!Array.isArray(out.nfDepositStrategies)) {
+      out.nfDepositStrategies = toDepositStrategiesMigration(out);
+      delete out.nfDepositStrategy;
+      delete out.nfMonthlyDeposit;
+      delete out.nfMonthlyDepositPeriod;
+      delete out.nfDepositGoal;
+      delete out.nfDepositGoalThresholdBasis;
+    }
+    if (!Array.isArray(out.nfWithdrawalStrategies)) {
+      out.nfWithdrawalStrategies = toWithdrawalStrategiesMigration(out);
+      delete out.nfWithdrawalStrategy;
+      delete out.nfWithdrawalAmount;
+      delete out.nfWithdrawalPeriod;
+      delete out.nfWithdrawalMinCapital;
+      delete out.nfWithdrawalThresholdBasis;
+    }
+    delete out.nfRoundupEnabled;
+    return out;
   }
 
   function simulateNextForrest(v) {
@@ -232,19 +392,9 @@
     // capital from month 0, exactly like before this toggle existed.
     const startAsDeposit = v.includeStartCapital !== false;
     const startCapital = startAsDeposit ? 0 : rawStart;
-    const depositGoal = Math.max(0, num(v.nfDepositGoal));
-    const depositGoalBasis =
-      v.nfDepositGoalThresholdBasis === 'interest'
-        ? 'interest'
-        : 'capital';
-    const minCapitalForWithdrawal = Math.max(
-      0,
-      num(v.nfWithdrawalMinCapital),
-    );
-    const withdrawalThresholdBasis =
-      v.nfWithdrawalThresholdBasis === 'interest'
-        ? 'interest'
-        : 'capital';
+    const depositStrategies = Array.isArray(v.nfDepositStrategies) ? v.nfDepositStrategies : [];
+    const depositState = depositStrategies.map(() => ({ stopped: false }));
+    const withdrawalStrategies = Array.isArray(v.nfWithdrawalStrategies) ? v.nfWithdrawalStrategies : [];
 
     // Team-/Empfehlungsstruktur: jedes Teammitglied läuft als eigene,
     // unabhängige simulateNextForrest()-Instanz ab seinem Beitrittsmonat.
@@ -277,7 +427,6 @@
     let totalWithdrawn = 0;
     let totalReinvested = 0;
     let totalDepositPrincipal = 0;
-    let depositsStopped = false;
 
     const series = [];
     const rows = [];
@@ -439,16 +588,11 @@
         });
       }
 
-      // 1) Withdrawal skims from this month's cash before reinvestment
-      // ('fixed'/'percentage'). 'cashSurplus' is deferred until after
-      // deposits (step 2, below) so it reflects exactly the remainder that
+      // 1) Withdrawals skim from this month's cash before reinvestment
+      // ('once'/'monthly'/'yearly'/'percentage', summed across all active
+      // strategies). 'cashSurplus' strategies are deferred until after
+      // deposits (step 2, below) so they reflect exactly the remainder that
       // would otherwise miss the next 1000er block in step 3.
-      const meetsWithdrawalThreshold =
-        withdrawalThresholdBasis === 'interest'
-          ? interest >= minCapitalForWithdrawal
-          : activeCapital >= minCapitalForWithdrawal;
-      const isCashSurplusWithdrawal = v.nfWithdrawalStrategy === 'cashSurplus';
-
       const applyWithdrawal = (gross) => {
         gross = Math.max(0, Math.min(gross, cash));
         if (gross > 1e-9) {
@@ -457,63 +601,67 @@
           totalWithdrawn += gross - fee;
           feeThisMonth += fee;
           totalWithdrawalFees += fee;
-          withdrawnNet = gross - fee;
+          withdrawnNet += gross - fee;
         }
       };
 
-      if (meetsWithdrawalThreshold && !isCashSurplusWithdrawal) {
-        applyWithdrawal(nfWithdrawalGross(v, m, interest, totalBonus));
-      }
+      let preDepositWithdrawalGross = 0;
+      withdrawalStrategies.forEach((s) => {
+        if (s.type === 'cashSurplus') return;
+        if (!withdrawalStrategyActive(s, m, interest, activeCapital)) return;
+        preDepositWithdrawalGross += withdrawalStrategyAmount(s, m, interest, totalBonus);
+      });
+      if (preDepositWithdrawalGross > 0) applyWithdrawal(preDepositWithdrawalGross);
 
-      // 2) Deposits — stop for good once the deposit goal is reached, on
-      // either basis: active capital (checked against the level entering
-      // this month) or this month's own interest.
-      const meetsDepositGoal =
-        depositGoalBasis === 'interest'
-          ? interest >= depositGoal - 1e-9
-          : activeCapital >= depositGoal - 1e-9;
-      if (depositGoal > 0 && meetsDepositGoal) {
-        depositsStopped = true;
-      }
-
-      if (!depositsStopped) {
-        if (v.nfDepositStrategy === 'fixed') {
-          const contribution = contributionThisMonth(
-            {
-              contribution: v.nfMonthlyDeposit,
-              contributionPeriod: v.nfMonthlyDepositPeriod,
-            },
-            m,
-          );
-          if (contribution > 0) {
-            const fee = contribution * NF_DEPOSIT_FEE_PCT;
-            cash += contribution;
-            totalPaid += contribution + fee;
-            feeThisMonth += fee;
-            totalDepositFees += fee;
-            depositGross += contribution;
-            totalDepositPrincipal += contribution;
-          }
-        } else if (cash > 1e-9) {
-          const target =
-            Math.ceil((cash - 1e-9) / NF_BLOCK) * NF_BLOCK;
-          const topUp = Math.max(0, target - cash);
-          if (topUp > 1e-9) {
-            const fee = topUp * NF_DEPOSIT_FEE_PCT;
-            cash += topUp;
-            totalPaid += topUp + fee;
-            feeThisMonth += fee;
-            totalDepositFees += fee;
-            depositGross += topUp;
-            totalDepositPrincipal += topUp;
-          }
+      // 2) Deposits — each strategy sums independently (own start/end
+      // month and, if stopMode is 'threshold', its own permanent stop once
+      // its goal is reached). 'fixed' strategies run first (they add a
+      // known amount to Cash); 'roundup' strategies run afterwards, each
+      // topping Cash up to the next 1000er block — so a Roundup strategy
+      // active in the same month as a fixed one tops up the combined total,
+      // exactly like the historical single-strategy behavior did.
+      depositStrategies.forEach((s, i) => {
+        if (s.kind === 'roundup') return;
+        if (!depositStrategyActive(s, depositState[i], m, interest, activeCapital)) return;
+        const amount = fixedDepositAmount(s, m);
+        if (amount > 0) {
+          const fee = amount * NF_DEPOSIT_FEE_PCT;
+          cash += amount;
+          totalPaid += amount + fee;
+          feeThisMonth += fee;
+          totalDepositFees += fee;
+          depositGross += amount;
+          totalDepositPrincipal += amount;
         }
-      }
+      });
 
-      // 2b) 'cashSurplus' withdrawal: pay out exactly the remainder that
+      depositStrategies.forEach((s, i) => {
+        if (s.kind !== 'roundup') return;
+        if (!depositStrategyActive(s, depositState[i], m, interest, activeCapital)) return;
+        if (cash <= 1e-9) return;
+        const target = Math.ceil((cash - 1e-9) / NF_BLOCK) * NF_BLOCK;
+        const topUp = Math.max(0, target - cash);
+        if (topUp > 1e-9) {
+          const fee = topUp * NF_DEPOSIT_FEE_PCT;
+          cash += topUp;
+          totalPaid += topUp + fee;
+          feeThisMonth += fee;
+          totalDepositFees += fee;
+          depositGross += topUp;
+          totalDepositPrincipal += topUp;
+        }
+      });
+
+      // 2b) 'cashSurplus' withdrawals: pay out exactly the remainder that
       // would otherwise miss the next 1000er block and stay uninvested in
       // Cash — computed after deposits so it matches the actual sweep rest.
-      if (meetsWithdrawalThreshold && isCashSurplusWithdrawal) {
+      // Multiple simultaneously active cashSurplus strategies still only pay
+      // out the one shared remainder once (there is nothing left for a
+      // second one to skim).
+      const hasActiveCashSurplus = withdrawalStrategies.some(
+        (s) => s.type === 'cashSurplus' && withdrawalStrategyActive(s, m, interest, activeCapital),
+      );
+      if (hasActiveCashSurplus) {
         const blockRemainder =
           cash - Math.floor((cash + 1e-9) / NF_BLOCK) * NF_BLOCK;
         applyWithdrawal(Math.max(0, blockRemainder));
@@ -625,22 +773,21 @@
     const memberMonths = totalMonths - joinMonth + 1;
     if (memberMonths <= 0) return null;
 
-    const result = simulateNextForrest({
-      start: num(member.startCapital),
-      // Wie beim Hauptszenario: unchecked lässt das Startkapital direkt als
-      // aktives Kapital beginnen statt als Einzahlungsereignis — dadurch
-      // entsteht kein row0-Deposit und somit auch kein Tippgeber-Bonus im
-      // Beitrittsmonat auf diesen Betrag.
-      includeStartCapital: member.includeStartCapital !== false,
-      duration: memberMonths,
-      durationUnit: 'months',
-      // Eigene Szenario-Eigenschaften pro Mitglied. Fehlt ein Feld (z. B. bei
-      // Mitgliedern, die vor Einführung dieser Eigenschaften angelegt
-      // wurden), greift derselbe Fallback wie zuvor: Rendite und
-      // Einzahlungsstrategie vom Hauptszenario übernommen, Einzahlungsziel
-      // und Auszahlung deaktiviert.
-      nfRate: member.nfRate || v.nfRate,
-      nfDepositStrategy: member.nfDepositStrategy || v.nfDepositStrategy,
+    // Eigene Szenario-Eigenschaften pro Mitglied. Fehlt ein Feld (z. B. bei
+    // Mitgliedern, die vor Einführung dieser Eigenschaften angelegt wurden),
+    // greift derselbe Fallback wie zuvor: Rendite und Einzahlungsstrategie
+    // vom Hauptszenario übernommen, Einzahlungsziel und Auszahlung
+    // deaktiviert. Die flachen Mitglieder-Felder selbst bleiben unverändert
+    // (eigene UI, siehe addTeamMember) — sie werden hier lediglich in das
+    // Array-Schema übersetzt, das simulateNextForrest() erwartet, mit
+    // denselben Migrations-Hilfsfunktionen wie für gespeicherte Szenarien.
+    const flat = {
+      // v selbst führt seit den Mehrfachstrategien keine einzelne flache
+      // nfDepositStrategy mehr (nur noch das nfDepositStrategies-Array,
+      // das auch gemischte Einträge enthalten kann) — es gibt also keinen
+      // einzelnen Wert mehr, der an ein Mitglied "vererbt" werden könnte.
+      // Ohne eigene Angabe fällt ein Mitglied daher auf 'fixed' zurück.
+      nfDepositStrategy: member.nfDepositStrategy || 'fixed',
       nfMonthlyDeposit: num(member.monthlyDeposit),
       nfMonthlyDepositPeriod: member.nfMonthlyDepositPeriod || 'monthly',
       nfDepositGoal: Math.max(0, num(member.nfDepositGoal)),
@@ -650,6 +797,19 @@
       nfWithdrawalPeriod: member.nfWithdrawalPeriod || 'monthly',
       nfWithdrawalMinCapital: Math.max(0, num(member.nfWithdrawalMinCapital)),
       nfWithdrawalThresholdBasis: member.nfWithdrawalThresholdBasis || 'interest',
+    };
+    const result = simulateNextForrest({
+      start: num(member.startCapital),
+      // Wie beim Hauptszenario: unchecked lässt das Startkapital direkt als
+      // aktives Kapital beginnen statt als Einzahlungsereignis — dadurch
+      // entsteht kein row0-Deposit und somit auch kein Tippgeber-Bonus im
+      // Beitrittsmonat auf diesen Betrag.
+      includeStartCapital: member.includeStartCapital !== false,
+      duration: memberMonths,
+      durationUnit: 'months',
+      nfRate: member.nfRate || v.nfRate,
+      nfDepositStrategies: toDepositStrategiesMigration(flat),
+      nfWithdrawalStrategies: toWithdrawalStrategiesMigration(flat),
     });
 
     return { member, joinMonth, result };
@@ -722,7 +882,14 @@
     contributionThisMonth,
     getSettings,
     simulate,
-    nfWithdrawalGross,
+    strategyPeriodicAmount,
+    fixedDepositAmount,
+    depositStrategyActive,
+    withdrawalStrategyActive,
+    withdrawalStrategyAmount,
+    toDepositStrategiesMigration,
+    toWithdrawalStrategiesMigration,
+    migrateScenarioValues,
     simulateNextForrest,
     runSimulation,
     simulateTeamMember,

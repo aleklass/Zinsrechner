@@ -377,6 +377,31 @@
       border-radius: 9px;
     }
 
+    .amount-input {
+      position: relative;
+    }
+
+    .amount-input input {
+      width: 100%;
+      padding-left: 32px;
+    }
+
+    .input-row .amount-input {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .amount-input-symbol {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+      pointer-events: none;
+    }
+
     .team-remove-btn {
       flex: 0 0 auto;
       background: transparent;
@@ -1061,18 +1086,10 @@
 
         <div class="field">
           <label for="start">Startkapital</label>
-          <div class="input-row">
+          <div class="amount-input">
+            <span class="amount-input-symbol">$</span>
             <input id="start" type="number" min="0" step="100" value="10000">
-            <select id="currency" class="unit">
-              <option value="EUR">€</option>
-              <option value="USD">$</option>
-              <option value="CHF">CHF</option>
-            </select>
           </div>
-          <label class="checkbox-row" for="includeStartCapital">
-            <input type="checkbox" id="includeStartCapital" checked>
-            <span>Als Einzahlung berücksichtigen</span>
-          </label>
         </div>
 
         <div class="field">
@@ -1091,7 +1108,10 @@
           <div class="field">
             <label for="contribution">Regelmäßige Einzahlung <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Einzahlungen werden direkt am Monatsende investiert und ab dem Folgemonat mitverzinst.</span></span></label>
             <div class="input-row">
-              <input id="contribution" type="number" min="0" step="50" value="0">
+              <div class="amount-input">
+                <span class="amount-input-symbol">$</span>
+                <input id="contribution" type="number" min="0" step="50" value="0">
+              </div>
               <select id="contributionPeriod" class="unit">
                 <option value="monthly">monatlich</option>
                 <option value="yearly">jährlich</option>
@@ -1120,32 +1140,9 @@
 
             <div class="field-group">
               <div class="field">
-                <label>Einzahlungsstrategie <span class="info-tip" tabindex="0"><span class="info-tip-bubble" id="nfDepositStrategyHint"></span></span></label>
-                <div class="toggle-row" id="nfDepositStrategyToggle">
-                  <button type="button" class="toggle-btn active" data-value="fixed">Fester Betrag/Monat</button>
-                  <button type="button" class="toggle-btn" data-value="roundup">1000er-Aufrundung</button>
-                </div>
-              </div>
-
-              <div class="field" id="nfMonthlyDepositField">
-                <label for="nfMonthlyDeposit">Monatliche Einzahlung</label>
-                <div class="input-row">
-                  <input id="nfMonthlyDeposit" type="number" min="0" step="50" value="500">
-                  <select id="nfMonthlyDepositPeriod" class="unit">
-                    <option value="monthly">monatlich</option>
-                    <option value="yearly">jährlich</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="field">
-                <label for="nfDepositGoal">Einzahlungsschwelle (0 = unbegrenzt) <span class="info-tip" tabindex="0"><span class="info-tip-bubble" id="nfDepositGoalHint"></span></span></label>
-                <div class="toggle-row" id="nfDepositGoalThresholdBasisToggle">
-                  <button type="button" class="toggle-btn active" data-value="interest">Monatsrendite</button>
-                  <button type="button" class="toggle-btn" data-value="capital">Aktives Kapital</button>
-                </div>
-                <input id="nfDepositGoal" type="number" min="0" step="1000" value="0" style="margin-top:8px;">
-                <div class="field-warning" id="nfDepositGoalWarning"></div>
+                <label>Einzahlungsstrategien <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Beliebig viele gleichzeitig aktive Strategien möglich (z. B. „500 €/Monat bis Monat 12“ + „einmalig 5.000 € in Monat 6“) — ihre Beträge werden pro Monat addiert.</span></span></label>
+                <div id="nfDepositStrategyRows"></div>
+                <button type="button" class="secondary" id="addNfDepositStrategyBtn">+ Einzahlungsstrategie hinzufügen</button>
               </div>
 
               <div class="field">
@@ -1155,33 +1152,9 @@
 
             <div class="field-group">
               <div class="field">
-                <label>Auszahlungsstrategie <span class="info-tip" tabindex="0"><span class="info-tip-bubble" id="nfWithdrawalStrategyHint"></span></span></label>
-                <div class="toggle-row" id="nfWithdrawalStrategyToggle">
-                  <button type="button" class="toggle-btn active" data-value="fixed">Fester Betrag</button>
-                  <button type="button" class="toggle-btn" data-value="percentage">Prozentualer Anteil</button>
-                  <button type="button" class="toggle-btn" data-value="cashSurplus">Cash-Überschuss</button>
-                </div>
-              </div>
-
-              <div class="field" id="nfWithdrawalAmountField">
-                <label for="nfWithdrawalAmount"><span id="nfWithdrawalAmountLabel">Auszahlungsbetrag</span> <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Bei „Prozentualer Anteil“ gilt der Wert als % der jeweils erwirtschafteten monatlichen Rendite inkl. Bonus.</span></span></label>
-                <div class="input-row">
-                  <input id="nfWithdrawalAmount" type="number" min="0" step="50" value="0">
-                  <select id="nfWithdrawalPeriod" class="unit">
-                    <option value="monthly">monatlich</option>
-                    <option value="yearly">jährlich</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="field">
-                <label for="nfWithdrawalMinCapital">Auszahlungsschwelle <span class="info-tip" tabindex="0"><span class="info-tip-bubble" id="nfWithdrawalMinCapitalHint"></span></span></label>
-                <div class="toggle-row" id="nfWithdrawalThresholdBasisToggle">
-                  <button type="button" class="toggle-btn active" data-value="interest">Monatsrendite</button>
-                  <button type="button" class="toggle-btn" data-value="capital">Aktives Kapital</button>
-                </div>
-                <input id="nfWithdrawalMinCapital" type="number" min="0" step="500" value="0" style="margin-top:8px;">
-                <div class="field-warning" id="nfWithdrawalMinCapitalWarning"></div>
+                <label>Auszahlungsstrategien <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Beliebig viele gleichzeitig aktive Strategien möglich, auch gemischte Typen. Von jeder Auszahlung werden zusätzlich 3,5 % Gebühr abgezogen.</span></span></label>
+                <div id="nfWithdrawalStrategyRows"></div>
+                <button type="button" class="secondary" id="addNfWithdrawalStrategyBtn">+ Auszahlungsstrategie hinzufügen</button>
               </div>
             </div>
 
@@ -1307,7 +1280,7 @@
   const {
     NF_RATES, NF_DEPOSIT_FEE_PCT, NF_WITHDRAWAL_FEE_PCT, NF_BLOCK,
     RANKS,
-    num, simulate, simulateNextForrest, runSimulation
+    num, simulate, simulateNextForrest, runSimulation, migrateScenarioValues
   } = ZinsCalc;
 
   const els = {
@@ -1317,8 +1290,6 @@
     classicFields: $('classicFields'),
     nextForrestFields: $('nextForrestFields'),
     start: $('start'),
-    includeStartCapital: $('includeStartCapital'),
-    currency: $('currency'),
     rate: $('rate'),
     duration: $('duration'),
     durationUnit: $('durationUnit'),
@@ -1326,25 +1297,10 @@
     contributionPeriod: $('contributionPeriod'),
     compound: $('compound'),
     nfRateToggle: $('nfRateToggle'),
-    nfDepositStrategyToggle: $('nfDepositStrategyToggle'),
-    nfDepositStrategyHint: $('nfDepositStrategyHint'),
-    nfMonthlyDepositField: $('nfMonthlyDepositField'),
-    nfMonthlyDeposit: $('nfMonthlyDeposit'),
-    nfMonthlyDepositPeriod: $('nfMonthlyDepositPeriod'),
-    nfDepositGoalThresholdBasisToggle: $('nfDepositGoalThresholdBasisToggle'),
-    nfDepositGoal: $('nfDepositGoal'),
-    nfDepositGoalHint: $('nfDepositGoalHint'),
-    nfDepositGoalWarning: $('nfDepositGoalWarning'),
-    nfWithdrawalStrategyToggle: $('nfWithdrawalStrategyToggle'),
-    nfWithdrawalStrategyHint: $('nfWithdrawalStrategyHint'),
-    nfWithdrawalAmountField: $('nfWithdrawalAmountField'),
-    nfWithdrawalAmount: $('nfWithdrawalAmount'),
-    nfWithdrawalAmountLabel: $('nfWithdrawalAmountLabel'),
-    nfWithdrawalPeriod: $('nfWithdrawalPeriod'),
-    nfWithdrawalThresholdBasisToggle: $('nfWithdrawalThresholdBasisToggle'),
-    nfWithdrawalMinCapital: $('nfWithdrawalMinCapital'),
-    nfWithdrawalMinCapitalHint: $('nfWithdrawalMinCapitalHint'),
-    nfWithdrawalMinCapitalWarning: $('nfWithdrawalMinCapitalWarning'),
+    nfDepositStrategyRows: $('nfDepositStrategyRows'),
+    addNfDepositStrategyBtn: $('addNfDepositStrategyBtn'),
+    nfWithdrawalStrategyRows: $('nfWithdrawalStrategyRows'),
+    addNfWithdrawalStrategyBtn: $('addNfWithdrawalStrategyBtn'),
     teamMemberRows: $('teamMemberRows'),
     addTeamMemberBtn: $('addTeamMemberBtn'),
     teamBonusSection: $('teamBonusSection'),
@@ -1365,10 +1321,8 @@
   };
 
   const FIELD_KEYS = [
-    'start', 'currency', 'rate', 'duration', 'durationUnit',
-    'contribution', 'contributionPeriod', 'compound',
-    'nfMonthlyDeposit', 'nfMonthlyDepositPeriod', 'nfDepositGoal',
-    'nfWithdrawalAmount', 'nfWithdrawalPeriod', 'nfWithdrawalMinCapital'
+    'start', 'rate', 'duration', 'durationUnit',
+    'contribution', 'contributionPeriod', 'compound'
   ];
 
   // These fields are shared across all scenarios: changing them in one
@@ -1378,7 +1332,11 @@
   const defaultScenarioValues = {
     investmentType: 'nextforrest',
     start: 10000,
-    includeStartCapital: true,
+    // Kein Umschalter mehr in der UI: Startkapital ist immer sofort aktives
+    // Kapital ohne Einzahlungsgebühr (früher "unchecked"). Wer eine
+    // Einzahlung mit Gebühr simulieren will, nutzt dafür eine
+    // Einzahlungsstrategie vom Typ "Einmalig".
+    includeStartCapital: false,
     currency: 'USD',
     rate: 5,
     duration: 24,
@@ -1394,18 +1352,14 @@
     reinvestMode: 'accumulating',
     // NextForrest
     nfRate: 'low',
-    nfDepositStrategy: 'fixed',
-    nfMonthlyDeposit: 500,
-    nfMonthlyDepositPeriod: 'monthly',
-    nfDepositGoal: 0,
-    nfWithdrawalStrategy: 'fixed',
-    nfWithdrawalAmount: 0,
-    nfWithdrawalPeriod: 'monthly',
-    nfWithdrawalMinCapital: 0,
-    nfWithdrawalThresholdBasis: 'interest',
-    nfDepositGoalThresholdBasis: 'interest',
+    nfDepositStrategies: [
+      { id: 'nfd1', kind: 'fixed', amount: 500, period: 'monthly', startMonth: 1, endMonth: null, stopMode: 'none', thresholdBasis: 'interest', thresholdValue: 0 }
+    ],
+    nfWithdrawalStrategies: [],
     nfTeamMembers: []
   };
+
+  let nfStrategySeq = 1;
 
   const COLORS = ['#62d394', '#75a7ff', '#ffb86b', '#ff7a7a', '#c28cff', '#7fe7e7'];
   const STORAGE_KEY = 'zinseszinsrechner_v2';
@@ -1431,25 +1385,38 @@
     const scenario = {
       id: 'sc' + scenarioSeq,
       name: name || `Szenario ${scenarioSeq}`,
-      // Flache Kopie reicht für alle primitiven Felder; nfTeamMembers ist das
-      // einzige Array-Feld und muss explizit tief kopiert werden, sonst
-      // teilen sich duplizierte Szenarien dieselbe Team-Liste.
+      // Flache Kopie reicht für alle primitiven Felder; Array-Felder müssen
+      // explizit tief kopiert werden, sonst teilen sich duplizierte
+      // Szenarien dieselben Listen.
       values: {
         ...values,
-        nfTeamMembers: Array.isArray(values.nfTeamMembers) ? values.nfTeamMembers.map(m => ({ ...m })) : []
+        nfTeamMembers: Array.isArray(values.nfTeamMembers) ? values.nfTeamMembers.map(m => ({ ...m })) : [],
+        nfDepositStrategies: Array.isArray(values.nfDepositStrategies) ? values.nfDepositStrategies.map(s => ({ ...s })) : [],
+        nfWithdrawalStrategies: Array.isArray(values.nfWithdrawalStrategies) ? values.nfWithdrawalStrategies.map(s => ({ ...s })) : []
       }
     };
     scenarioSeq += 1;
     return scenario;
   }
 
+  // Währung ist fest auf USD gestellt (keine Auswahl mehr in der UI).
   function fmt(value, currency) {
-    const cur = currency || els.currency.value || 'USD';
+    const cur = currency || 'USD';
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
       currency: cur,
       maximumFractionDigits: 2
     }).format(value);
+  }
+
+  // Kurzes Symbol für Betragsfelder (kein voll formatierter Betrag, nur ein
+  // Präfix im Eingabefeld, damit auf einen Blick klar ist: hier wird ein
+  // Geldbetrag erwartet, keine reine Zahl.
+  function currencySymbol(currency) {
+    const cur = currency || 'USD';
+    if (cur === 'EUR') return '€';
+    if (cur === 'CHF') return 'CHF';
+    return '$';
   }
 
   function escapeHtml(s) {
@@ -1473,11 +1440,12 @@
       // (siehe buildCombinedRows()). Der Team-Bonus-Bereich bleibt davon
       // unberührt und zeigt das Mitglied unabhängig davon weiterhin einzeln.
       mergeWithOwn: false,
-      // Eigene Szenario-Eigenschaften — Default entspricht dem bisherigen
-      // Verhalten (Rendite/Einzahlungsstrategie vom Hauptszenario zum
-      // Anlagezeitpunkt übernommen, Einzahlungsschwelle und Auszahlung aus).
+      // Eigene Szenario-Eigenschaften — die Rendite wird vom Hauptszenario
+      // übernommen; für die Einzahlungsart gibt es seit den Mehrfach-
+      // Einzahlungsstrategien im Hauptszenario keinen einzelnen Wert mehr,
+      // der sich vererben ließe, daher Standard 'fixed' mit Betrag 0.
       nfRate: v.nfRate || 'low',
-      nfDepositStrategy: v.nfDepositStrategy || 'fixed',
+      nfDepositStrategy: 'fixed',
       nfMonthlyDepositPeriod: 'monthly',
       nfDepositGoal: 0,
       nfDepositGoalThresholdBasis: 'interest',
@@ -1517,7 +1485,7 @@
         <div class="team-member-grid">
           <label>Ebene<input type="number" class="team-input" data-field="level" min="1" step="1" value="${m.level}"></label>
           <label>Beitrittsmonat<input type="number" class="team-input" data-field="joinMonth" min="1" step="1" value="${m.joinMonth}"></label>
-          <label>Startkapital<input type="number" class="team-input" data-field="startCapital" min="0" step="500" value="${m.startCapital}"></label>
+          <label>Startkapital<div class="amount-input"><span class="amount-input-symbol">${currencySymbol()}</span><input type="number" class="team-input" data-field="startCapital" min="0" step="500" value="${m.startCapital}"></div></label>
         </div>
         <label class="team-checkbox-row" title="Deaktivieren, wenn das Startkapital bereits vor dieser Simulation investiert war und der Tippgeber-Bonus dafür schon ausgezahlt wurde — dann gibt's dafür keinen erneuten Bonus. Laufende Einzahlungen danach lösen weiterhin normal pro 1.000 €-Block einen Bonus aus, und das Kapital zählt unverändert fürs Team-Volumen.">
           <input type="checkbox" class="team-input" data-field="includeStartCapital" ${m.includeStartCapital !== false ? 'checked' : ''}>
@@ -1552,7 +1520,10 @@
             <div class="mini-field">
               <label>Monatliche Einzahlung</label>
               <div class="input-row">
-                <input type="number" class="team-input" data-field="monthlyDeposit" min="0" step="50" value="${m.monthlyDeposit}">
+                <div class="amount-input">
+                  <span class="amount-input-symbol">${currencySymbol()}</span>
+                  <input type="number" class="team-input" data-field="monthlyDeposit" min="0" step="50" value="${m.monthlyDeposit}">
+                </div>
                 <select class="team-input unit" data-field="nfMonthlyDepositPeriod">
                   <option value="monthly"${m.nfMonthlyDepositPeriod !== 'yearly' ? ' selected' : ''}>monatl.</option>
                   <option value="yearly"${m.nfMonthlyDepositPeriod === 'yearly' ? ' selected' : ''}>jährl.</option>
@@ -1565,7 +1536,10 @@
                 <button type="button" class="toggle-btn${m.nfDepositGoalThresholdBasis !== 'capital' ? ' active' : ''}" data-value="interest">Monatsrendite</button>
                 <button type="button" class="toggle-btn${m.nfDepositGoalThresholdBasis === 'capital' ? ' active' : ''}" data-value="capital">Aktives Kapital</button>
               </div>
-              <input type="number" class="team-input" data-field="nfDepositGoal" min="0" step="1000" value="${m.nfDepositGoal || 0}" style="margin-top:7px;">
+              <div class="amount-input" style="margin-top:7px;">
+                <span class="amount-input-symbol">${currencySymbol()}</span>
+                <input type="number" class="team-input" data-field="nfDepositGoal" min="0" step="1000" value="${m.nfDepositGoal || 0}">
+              </div>
             </div>
           </div>
 
@@ -1582,7 +1556,10 @@
             <div class="mini-field">
               <label>${isWithdrawalPct ? 'Auszahlungs-Anteil (% der Rendite)' : 'Auszahlungsbetrag'}</label>
               <div class="input-row">
-                <input type="number" class="team-input" data-field="nfWithdrawalAmount" min="0" step="50" value="${m.nfWithdrawalAmount || 0}">
+                <div class="amount-input">
+                  <span class="amount-input-symbol">${isWithdrawalPct ? '%' : currencySymbol()}</span>
+                  <input type="number" class="team-input" data-field="nfWithdrawalAmount" min="0" step="50" value="${m.nfWithdrawalAmount || 0}">
+                </div>
                 ${!isWithdrawalPct ? `
                 <select class="team-input unit" data-field="nfWithdrawalPeriod">
                   <option value="monthly"${m.nfWithdrawalPeriod !== 'yearly' ? ' selected' : ''}>monatl.</option>
@@ -1596,7 +1573,10 @@
                 <button type="button" class="toggle-btn${m.nfWithdrawalThresholdBasis !== 'capital' ? ' active' : ''}" data-value="interest">Monatsrendite</button>
                 <button type="button" class="toggle-btn${m.nfWithdrawalThresholdBasis === 'capital' ? ' active' : ''}" data-value="capital">Aktives Kapital</button>
               </div>
-              <input type="number" class="team-input" data-field="nfWithdrawalMinCapital" min="0" step="500" value="${m.nfWithdrawalMinCapital || 0}" style="margin-top:7px;">
+              <div class="amount-input" style="margin-top:7px;">
+                <span class="amount-input-symbol">${currencySymbol()}</span>
+                <input type="number" class="team-input" data-field="nfWithdrawalMinCapital" min="0" step="500" value="${m.nfWithdrawalMinCapital || 0}">
+              </div>
             </div>
           </div>
         </div>
@@ -1604,6 +1584,251 @@
       </div>
     `;
     }).join('') : `<div class="team-empty-hint">Noch keine Empfehlungen erfasst.</div>`;
+  }
+
+  // Mehrfach-Ein-/Auszahlungsstrategien (nur NextForrest): listKind ist
+  // 'deposit' oder 'withdrawal', adressiert scenarios[activeIndex].values.
+  // nfDepositStrategies bzw. .nfWithdrawalStrategies. Beide Listen teilen
+  // sich Render-Aufruf/Event-Delegation, aber nicht die Kartenform: eine
+  // Einzahlungsstrategie ist { kind: 'fixed'|'roundup', amount, period:
+  // 'monthly'|'yearly'|'once' (nur bei kind 'fixed'), startMonth, endMonth,
+  // stopMode, thresholdBasis, thresholdValue } — die beiden Einzahlungsarten
+  // (fester Betrag vs. 1000er-Aufrundung) entsprechen weiterhin genau den
+  // bisherigen zwei Optionen, jetzt nur mehrfach mit eigenem Start/Ende.
+  // Eine Auszahlungsstrategie bleibt bei { type: 'once'|'monthly'|'yearly'
+  // |'percentage'|'cashSurplus', amount, startMonth, endMonth, stopMode,
+  // thresholdBasis, thresholdValue }, ebenfalls unverändert bis auf die
+  // neue Mehrfachheit und Start/Ende.
+  const STRATEGY_KEY = { deposit: 'nfDepositStrategies', withdrawal: 'nfWithdrawalStrategies' };
+  const WITHDRAWAL_TYPE_LABELS = { once: 'Einmalig', monthly: 'Monatlich', yearly: 'Jährlich', percentage: 'Prozentual', cashSurplus: 'Cash-Überschuss' };
+
+  function activeStrategies(listKind) {
+    const v = scenarios[activeIndex] && scenarios[activeIndex].values;
+    if (!v) return [];
+    const key = STRATEGY_KEY[listKind];
+    if (!Array.isArray(v[key])) v[key] = [];
+    return v[key];
+  }
+
+  function addStrategy(listKind) {
+    const list = activeStrategies(listKind);
+    list.push(listKind === 'deposit' ? {
+      id: 'nfd' + (nfStrategySeq++),
+      kind: 'fixed',
+      amount: 500,
+      period: 'monthly',
+      startMonth: 1,
+      endMonth: null,
+      stopMode: 'none',
+      thresholdBasis: 'interest',
+      thresholdValue: 0
+    } : {
+      id: 'nfw' + (nfStrategySeq++),
+      type: 'monthly',
+      amount: 0,
+      startMonth: 1,
+      endMonth: null,
+      stopMode: 'none',
+      thresholdBasis: 'interest',
+      thresholdValue: 0
+    });
+    renderStrategyRows(listKind);
+    calculate();
+  }
+
+  function removeStrategy(listKind, id) {
+    const key = STRATEGY_KEY[listKind];
+    scenarios[activeIndex].values[key] = activeStrategies(listKind).filter(s => s.id !== id);
+    renderStrategyRows(listKind);
+    calculate();
+  }
+
+  // Gemeinsamer Baustein für beide Kartenarten: Start-/Endmonat plus
+  // Stopp-Bedingung (Enddatum vs. Schwelle) und ggf. Schwellenbasis/-wert.
+  function strategyScheduleHtml(s, isOnce, startCapital, currency) {
+    const thresholdTooLow = s.stopMode === 'threshold' && s.thresholdBasis === 'capital'
+      && s.thresholdValue > 0 && s.thresholdValue < startCapital;
+    const sym = currencySymbol(currency);
+    if (isOnce) return '';
+    return `
+      <div class="mini-field" style="margin-top:8px;">
+        <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:5px;">Stopp-Bedingung</label>
+        <div class="toggle-row strategy-toggle" data-strategy-id="${s.id}" data-toggle="stopMode">
+          <button type="button" class="toggle-btn${s.stopMode === 'none' ? ' active' : ''}" data-value="none">Keine</button>
+          <button type="button" class="toggle-btn${s.stopMode === 'date' ? ' active' : ''}" data-value="date">Enddatum</button>
+          <button type="button" class="toggle-btn${s.stopMode === 'threshold' ? ' active' : ''}" data-value="threshold">Schwelle</button>
+        </div>
+      </div>
+      ${s.stopMode === 'date' ? `
+      <div class="mini-field">
+        <input type="number" class="team-input" data-field="endMonth" min="1" step="1" placeholder="Endmonat" value="${s.endMonth != null ? s.endMonth : ''}" style="width:100%;">
+      </div>` : ''}
+      ${s.stopMode === 'threshold' ? `
+      <div class="mini-field">
+        <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:5px;">Schwellenbasis</label>
+        <div class="toggle-row strategy-toggle" data-strategy-id="${s.id}" data-toggle="thresholdBasis">
+          <button type="button" class="toggle-btn${s.thresholdBasis !== 'capital' ? ' active' : ''}" data-value="interest">Monatsrendite</button>
+          <button type="button" class="toggle-btn${s.thresholdBasis === 'capital' ? ' active' : ''}" data-value="capital">Aktives Kapital</button>
+        </div>
+        <div class="amount-input" style="margin-top:7px;">
+          <span class="amount-input-symbol">${sym}</span>
+          <input type="number" class="team-input" data-field="thresholdValue" min="0" step="500" value="${s.thresholdValue || 0}">
+        </div>
+        <div class="field-warning${thresholdTooLow ? ' visible' : ''}">⚠ Schwelle liegt unter dem Startkapital.</div>
+      </div>` : ''}
+    `;
+  }
+
+  // Einzahlungsstrategie: "Fester Betrag/Monat" vs. "1000er-Aufrundung" —
+  // genau die zwei bisherigen Optionen, als Toggle wie zuvor. Bei festem
+  // Betrag zusätzlich eine Häufigkeit (monatlich/jährlich/einmalig).
+  function depositStrategyCardHtml(s, startCapital, currency) {
+    const isRoundup = s.kind === 'roundup';
+    const isOnce = !isRoundup && s.period === 'once';
+    const sym = currencySymbol(currency);
+    return `
+      <div class="team-member-card" data-strategy-id="${s.id}" data-list="deposit">
+        <div class="team-member-card-header">
+          <div class="toggle-row strategy-toggle" data-strategy-id="${s.id}" data-toggle="kind" style="flex:1;">
+            <button type="button" class="toggle-btn${!isRoundup ? ' active' : ''}" data-value="fixed">Fester Betrag/Monat</button>
+            <button type="button" class="toggle-btn${isRoundup ? ' active' : ''}" data-value="roundup">1000er-Aufrundung</button>
+          </div>
+          <button type="button" class="team-remove-btn" data-remove-id="${s.id}" title="Strategie entfernen">✕</button>
+        </div>
+        ${!isRoundup ? `
+        <div class="mini-field" style="margin-top:8px;">
+          <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:5px;">Häufigkeit</label>
+          <div class="toggle-row strategy-toggle" data-strategy-id="${s.id}" data-toggle="period">
+            <button type="button" class="toggle-btn${s.period !== 'yearly' && s.period !== 'once' ? ' active' : ''}" data-value="monthly">Monatlich</button>
+            <button type="button" class="toggle-btn${s.period === 'yearly' ? ' active' : ''}" data-value="yearly">Jährlich</button>
+            <button type="button" class="toggle-btn${s.period === 'once' ? ' active' : ''}" data-value="once">Einmalig</button>
+          </div>
+        </div>` : ''}
+        <div class="team-member-grid" style="margin-top:8px;">
+          ${!isRoundup ? `<label>Betrag<div class="amount-input"><span class="amount-input-symbol">${sym}</span><input type="number" class="team-input" data-field="amount" min="0" step="50" value="${s.amount || 0}"></div></label>` : ''}
+          <label>Start (Monat)<input type="number" class="team-input" data-field="startMonth" min="1" step="1" value="${s.startMonth || 1}"></label>
+        </div>
+        ${strategyScheduleHtml(s, isOnce, startCapital, currency)}
+      </div>
+    `;
+  }
+
+  // Auszahlungsstrategie: unverändert gegenüber der bisherigen Auswahl
+  // (Fester Betrag/Prozentual/Cash-Überschuss, jetzt mit "Einmalig" als
+  // weiterer fester-Betrag-Variante), nur mit eigenem Start/Ende je Eintrag.
+  function withdrawalStrategyCardHtml(s, startCapital, currency) {
+    const isOnce = s.type === 'once';
+    const isPercentage = s.type === 'percentage';
+    const isCashSurplus = s.type === 'cashSurplus';
+    const amountLabel = isPercentage ? 'Anteil (% der Rendite)' : 'Betrag';
+    // Prozentualer Anteil ist kein Geldbetrag — dort bleibt das Feld ohne
+    // Währungssymbol, nur bei echten Beträgen (fest/einmalig/monatl./jährl.).
+    const amountSymbol = isPercentage ? '%' : currencySymbol(currency);
+    return `
+      <div class="team-member-card" data-strategy-id="${s.id}" data-list="withdrawal">
+        <div class="team-member-card-header">
+          <select class="team-input" data-field="type" style="flex:1;">
+            ${Object.keys(WITHDRAWAL_TYPE_LABELS).map(t => `<option value="${t}"${s.type === t ? ' selected' : ''}>${WITHDRAWAL_TYPE_LABELS[t]}</option>`).join('')}
+          </select>
+          <button type="button" class="team-remove-btn" data-remove-id="${s.id}" title="Strategie entfernen">✕</button>
+        </div>
+        <div class="team-member-grid">
+          ${!isCashSurplus ? `<label>${amountLabel}<div class="amount-input"><span class="amount-input-symbol">${amountSymbol}</span><input type="number" class="team-input" data-field="amount" min="0" step="${isPercentage ? 1 : 50}" value="${s.amount || 0}"></div></label>` : ''}
+          <label>Start (Monat)<input type="number" class="team-input" data-field="startMonth" min="1" step="1" value="${s.startMonth || 1}"></label>
+        </div>
+        ${strategyScheduleHtml(s, isOnce, startCapital, currency)}
+      </div>
+    `;
+  }
+
+  function renderStrategyRows(listKind) {
+    const container = listKind === 'deposit' ? els.nfDepositStrategyRows : els.nfWithdrawalStrategyRows;
+    const list = activeStrategies(listKind);
+    const values = scenarios[activeIndex] && scenarios[activeIndex].values;
+    const startCapital = Math.max(0, num((values && values.start) || 0));
+    const currency = (values && values.currency) || 'USD';
+    const emptyLabel = listKind === 'deposit' ? 'Noch keine Einzahlungsstrategie angelegt.' : 'Noch keine Auszahlungsstrategie angelegt.';
+    const cardFn = listKind === 'deposit' ? depositStrategyCardHtml : withdrawalStrategyCardHtml;
+    container.innerHTML = list.length
+      ? list.map(s => cardFn(s, startCapital, currency)).join('')
+      : `<div class="team-empty-hint">${emptyLabel}</div>`;
+  }
+
+  function handleStrategyFieldChange(e) {
+    const input = e.target.closest('.team-input');
+    if (!input) return;
+    const card = input.closest('[data-strategy-id]');
+    if (!card) return;
+    const listKind = card.dataset.list;
+    const strategy = activeStrategies(listKind).find(s => s.id === card.dataset.strategyId);
+    if (!strategy) return;
+    const field = input.dataset.field;
+    if (field === 'type') {
+      // Nur bei Auszahlungsstrategien: eigenes <select> statt Toggle, da 5
+      // Optionen. Einzahlungsstrategien setzen ihre Art über den 'kind'-
+      // Toggle (siehe Klick-Handler unten).
+      strategy.type = input.value;
+      if (strategy.type === 'once') {
+        strategy.endMonth = null;
+        strategy.stopMode = 'none';
+      }
+      renderStrategyRows(listKind);
+      calculate();
+      return;
+    }
+    if (field === 'endMonth') {
+      // Erscheint nur, wenn die Stopp-Bedingung schon auf "Enddatum" steht
+      // (siehe strategyScheduleHtml) — braucht also keinen Umschalt-Effekt
+      // wie bei "type" oben, sondern verhält sich wie thresholdValue.
+      strategy.endMonth = input.value === '' ? null : Math.max(1, Math.round(num(input.value)) || 1);
+    } else if (field === 'startMonth') {
+      strategy.startMonth = Math.max(1, Math.round(num(input.value)) || 1);
+    } else {
+      strategy[field] = num(input.value);
+    }
+    // Kein renderStrategyRows() hier — würde bei jedem Tastendruck den
+    // Eingabefokus verlieren. Die Schwellen-Warnung hängt aber genau von
+    // diesem Feld ab, also gezielt nur ihren DOM-Knoten aktualisieren.
+    if (field === 'thresholdValue') refreshStrategyWarning(card, strategy);
+    calculate();
+  }
+
+  function refreshStrategyWarning(card, strategy) {
+    const warningEl = card.querySelector('.field-warning');
+    if (!warningEl) return;
+    const startCapital = Math.max(0, num((scenarios[activeIndex] && scenarios[activeIndex].values.start) || 0));
+    const tooLow = strategy.stopMode === 'threshold' && strategy.thresholdBasis === 'capital'
+      && strategy.thresholdValue > 0 && strategy.thresholdValue < startCapital;
+    warningEl.classList.toggle('visible', tooLow);
+  }
+
+  function bindStrategyRowEvents(listKind) {
+    const container = listKind === 'deposit' ? els.nfDepositStrategyRows : els.nfWithdrawalStrategyRows;
+    container.addEventListener('input', handleStrategyFieldChange);
+    container.addEventListener('change', handleStrategyFieldChange);
+    container.addEventListener('click', (e) => {
+      const removeBtn = e.target.closest('.team-remove-btn');
+      if (removeBtn) {
+        removeStrategy(listKind, removeBtn.dataset.removeId);
+        return;
+      }
+      const toggleBtn = e.target.closest('.strategy-toggle .toggle-btn');
+      if (toggleBtn) {
+        const group = toggleBtn.closest('.strategy-toggle');
+        const strategy = activeStrategies(listKind).find(s => s.id === group.dataset.strategyId);
+        if (!strategy) return;
+        strategy[group.dataset.toggle] = toggleBtn.dataset.value;
+        // 'period' -> 'once' blendet Enddatum/Stopp-Bedingung aus —
+        // zurücksetzen, damit sie nicht unsichtbar weiterwirken, falls
+        // später zurückgewechselt wird.
+        if (group.dataset.toggle === 'period' && toggleBtn.dataset.value === 'once') {
+          strategy.endMonth = null;
+          strategy.stopMode = 'none';
+        }
+        renderStrategyRows(listKind);
+        calculate();
+      }
+    });
   }
 
   function renderTeamBonusSection(values, result) {
@@ -2224,91 +2449,13 @@
     els.nfRateToggle.dataset.value = value;
   }
 
-  function setNfDepositStrategyUI(value) {
-    els.nfDepositStrategyToggle.querySelectorAll('.toggle-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.value === value);
-    });
-    els.nfDepositStrategyToggle.dataset.value = value;
-    els.nfMonthlyDepositField.style.display = value === 'fixed' ? '' : 'none';
-    els.nfDepositStrategyHint.textContent = value === 'fixed'
-      ? 'Der feste Betrag fließt zusammen mit der Rendite ins Cash; investiert wird, sobald dort volle 1000er erreicht sind.'
-      : 'Die monatliche Rendite wird automatisch per Einzahlung auf den nächsten vollen 1000er-Block aufgerundet und investiert (z. B. Rendite 600 € → Einzahlung 400 € → 1000 € investiert).';
-  }
-
-  function setNfDepositGoalThresholdBasisUI(value) {
-    els.nfDepositGoalThresholdBasisToggle.querySelectorAll('.toggle-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.value === value);
-    });
-    els.nfDepositGoalThresholdBasisToggle.dataset.value = value;
-    els.nfDepositGoalHint.textContent = value === 'interest'
-      ? 'Sobald die monatliche Rendite diesen Betrag erreicht, endet die Einzahlungsphase dauerhaft – danach fließt kein weiteres Geld mehr ein (die Rendite läuft normal weiter).'
-      : 'Sobald das aktiv verzinste Kapital diesen Betrag erreicht, endet die Einzahlungsphase – danach fließt kein weiteres Geld mehr ein (die Rendite läuft normal weiter).';
-  }
-
-  function updateNfWithdrawalUI() {
-    const strategy = els.nfWithdrawalStrategyToggle.dataset.value;
-    const isPct = strategy === 'percentage';
-    const isCashSurplus = strategy === 'cashSurplus';
-    els.nfWithdrawalAmountField.style.display = isCashSurplus ? 'none' : '';
-    els.nfWithdrawalAmountLabel.textContent = isPct ? 'Auszahlungs-Anteil (% der Rendite)' : 'Auszahlungsbetrag';
-    els.nfWithdrawalPeriod.style.display = isPct ? 'none' : '';
-    els.nfWithdrawalStrategyHint.textContent = isCashSurplus
-      ? 'Zahlt monatlich den Cash-Rest aus, der sonst unverzinst liegen bleiben würde, weil er keinen vollen 1000er-Block ergibt. Von jeder Auszahlung werden zusätzlich 3,5 % Gebühr abgezogen.'
-      : 'Fester Betrag: fixe Summe pro Monat/Jahr. Prozentualer Anteil: % der jeweils erwirtschafteten monatlichen Rendite inkl. Bonus.';
-  }
-
-  function setNfWithdrawalStrategyUI(value) {
-    els.nfWithdrawalStrategyToggle.querySelectorAll('.toggle-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.value === value);
-    });
-    els.nfWithdrawalStrategyToggle.dataset.value = value;
-    updateNfWithdrawalUI();
-  }
-
-  function setNfWithdrawalThresholdBasisUI(value) {
-    els.nfWithdrawalThresholdBasisToggle.querySelectorAll('.toggle-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.value === value);
-    });
-    els.nfWithdrawalThresholdBasisToggle.dataset.value = value;
-    els.nfWithdrawalMinCapitalHint.textContent = value === 'interest'
-      ? 'Auszahlungen erfolgen nur in Monaten, in denen die erwirtschaftete Rendite diese Schwelle erreicht – schwankt monatlich und kann Auszahlungen wieder aussetzen lassen. Von jeder Auszahlung werden zusätzlich 3,5 % Gebühr abgezogen.'
-      : 'Auszahlungen erfolgen erst ab diesem aktiv verzinsten Kapital. Sollte mindestens der Einzahlungsschwelle entsprechen. Von jeder Auszahlung werden zusätzlich 3,5 % Gebühr abgezogen.';
-  }
-
-  // Flags rule violations without touching the entered values — the user
-  // decides whether/how to fix them.
-  function updateNfValidationWarnings(values) {
-    const start = Math.max(0, num(values.start));
-    const goal = Math.max(0, num(values.nfDepositGoal));
-    const minCap = Math.max(0, num(values.nfWithdrawalMinCapital));
-
-    const depositGoalIsCapital = (values.nfDepositGoalThresholdBasis || 'capital') === 'capital';
-    const goalTooLow = depositGoalIsCapital && goal > 0 && goal < start;
-    els.nfDepositGoalWarning.classList.toggle('visible', goalTooLow);
-    if (goalTooLow) {
-      els.nfDepositGoalWarning.textContent =
-        `⚠ Einzahlungsschwelle (${fmt(goal, values.currency)}) liegt unter dem Startkapital (${fmt(start, values.currency)}).`;
-    }
-
-    const withdrawalThresholdIsCapital = (values.nfWithdrawalThresholdBasis || 'capital') === 'capital';
-    const minCapTooLow = withdrawalThresholdIsCapital && depositGoalIsCapital && goal > 0 && minCap < goal;
-    els.nfWithdrawalMinCapitalWarning.classList.toggle('visible', minCapTooLow);
-    if (minCapTooLow) {
-      els.nfWithdrawalMinCapitalWarning.textContent =
-        `⚠ Auszahlungsschwelle (${fmt(minCap, values.currency)}) liegt unter der Einzahlungsschwelle (${fmt(goal, values.currency)}).`;
-    }
-  }
-
   function applyScenarioToInputs(scenario) {
     applyValuesToInputs(scenario.values);
     els.scenarioName.value = scenario.name;
-    els.includeStartCapital.checked = scenario.values.includeStartCapital !== false;
     setInvestmentTypeUI(scenario.values.investmentType || 'nextforrest');
     setNfRateUI(scenario.values.nfRate || 'low');
-    setNfDepositStrategyUI(scenario.values.nfDepositStrategy || 'fixed');
-    setNfWithdrawalStrategyUI(scenario.values.nfWithdrawalStrategy || 'fixed');
-    setNfWithdrawalThresholdBasisUI(scenario.values.nfWithdrawalThresholdBasis || 'interest');
-    setNfDepositGoalThresholdBasisUI(scenario.values.nfDepositGoalThresholdBasis || 'interest');
+    renderStrategyRows('deposit');
+    renderStrategyRows('withdrawal');
     renderTeamMemberRows();
   }
 
@@ -2319,12 +2466,15 @@
     // must survive since they're not part of FIELD_KEYS anymore.
     Object.assign(scenarios[activeIndex].values, readInputsIntoValues());
     scenarios[activeIndex].values.investmentType = els.typeToggle.dataset.type || 'nextforrest';
-    scenarios[activeIndex].values.includeStartCapital = els.includeStartCapital.checked;
+    // Kein Umschalter mehr in der UI — Startkapital ist immer sofort
+    // aktives Kapital ohne Einzahlungsgebühr, auch für Szenarien, die vor
+    // dieser Umstellung mit aktivierter Checkbox gespeichert wurden.
+    scenarios[activeIndex].values.includeStartCapital = false;
     scenarios[activeIndex].values.nfRate = els.nfRateToggle.dataset.value || 'low';
-    scenarios[activeIndex].values.nfDepositStrategy = els.nfDepositStrategyToggle.dataset.value || 'fixed';
-    scenarios[activeIndex].values.nfWithdrawalStrategy = els.nfWithdrawalStrategyToggle.dataset.value || 'fixed';
-    scenarios[activeIndex].values.nfWithdrawalThresholdBasis = els.nfWithdrawalThresholdBasisToggle.dataset.value || 'interest';
-    scenarios[activeIndex].values.nfDepositGoalThresholdBasis = els.nfDepositGoalThresholdBasisToggle.dataset.value || 'interest';
+    // Keine Währungsauswahl mehr in der UI — fest auf USD, auch für
+    // Szenarien, die vor dieser Umstellung mit einer anderen Währung
+    // gespeichert wurden.
+    scenarios[activeIndex].values.currency = 'USD';
 
     const nameVal = els.scenarioName.value.trim();
     if (nameVal) scenarios[activeIndex].name = nameVal;
@@ -2418,7 +2568,6 @@
   function calculate() {
     syncActiveFromInputs();
     const activeScenario = scenarios[activeIndex];
-    updateNfValidationWarnings(activeScenario.values);
     const main = runSimulation(activeScenario.values);
     const mainRows = foldRow0IntoRow1(main.rows);
     const activeCombined = buildCombinedRows(activeScenario.values, { ...main, rows: mainRows });
@@ -2643,7 +2792,11 @@
     } catch(e) {}
 
     if (saved && Array.isArray(saved.scenarios) && saved.scenarios.length) {
-      scenarios = saved.scenarios;
+      // Ältere gespeicherte Szenarien tragen noch die alten flachen
+      // NextForrest-Felder (nfMonthlyDeposit/nfDepositGoal/... statt
+      // nfDepositStrategies-Array) — beim Laden ins neue Schema überführen,
+      // damit sie unverändert weiterrechnen.
+      scenarios = saved.scenarios.map(sc => ({ ...sc, values: migrateScenarioValues({ ...sc.values }) }));
       activeIndex = Math.min(Math.max(0, saved.activeIndex || 0), scenarios.length - 1);
       scenarioSeq = saved.scenarioSeq || scenarios.length + 1;
       return true;
@@ -2655,7 +2808,7 @@
     } catch(e) {}
 
     if (legacy && legacy.start !== undefined) {
-      scenarios = [makeScenario({ ...defaultScenarioValues, ...legacy })];
+      scenarios = [makeScenario(migrateScenarioValues({ ...defaultScenarioValues, ...legacy }))];
       activeIndex = 0;
       return true;
     }
@@ -2686,8 +2839,6 @@
   els.scenarioName.addEventListener('input', calculate);
   els.scenarioName.addEventListener('change', calculate);
 
-  els.includeStartCapital.addEventListener('change', calculate);
-
   els.typeToggle.addEventListener('click', (e) => {
     const btn = e.target.closest('.type-tab');
     if (!btn) return;
@@ -2702,33 +2853,10 @@
     calculate();
   });
 
-  els.nfDepositStrategyToggle.addEventListener('click', (e) => {
-    const btn = e.target.closest('.toggle-btn');
-    if (!btn) return;
-    setNfDepositStrategyUI(btn.dataset.value);
-    calculate();
-  });
-
-  els.nfWithdrawalStrategyToggle.addEventListener('click', (e) => {
-    const btn = e.target.closest('.toggle-btn');
-    if (!btn) return;
-    setNfWithdrawalStrategyUI(btn.dataset.value);
-    calculate();
-  });
-
-  els.nfWithdrawalThresholdBasisToggle.addEventListener('click', (e) => {
-    const btn = e.target.closest('.toggle-btn');
-    if (!btn) return;
-    setNfWithdrawalThresholdBasisUI(btn.dataset.value);
-    calculate();
-  });
-
-  els.nfDepositGoalThresholdBasisToggle.addEventListener('click', (e) => {
-    const btn = e.target.closest('.toggle-btn');
-    if (!btn) return;
-    setNfDepositGoalThresholdBasisUI(btn.dataset.value);
-    calculate();
-  });
+  els.addNfDepositStrategyBtn.addEventListener('click', () => addStrategy('deposit'));
+  els.addNfWithdrawalStrategyBtn.addEventListener('click', () => addStrategy('withdrawal'));
+  bindStrategyRowEvents('deposit');
+  bindStrategyRowEvents('withdrawal');
 
   els.addTeamMemberBtn.addEventListener('click', addTeamMember);
 
