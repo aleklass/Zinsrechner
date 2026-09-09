@@ -2202,21 +2202,37 @@
     return { finalWealth, activeCapital, cash, totalInterest, totalDeposits, totalFees, totalWithdrawn, growth };
   }
 
-  // Month the deposit phase ends (last deposit, if it happens before the
-  // simulation's final month) and month the withdrawal phase begins (first
-  // payout) — both derived from the rows, used to draw chart markers.
+  // Ermittelt zusammenhängende Zeiträume (Start-/Endmonat), in denen eine
+  // row-Eigenschaft (deposit/withdrawn) durchgehend > 0 ist. Mehrere
+  // Einzahlungs- bzw. Auszahlungsstrategien mit einer Lücke dazwischen (z. B.
+  // eine Auszahlung Monat 1–6, eine zweite erst ab Monat 10) erzeugen so
+  // mehrere getrennte Zeiträume statt eines einzigen, irreführenden
+  // durchgehenden Bereichs. Ein Zeitraum, der bis zum Simulationsende
+  // weiterläuft, bekommt end: null (kein "Ende" innerhalb der Laufzeit).
+  function computeActivityRuns(rows, key) {
+    const runs = [];
+    let runStart = null;
+    rows.forEach(r => {
+      const active = (r[key] || 0) > 1e-9;
+      if (active && runStart === null) {
+        runStart = r.month;
+      } else if (!active && runStart !== null) {
+        runs.push({ start: runStart, end: r.month - 1 });
+        runStart = null;
+      }
+    });
+    if (runStart !== null) runs.push({ start: runStart, end: null });
+    return runs;
+  }
+
+  // Ein- und Auszahlungs-Zeiträume, je aus den Zeilen abgeleitet, für die
+  // Diagramm-Markierungen (siehe drawMarker/renderMarkerLegend).
   function computeMarkers(result) {
     const rows = result.rows;
-    const finalMonth = result.series.length ? result.series[result.series.length - 1].month : 0;
-
-    let lastDepositMonth = -1;
-    rows.forEach(r => { if ((r.deposit || 0) > 1e-9) lastDepositMonth = r.month; });
-    const depositEndMonth = (lastDepositMonth >= 0 && lastDepositMonth < finalMonth) ? lastDepositMonth : null;
-
-    const firstWithdrawalRow = rows.find(r => (r.withdrawn || 0) > 1e-9);
-    const withdrawalStartMonth = firstWithdrawalRow ? firstWithdrawalRow.month : null;
-
-    return { depositEndMonth, withdrawalStartMonth };
+    return {
+      depositRuns: computeActivityRuns(rows, 'deposit'),
+      withdrawalRuns: computeActivityRuns(rows, 'withdrawn'),
+    };
   }
 
   function drawLineChart(canvas, datasets, { legendContainer = null, fillIndex = -1, hoverIndex = -1, hoverDatasetIndex = -1 } = {}) {
@@ -2375,8 +2391,26 @@
       const isActive = i === fillIndex;
       const depositColor = isActive ? '#ffb86b' : 'rgba(255,184,107,.55)';
       const withdrawalColor = isActive ? '#ff7a7a' : 'rgba(255,122,122,.55)';
-      drawMarker(ds.markers.depositEndMonth, depositColor, `${ds.name} · Einzahlung endet`, isActive);
-      drawMarker(ds.markers.withdrawalStartMonth, withdrawalColor, `${ds.name} · Auszahlung beginnt`, isActive);
+      const depositRuns = ds.markers.depositRuns || [];
+      const withdrawalRuns = ds.markers.withdrawalRuns || [];
+      // Einzahlung: wie bisher nur das Ende markieren (Start bei Monat 1 ist
+      // der Normalfall, braucht keine eigene Markierung) — bei mehreren
+      // getrennten Einzahlungsphasen wird jede nummeriert.
+      depositRuns.forEach((run, idx) => {
+        if (run.end === null) return; // läuft bis zum Laufzeitende weiter
+        const label = depositRuns.length > 1 ? `Einzahlung ${idx + 1} endet` : 'Einzahlung endet';
+        drawMarker(run.end, depositColor, `${ds.name} · ${label}`, isActive);
+      });
+      // Auszahlung: Start UND Ende markieren; bei mehreren Auszahlungsphasen
+      // (z. B. mehrere Strategien mit Lücke dazwischen) wird jede eigenständig
+      // nummeriert, damit sie im Diagramm unterscheidbar bleiben.
+      withdrawalRuns.forEach((run, idx) => {
+        const n = withdrawalRuns.length > 1 ? ` ${idx + 1}` : '';
+        drawMarker(run.start, withdrawalColor, `${ds.name} · Auszahlung${n} beginnt`, isActive);
+        if (run.end !== null) {
+          drawMarker(run.end, withdrawalColor, `${ds.name} · Auszahlung${n} endet`, isActive);
+        }
+      });
     });
 
     // Hover crosshair + per-series markers at the hovered month
@@ -2645,12 +2679,20 @@
     const parts = [];
     datasets.forEach(ds => {
       if (!ds.markers) return;
-      if (ds.markers.depositEndMonth !== null) {
-        parts.push(`<span style="color:#ffb86b;"><span class="marker-swatch"></span>${escapeHtml(ds.name)}: Einzahlung endet (Monat ${ds.markers.depositEndMonth})</span>`);
-      }
-      if (ds.markers.withdrawalStartMonth !== null) {
-        parts.push(`<span style="color:#ff7a7a;"><span class="marker-swatch"></span>${escapeHtml(ds.name)}: Auszahlung beginnt (Monat ${ds.markers.withdrawalStartMonth})</span>`);
-      }
+      const depositRuns = ds.markers.depositRuns || [];
+      const withdrawalRuns = ds.markers.withdrawalRuns || [];
+      depositRuns.forEach((run, idx) => {
+        if (run.end === null) return;
+        const label = depositRuns.length > 1 ? `Einzahlung ${idx + 1} endet` : 'Einzahlung endet';
+        parts.push(`<span style="color:#ffb86b;"><span class="marker-swatch"></span>${escapeHtml(ds.name)}: ${label} (Monat ${run.end})</span>`);
+      });
+      withdrawalRuns.forEach((run, idx) => {
+        const n = withdrawalRuns.length > 1 ? ` ${idx + 1}` : '';
+        parts.push(`<span style="color:#ff7a7a;"><span class="marker-swatch"></span>${escapeHtml(ds.name)}: Auszahlung${n} beginnt (Monat ${run.start})</span>`);
+        if (run.end !== null) {
+          parts.push(`<span style="color:#ff7a7a;"><span class="marker-swatch"></span>${escapeHtml(ds.name)}: Auszahlung${n} endet (Monat ${run.end})</span>`);
+        }
+      });
     });
     els.chartMarkerLegend.innerHTML = parts.join('');
   }
