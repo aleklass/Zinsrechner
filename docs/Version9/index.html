@@ -1390,7 +1390,11 @@
       // Szenarien dieselben Listen.
       values: {
         ...values,
-        nfTeamMembers: Array.isArray(values.nfTeamMembers) ? values.nfTeamMembers.map(m => ({ ...m })) : [],
+        nfTeamMembers: Array.isArray(values.nfTeamMembers) ? values.nfTeamMembers.map(m => ({
+          ...m,
+          nfDepositStrategies: Array.isArray(m.nfDepositStrategies) ? m.nfDepositStrategies.map(s => ({ ...s })) : [],
+          nfWithdrawalStrategies: Array.isArray(m.nfWithdrawalStrategies) ? m.nfWithdrawalStrategies.map(s => ({ ...s })) : []
+        })) : [],
         nfDepositStrategies: Array.isArray(values.nfDepositStrategies) ? values.nfDepositStrategies.map(s => ({ ...s })) : [],
         nfWithdrawalStrategies: Array.isArray(values.nfWithdrawalStrategies) ? values.nfWithdrawalStrategies.map(s => ({ ...s })) : []
       }
@@ -1434,26 +1438,19 @@
     const v = scenarios[activeIndex].values;
     const members = Array.isArray(v.nfTeamMembers) ? v.nfTeamMembers : [];
     v.nfTeamMembers = [...members, {
-      id: 'tm' + (teamMemberSeq++), name: '', level: 1, startCapital: 1000, monthlyDeposit: 0, joinMonth: 1, includeStartCapital: true,
+      id: 'tm' + (teamMemberSeq++), name: '', level: 1, startCapital: 1000, joinMonth: 1, includeStartCapital: true,
       // Wenn aktiv, wird dieses Mitglied im Diagramm und im Monatsverlauf zu
       // einer gemeinsamen Summe mit dem eigenen Investment zusammengerechnet
       // (siehe buildCombinedRows()). Der Team-Bonus-Bereich bleibt davon
       // unberührt und zeigt das Mitglied unabhängig davon weiterhin einzeln.
       mergeWithOwn: false,
       // Eigene Szenario-Eigenschaften — die Rendite wird vom Hauptszenario
-      // übernommen; für die Einzahlungsart gibt es seit den Mehrfach-
-      // Einzahlungsstrategien im Hauptszenario keinen einzelnen Wert mehr,
-      // der sich vererben ließe, daher Standard 'fixed' mit Betrag 0.
+      // übernommen. Einzahlungs-/Auszahlungsstrategien sind wie beim
+      // Hauptszenario mehrfach möglich, standardmäßig leer (kein Deposit/
+      // Withdrawal), bis der Nutzer explizit eine hinzufügt.
       nfRate: v.nfRate || 'low',
-      nfDepositStrategy: 'fixed',
-      nfMonthlyDepositPeriod: 'monthly',
-      nfDepositGoal: 0,
-      nfDepositGoalThresholdBasis: 'interest',
-      nfWithdrawalStrategy: 'fixed',
-      nfWithdrawalAmount: 0,
-      nfWithdrawalPeriod: 'monthly',
-      nfWithdrawalMinCapital: 0,
-      nfWithdrawalThresholdBasis: 'interest'
+      nfDepositStrategies: [],
+      nfWithdrawalStrategies: []
     }];
     renderTeamMemberRows();
     calculate();
@@ -1470,9 +1467,9 @@
     const members = activeTeamMembers();
     els.teamMemberRows.innerHTML = members.length ? members.map(m => {
       const open = expandedTeamMemberIds.has(m.id);
-      const isRoundup = m.nfDepositStrategy === 'roundup';
-      const isWithdrawalPct = m.nfWithdrawalStrategy === 'percentage';
-      const isWithdrawalCashSurplus = m.nfWithdrawalStrategy === 'cashSurplus';
+      const memberDeposits = Array.isArray(m.nfDepositStrategies) ? m.nfDepositStrategies : [];
+      const memberWithdrawals = Array.isArray(m.nfWithdrawalStrategies) ? m.nfWithdrawalStrategies : [];
+      const memberStartCapital = Math.max(0, num(m.startCapital || 0));
       return `
       <div class="team-member-card" data-member-id="${m.id}">
         <div class="team-member-card-header">
@@ -1510,73 +1507,21 @@
 
           <div class="field-group">
             <div class="mini-field">
-              <label>Einzahlungsstrategie</label>
-              <div class="toggle-row team-toggle" data-member-id="${m.id}" data-toggle="nfDepositStrategy">
-                <button type="button" class="toggle-btn${!isRoundup ? ' active' : ''}" data-value="fixed">Fester Betrag/Monat</button>
-                <button type="button" class="toggle-btn${isRoundup ? ' active' : ''}" data-value="roundup">1000er-Aufrundung</button>
-              </div>
-            </div>
-            ${!isRoundup ? `
-            <div class="mini-field">
-              <label>Monatliche Einzahlung</label>
-              <div class="input-row">
-                <div class="amount-input">
-                  <span class="amount-input-symbol">${currencySymbol()}</span>
-                  <input type="number" class="team-input" data-field="monthlyDeposit" min="0" step="50" value="${m.monthlyDeposit}">
-                </div>
-                <select class="team-input unit" data-field="nfMonthlyDepositPeriod">
-                  <option value="monthly"${m.nfMonthlyDepositPeriod !== 'yearly' ? ' selected' : ''}>monatl.</option>
-                  <option value="yearly"${m.nfMonthlyDepositPeriod === 'yearly' ? ' selected' : ''}>jährl.</option>
-                </select>
-              </div>
-            </div>` : ''}
-            <div class="mini-field">
-              <label>Einzahlungsschwelle (0 = unbegrenzt)</label>
-              <div class="toggle-row team-toggle" data-member-id="${m.id}" data-toggle="nfDepositGoalThresholdBasis">
-                <button type="button" class="toggle-btn${m.nfDepositGoalThresholdBasis !== 'capital' ? ' active' : ''}" data-value="interest">Monatsrendite</button>
-                <button type="button" class="toggle-btn${m.nfDepositGoalThresholdBasis === 'capital' ? ' active' : ''}" data-value="capital">Aktives Kapital</button>
-              </div>
-              <div class="amount-input" style="margin-top:7px;">
-                <span class="amount-input-symbol">${currencySymbol()}</span>
-                <input type="number" class="team-input" data-field="nfDepositGoal" min="0" step="1000" value="${m.nfDepositGoal || 0}">
-              </div>
+              <label>Einzahlungsstrategien</label>
+              ${memberDeposits.length
+                ? memberDeposits.map(s => depositStrategyCardHtml(s, memberStartCapital, undefined, m.id)).join('')
+                : `<div class="team-empty-hint">Noch keine Einzahlungsstrategie angelegt.</div>`}
+              <button type="button" class="secondary" data-add-strategy="deposit" data-member-id="${m.id}" style="width:100%;margin-top:4px;">+ Einzahlungsstrategie hinzufügen</button>
             </div>
           </div>
 
           <div class="field-group">
             <div class="mini-field">
-              <label>Auszahlungsstrategie</label>
-              <div class="toggle-row team-toggle" data-member-id="${m.id}" data-toggle="nfWithdrawalStrategy">
-                <button type="button" class="toggle-btn${!isWithdrawalPct && !isWithdrawalCashSurplus ? ' active' : ''}" data-value="fixed">Fester Betrag</button>
-                <button type="button" class="toggle-btn${isWithdrawalPct ? ' active' : ''}" data-value="percentage">Prozentualer Anteil</button>
-                <button type="button" class="toggle-btn${isWithdrawalCashSurplus ? ' active' : ''}" data-value="cashSurplus">Cash-Überschuss</button>
-              </div>
-            </div>
-            ${!isWithdrawalCashSurplus ? `
-            <div class="mini-field">
-              <label>${isWithdrawalPct ? 'Auszahlungs-Anteil (% der Rendite)' : 'Auszahlungsbetrag'}</label>
-              <div class="input-row">
-                <div class="amount-input">
-                  <span class="amount-input-symbol">${isWithdrawalPct ? '%' : currencySymbol()}</span>
-                  <input type="number" class="team-input" data-field="nfWithdrawalAmount" min="0" step="50" value="${m.nfWithdrawalAmount || 0}">
-                </div>
-                ${!isWithdrawalPct ? `
-                <select class="team-input unit" data-field="nfWithdrawalPeriod">
-                  <option value="monthly"${m.nfWithdrawalPeriod !== 'yearly' ? ' selected' : ''}>monatl.</option>
-                  <option value="yearly"${m.nfWithdrawalPeriod === 'yearly' ? ' selected' : ''}>jährl.</option>
-                </select>` : ''}
-              </div>
-            </div>` : ''}
-            <div class="mini-field">
-              <label>Auszahlungsschwelle</label>
-              <div class="toggle-row team-toggle" data-member-id="${m.id}" data-toggle="nfWithdrawalThresholdBasis">
-                <button type="button" class="toggle-btn${m.nfWithdrawalThresholdBasis !== 'capital' ? ' active' : ''}" data-value="interest">Monatsrendite</button>
-                <button type="button" class="toggle-btn${m.nfWithdrawalThresholdBasis === 'capital' ? ' active' : ''}" data-value="capital">Aktives Kapital</button>
-              </div>
-              <div class="amount-input" style="margin-top:7px;">
-                <span class="amount-input-symbol">${currencySymbol()}</span>
-                <input type="number" class="team-input" data-field="nfWithdrawalMinCapital" min="0" step="500" value="${m.nfWithdrawalMinCapital || 0}">
-              </div>
+              <label>Auszahlungsstrategien</label>
+              ${memberWithdrawals.length
+                ? memberWithdrawals.map(s => withdrawalStrategyCardHtml(s, memberStartCapital, undefined, m.id)).join('')
+                : `<div class="team-empty-hint">Noch keine Auszahlungsstrategie angelegt.</div>`}
+              <button type="button" class="secondary" data-add-strategy="withdrawal" data-member-id="${m.id}" style="width:100%;margin-top:4px;">+ Auszahlungsstrategie hinzufügen</button>
             </div>
           </div>
         </div>
@@ -1602,16 +1547,26 @@
   const STRATEGY_KEY = { deposit: 'nfDepositStrategies', withdrawal: 'nfWithdrawalStrategies' };
   const WITHDRAWAL_TYPE_LABELS = { once: 'Einmalig', monthly: 'Monatlich', yearly: 'Jährlich', percentage: 'Prozentual', cashSurplus: 'Cash-Überschuss' };
 
-  function activeStrategies(listKind) {
+  // memberId gesetzt → Strategien eines Team-Mitglieds (dessen eigenes
+  // nfDepositStrategies/nfWithdrawalStrategies); ohne memberId → die des
+  // Hauptszenarios (scenarios[activeIndex].values). Beide teilen sich
+  // dasselbe Array-Schema und dieselben Karten-/Bearbeitungsfunktionen.
+  function activeStrategies(listKind, memberId) {
+    const key = STRATEGY_KEY[listKind];
+    if (memberId) {
+      const member = activeTeamMembers().find(m => m.id === memberId);
+      if (!member) return [];
+      if (!Array.isArray(member[key])) member[key] = [];
+      return member[key];
+    }
     const v = scenarios[activeIndex] && scenarios[activeIndex].values;
     if (!v) return [];
-    const key = STRATEGY_KEY[listKind];
     if (!Array.isArray(v[key])) v[key] = [];
     return v[key];
   }
 
-  function addStrategy(listKind) {
-    const list = activeStrategies(listKind);
+  function addStrategy(listKind, memberId) {
+    const list = activeStrategies(listKind, memberId);
     list.push(listKind === 'deposit' ? {
       id: 'nfd' + (nfStrategySeq++),
       kind: 'fixed',
@@ -1632,14 +1587,21 @@
       thresholdBasis: 'interest',
       thresholdValue: 0
     });
-    renderStrategyRows(listKind);
+    if (memberId) renderTeamMemberRows(); else renderStrategyRows(listKind);
     calculate();
   }
 
-  function removeStrategy(listKind, id) {
+  function removeStrategy(listKind, id, memberId) {
     const key = STRATEGY_KEY[listKind];
-    scenarios[activeIndex].values[key] = activeStrategies(listKind).filter(s => s.id !== id);
-    renderStrategyRows(listKind);
+    if (memberId) {
+      const member = activeTeamMembers().find(m => m.id === memberId);
+      if (!member) return;
+      member[key] = activeStrategies(listKind, memberId).filter(s => s.id !== id);
+      renderTeamMemberRows();
+    } else {
+      scenarios[activeIndex].values[key] = activeStrategies(listKind).filter(s => s.id !== id);
+      renderStrategyRows(listKind);
+    }
     calculate();
   }
 
@@ -1682,12 +1644,12 @@
   // Einzahlungsstrategie: "Fester Betrag/Monat" vs. "1000er-Aufrundung" —
   // genau die zwei bisherigen Optionen, als Toggle wie zuvor. Bei festem
   // Betrag zusätzlich eine Häufigkeit (monatlich/jährlich/einmalig).
-  function depositStrategyCardHtml(s, startCapital, currency) {
+  function depositStrategyCardHtml(s, startCapital, currency, memberId) {
     const isRoundup = s.kind === 'roundup';
     const isOnce = !isRoundup && s.period === 'once';
     const sym = currencySymbol(currency);
     return `
-      <div class="team-member-card" data-strategy-id="${s.id}" data-list="deposit">
+      <div class="team-member-card" data-strategy-id="${s.id}" data-list="deposit"${memberId ? ` data-member-id="${memberId}"` : ''}>
         <div class="team-member-card-header">
           <div class="toggle-row strategy-toggle" data-strategy-id="${s.id}" data-toggle="kind" style="flex:1;">
             <button type="button" class="toggle-btn${!isRoundup ? ' active' : ''}" data-value="fixed">Fester Betrag/Monat</button>
@@ -1716,7 +1678,7 @@
   // Auszahlungsstrategie: unverändert gegenüber der bisherigen Auswahl
   // (Fester Betrag/Prozentual/Cash-Überschuss, jetzt mit "Einmalig" als
   // weiterer fester-Betrag-Variante), nur mit eigenem Start/Ende je Eintrag.
-  function withdrawalStrategyCardHtml(s, startCapital, currency) {
+  function withdrawalStrategyCardHtml(s, startCapital, currency, memberId) {
     const isOnce = s.type === 'once';
     const isPercentage = s.type === 'percentage';
     const isCashSurplus = s.type === 'cashSurplus';
@@ -1725,7 +1687,7 @@
     // Währungssymbol, nur bei echten Beträgen (fest/einmalig/monatl./jährl.).
     const amountSymbol = isPercentage ? '%' : currencySymbol(currency);
     return `
-      <div class="team-member-card" data-strategy-id="${s.id}" data-list="withdrawal">
+      <div class="team-member-card" data-strategy-id="${s.id}" data-list="withdrawal"${memberId ? ` data-member-id="${memberId}"` : ''}>
         <div class="team-member-card-header">
           <select class="team-input" data-field="type" style="flex:1;">
             ${Object.keys(WITHDRAWAL_TYPE_LABELS).map(t => `<option value="${t}"${s.type === t ? ' selected' : ''}>${WITHDRAWAL_TYPE_LABELS[t]}</option>`).join('')}
@@ -1757,10 +1719,11 @@
   function handleStrategyFieldChange(e) {
     const input = e.target.closest('.team-input');
     if (!input) return;
-    const card = input.closest('[data-strategy-id]');
+    const card = input.closest('.team-member-card[data-strategy-id]');
     if (!card) return;
     const listKind = card.dataset.list;
-    const strategy = activeStrategies(listKind).find(s => s.id === card.dataset.strategyId);
+    const memberId = card.dataset.memberId || undefined;
+    const strategy = activeStrategies(listKind, memberId).find(s => s.id === card.dataset.strategyId);
     if (!strategy) return;
     const field = input.dataset.field;
     if (field === 'type') {
@@ -1772,7 +1735,7 @@
         strategy.endMonth = null;
         strategy.stopMode = 'none';
       }
-      renderStrategyRows(listKind);
+      if (memberId) renderTeamMemberRows(); else renderStrategyRows(listKind);
       calculate();
       return;
     }
@@ -1786,17 +1749,20 @@
     } else {
       strategy[field] = num(input.value);
     }
-    // Kein renderStrategyRows() hier — würde bei jedem Tastendruck den
-    // Eingabefokus verlieren. Die Schwellen-Warnung hängt aber genau von
-    // diesem Feld ab, also gezielt nur ihren DOM-Knoten aktualisieren.
-    if (field === 'thresholdValue') refreshStrategyWarning(card, strategy);
+    // Kein renderStrategyRows()/renderTeamMemberRows() hier — würde bei
+    // jedem Tastendruck den Eingabefokus verlieren. Die Schwellen-Warnung
+    // hängt aber genau von diesem Feld ab, also gezielt nur ihren
+    // DOM-Knoten aktualisieren.
+    if (field === 'thresholdValue') refreshStrategyWarning(card, strategy, memberId);
     calculate();
   }
 
-  function refreshStrategyWarning(card, strategy) {
+  function refreshStrategyWarning(card, strategy, memberId) {
     const warningEl = card.querySelector('.field-warning');
     if (!warningEl) return;
-    const startCapital = Math.max(0, num((scenarios[activeIndex] && scenarios[activeIndex].values.start) || 0));
+    const startCapital = memberId
+      ? Math.max(0, num(((activeTeamMembers().find(m => m.id === memberId) || {}).startCapital) || 0))
+      : Math.max(0, num((scenarios[activeIndex] && scenarios[activeIndex].values.start) || 0));
     const tooLow = strategy.stopMode === 'threshold' && strategy.thresholdBasis === 'capital'
       && strategy.thresholdValue > 0 && strategy.thresholdValue < startCapital;
     warningEl.classList.toggle('visible', tooLow);
@@ -2869,6 +2835,12 @@
   function handleTeamMemberFieldChange(e) {
     const input = e.target.closest('.team-input');
     if (!input) return;
+    // Strategie-Karten (Einzahlungs-/Auszahlungsstrategien eines
+    // Mitglieds) sind aus Stil-Gründen ebenfalls .team-member-card und
+    // liegen VERSCHACHTELT in der äußeren Mitglieds-Karte — die gehören
+    // nicht hierher, sondern zu handleStrategyFieldChange (siehe
+    // handleTeamAreaFieldChange unten).
+    if (input.closest('.team-member-card[data-strategy-id]')) return;
     const card = input.closest('.team-member-card');
     const member = activeTeamMembers().find(m => m.id === (card && card.dataset.memberId));
     if (!member) return;
@@ -2883,10 +2855,61 @@
     calculate();
   }
 
-  els.teamMemberRows.addEventListener('input', handleTeamMemberFieldChange);
-  els.teamMemberRows.addEventListener('change', handleTeamMemberFieldChange);
+  // Team-Mitglied-Felder und die verschachtelten Strategie-Karten teilen
+  // sich denselben Container (els.teamMemberRows) und damit dieselbe
+  // Event-Delegation — hier wird je nach Ziel an die passende Handler-
+  // Funktion weitergereicht.
+  function handleTeamAreaFieldChange(e) {
+    const input = e.target.closest('.team-input');
+    if (!input) return;
+    if (input.closest('.team-member-card[data-strategy-id]')) {
+      handleStrategyFieldChange(e);
+    } else {
+      handleTeamMemberFieldChange(e);
+    }
+  }
+
+  els.teamMemberRows.addEventListener('input', handleTeamAreaFieldChange);
+  els.teamMemberRows.addEventListener('change', handleTeamAreaFieldChange);
 
   els.teamMemberRows.addEventListener('click', (e) => {
+    // Strategie-Karten zuerst behandeln (Entfernen/Toggle), danach nicht
+    // mehr zur Mitglieds-Ebene durchfallen lassen. Wichtig: .team-member-card
+    // in den Selektor mit aufnehmen, da die inneren .strategy-toggle-Divs
+    // (stopMode/thresholdBasis/kind/period) selbst ebenfalls data-strategy-id
+    // tragen — ohne die Klasse würde closest() dort fälschlich stoppen,
+    // bevor es die äußere Karte (mit data-list) erreicht.
+    const strategyCard = e.target.closest('.team-member-card[data-strategy-id]');
+    if (strategyCard) {
+      const listKind = strategyCard.dataset.list;
+      const memberId = strategyCard.dataset.memberId || undefined;
+      const removeBtn = e.target.closest('.team-remove-btn');
+      if (removeBtn) {
+        removeStrategy(listKind, removeBtn.dataset.removeId, memberId);
+        return;
+      }
+      const toggleBtn = e.target.closest('.strategy-toggle .toggle-btn');
+      if (toggleBtn) {
+        const group = toggleBtn.closest('.strategy-toggle');
+        const strategy = activeStrategies(listKind, memberId).find(s => s.id === group.dataset.strategyId);
+        if (!strategy) return;
+        strategy[group.dataset.toggle] = toggleBtn.dataset.value;
+        if (group.dataset.toggle === 'period' && toggleBtn.dataset.value === 'once') {
+          strategy.endMonth = null;
+          strategy.stopMode = 'none';
+        }
+        renderTeamMemberRows();
+        calculate();
+      }
+      return;
+    }
+
+    const addStrategyBtn = e.target.closest('[data-add-strategy]');
+    if (addStrategyBtn) {
+      addStrategy(addStrategyBtn.dataset.addStrategy, addStrategyBtn.dataset.memberId);
+      return;
+    }
+
     const removeBtn = e.target.closest('.team-remove-btn');
     if (removeBtn) {
       removeTeamMember(removeBtn.dataset.removeId);

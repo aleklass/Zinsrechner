@@ -380,6 +380,9 @@
       delete out.nfWithdrawalThresholdBasis;
     }
     delete out.nfRoundupEnabled;
+    if (Array.isArray(out.nfTeamMembers)) {
+      out.nfTeamMembers = out.nfTeamMembers.map(migrateTeamMemberStrategies);
+    }
     return out;
   }
 
@@ -611,7 +614,24 @@
         if (!withdrawalStrategyActive(s, m, interest, activeCapital)) return;
         preDepositWithdrawalGross += withdrawalStrategyAmount(s, m, interest, totalBonus);
       });
-      if (preDepositWithdrawalGross > 0) applyWithdrawal(preDepositWithdrawalGross);
+      if (preDepositWithdrawalGross > 0) {
+        // Reicht das laufende Cash (Zins/Boni dieses Monats) nicht aus,
+        // werden zusätzliche volle 1000er-Blöcke aus dem aktiven Kapital
+        // ins Cash-Konto zurückgeholt — begrenzt durch das tatsächlich
+        // vorhandene aktive Kapital. 'cashSurplus' bleibt davon unberührt,
+        // da sie per Definition nur den Sweep-Rest abgreift (Schritt 2b).
+        const shortfall = preDepositWithdrawalGross - cash;
+        if (shortfall > 1e-9) {
+          const blocksNeeded = Math.ceil((shortfall - 1e-9) / NF_BLOCK) * NF_BLOCK;
+          const blocksAvailable = Math.floor((activeCapital + 1e-9) / NF_BLOCK) * NF_BLOCK;
+          const pulled = Math.min(blocksNeeded, blocksAvailable);
+          if (pulled > 0) {
+            activeCapital -= pulled;
+            cash += pulled;
+          }
+        }
+        applyWithdrawal(preDepositWithdrawalGross);
+      }
 
       // 2) Deposits — each strategy sums independently (own start/end
       // month and, if stopMode is 'threshold', its own permanent stop once
@@ -773,31 +793,34 @@
     const memberMonths = totalMonths - joinMonth + 1;
     if (memberMonths <= 0) return null;
 
-    // Eigene Szenario-Eigenschaften pro Mitglied. Fehlt ein Feld (z. B. bei
-    // Mitgliedern, die vor Einführung dieser Eigenschaften angelegt wurden),
-    // greift derselbe Fallback wie zuvor: Rendite und Einzahlungsstrategie
-    // vom Hauptszenario übernommen, Einzahlungsziel und Auszahlung
-    // deaktiviert. Die flachen Mitglieder-Felder selbst bleiben unverändert
-    // (eigene UI, siehe addTeamMember) — sie werden hier lediglich in das
-    // Array-Schema übersetzt, das simulateNextForrest() erwartet, mit
-    // denselben Migrations-Hilfsfunktionen wie für gespeicherte Szenarien.
-    const flat = {
-      // v selbst führt seit den Mehrfachstrategien keine einzelne flache
-      // nfDepositStrategy mehr (nur noch das nfDepositStrategies-Array,
-      // das auch gemischte Einträge enthalten kann) — es gibt also keinen
-      // einzelnen Wert mehr, der an ein Mitglied "vererbt" werden könnte.
-      // Ohne eigene Angabe fällt ein Mitglied daher auf 'fixed' zurück.
-      nfDepositStrategy: member.nfDepositStrategy || 'fixed',
-      nfMonthlyDeposit: num(member.monthlyDeposit),
-      nfMonthlyDepositPeriod: member.nfMonthlyDepositPeriod || 'monthly',
-      nfDepositGoal: Math.max(0, num(member.nfDepositGoal)),
-      nfDepositGoalThresholdBasis: member.nfDepositGoalThresholdBasis || 'interest',
-      nfWithdrawalStrategy: member.nfWithdrawalStrategy || 'fixed',
-      nfWithdrawalAmount: Math.max(0, num(member.nfWithdrawalAmount)),
-      nfWithdrawalPeriod: member.nfWithdrawalPeriod || 'monthly',
-      nfWithdrawalMinCapital: Math.max(0, num(member.nfWithdrawalMinCapital)),
-      nfWithdrawalThresholdBasis: member.nfWithdrawalThresholdBasis || 'interest',
-    };
+    // Eigene Szenario-Eigenschaften pro Mitglied, inkl. eigener
+    // Mehrfach-Ein-/Auszahlungsstrategien (genau wie im Hauptszenario).
+    // Ein Mitglied mit bereits migrierten Arrays (neu angelegt oder via
+    // migrateScenarioValues() migriert) nutzt diese direkt; ein Mitglied
+    // mit den alten flachen Feldern (z. B. in bestehenden Tests) wird hier
+    // on-the-fly mit denselben Migrations-Hilfsfunktionen umgewandelt wie
+    // gespeicherte Szenarien — Rendite fällt ohne eigene Angabe weiterhin
+    // aufs Hauptszenario zurück, für die Einzahlungsart gibt es (wie beim
+    // Hauptszenario selbst) keinen einzelnen vererbbaren Wert mehr.
+    const depositStrategies = Array.isArray(member.nfDepositStrategies)
+      ? member.nfDepositStrategies
+      : toDepositStrategiesMigration({
+          nfDepositStrategy: member.nfDepositStrategy || 'fixed',
+          nfMonthlyDeposit: num(member.monthlyDeposit),
+          nfMonthlyDepositPeriod: member.nfMonthlyDepositPeriod || 'monthly',
+          nfDepositGoal: Math.max(0, num(member.nfDepositGoal)),
+          nfDepositGoalThresholdBasis: member.nfDepositGoalThresholdBasis || 'interest',
+        });
+    const withdrawalStrategies = Array.isArray(member.nfWithdrawalStrategies)
+      ? member.nfWithdrawalStrategies
+      : toWithdrawalStrategiesMigration({
+          nfWithdrawalStrategy: member.nfWithdrawalStrategy || 'fixed',
+          nfWithdrawalAmount: Math.max(0, num(member.nfWithdrawalAmount)),
+          nfWithdrawalPeriod: member.nfWithdrawalPeriod || 'monthly',
+          nfWithdrawalMinCapital: Math.max(0, num(member.nfWithdrawalMinCapital)),
+          nfWithdrawalThresholdBasis: member.nfWithdrawalThresholdBasis || 'interest',
+        });
+
     const result = simulateNextForrest({
       start: num(member.startCapital),
       // Wie beim Hauptszenario: unchecked lässt das Startkapital direkt als
@@ -808,11 +831,50 @@
       duration: memberMonths,
       durationUnit: 'months',
       nfRate: member.nfRate || v.nfRate,
-      nfDepositStrategies: toDepositStrategiesMigration(flat),
-      nfWithdrawalStrategies: toWithdrawalStrategiesMigration(flat),
+      nfDepositStrategies: depositStrategies,
+      nfWithdrawalStrategies: withdrawalStrategies,
     });
 
     return { member, joinMonth, result };
+  }
+
+  // Migriert die alten flachen Einzahlungs-/Auszahlungsfelder eines
+  // Team-Mitglieds (aus gespeicherten Szenarien) in dieselben Array-Felder,
+  // die simulateTeamMember() bevorzugt. Wird nur beim Laden aufgerufen —
+  // simulateTeamMember() selbst migriert flache Felder weiterhin
+  // on-the-fly, damit auch nicht migrierte Aufrufe (z. B. in Tests) exakt
+  // gleich rechnen.
+  function migrateTeamMemberStrategies(member) {
+    const out = { ...member };
+    if (!Array.isArray(out.nfDepositStrategies)) {
+      out.nfDepositStrategies = toDepositStrategiesMigration({
+        nfDepositStrategy: out.nfDepositStrategy || 'fixed',
+        nfMonthlyDeposit: num(out.monthlyDeposit),
+        nfMonthlyDepositPeriod: out.nfMonthlyDepositPeriod || 'monthly',
+        nfDepositGoal: Math.max(0, num(out.nfDepositGoal)),
+        nfDepositGoalThresholdBasis: out.nfDepositGoalThresholdBasis || 'interest',
+      });
+      delete out.nfDepositStrategy;
+      delete out.monthlyDeposit;
+      delete out.nfMonthlyDepositPeriod;
+      delete out.nfDepositGoal;
+      delete out.nfDepositGoalThresholdBasis;
+    }
+    if (!Array.isArray(out.nfWithdrawalStrategies)) {
+      out.nfWithdrawalStrategies = toWithdrawalStrategiesMigration({
+        nfWithdrawalStrategy: out.nfWithdrawalStrategy || 'fixed',
+        nfWithdrawalAmount: Math.max(0, num(out.nfWithdrawalAmount)),
+        nfWithdrawalPeriod: out.nfWithdrawalPeriod || 'monthly',
+        nfWithdrawalMinCapital: Math.max(0, num(out.nfWithdrawalMinCapital)),
+        nfWithdrawalThresholdBasis: out.nfWithdrawalThresholdBasis || 'interest',
+      });
+      delete out.nfWithdrawalStrategy;
+      delete out.nfWithdrawalAmount;
+      delete out.nfWithdrawalPeriod;
+      delete out.nfWithdrawalMinCapital;
+      delete out.nfWithdrawalThresholdBasis;
+    }
+    return out;
   }
 
   // sim = { member, joinMonth, result } aus simulateTeamMember().

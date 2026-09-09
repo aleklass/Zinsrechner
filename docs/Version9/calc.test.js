@@ -496,6 +496,92 @@ describe('NextForrest (simulateNextForrest)', () => {
     close(month1.deposit, 500, 'Rendite 500€ auf den vollen 1000er-Block aufgerundet, nur einmal');
     close(month1.reinvested, 1000);
   });
+
+  describe('Auszahlung größer als verfügbares Cash: zieht zusätzliche 1000er-Blöcke aus dem aktiven Kapital', () => {
+    test('Reicht das Cash nicht, werden genau so viele volle Blöcke nachgezogen, wie für die volle Auszahlung nötig sind', () => {
+      const r = simulateNextForrest(baseNextForrest({
+        start: 20000,
+        includeStartCapital: false,
+        nfRoundupEnabled: false,
+        nfDepositStrategies: [],
+        nfWithdrawalStrategies: [withdrawalStrategy({ type: 'once', amount: 10000, startMonth: 1 })],
+      }));
+      const month1 = r.rows.find(row => row.month === 1);
+      // Cash vor der Auszahlung = nur die Rendite (1.000€, 5% von 20.000€).
+      // Fehlbetrag 9.000€ → 9 volle 1000er-Blöcke werden aus dem aktiven
+      // Kapital zurückgeholt, sodass die vollen 10.000€ brutto ausgezahlt
+      // werden können.
+      close(month1.withdrawn, 10000 * (1 - 0.035));
+      close(month1.active, 20000 - 9000, 'aktives Kapital sinkt exakt um die nachgezogenen Blöcke');
+      close(month1.cash, 0);
+    });
+
+    test('Nicht benötigter Rest eines nachgezogenen Blocks bleibt als Cash übrig und wird ganz normal weiter gesweept', () => {
+      const r = simulateNextForrest(baseNextForrest({
+        start: 20000,
+        includeStartCapital: false,
+        nfRoundupEnabled: false,
+        nfDepositStrategies: [],
+        nfWithdrawalStrategies: [withdrawalStrategy({ type: 'once', amount: 1500, startMonth: 1 })],
+      }));
+      const month1 = r.rows.find(row => row.month === 1);
+      // Cash vor Auszahlung = 1.000€ Rendite, Fehlbetrag 500€ → ein voller
+      // Block (1.000€) wird nachgezogen (nicht nur 500€, da nur ganze Blöcke
+      // bewegt werden dürfen). Nach der Auszahlung (1.500€ brutto) bleiben
+      // 500€ Rest im Cash, die aktuell noch keinen vollen Block ergeben.
+      close(month1.withdrawn, 1500 * (1 - 0.035));
+      close(month1.active, 19000);
+      close(month1.cash, 500);
+    });
+
+    test('Reicht auch das aktive Kapital nicht aus, wird die Auszahlung auf das Maximum in vollen Blöcken gekappt', () => {
+      const r = simulateNextForrest(baseNextForrest({
+        start: 3000,
+        includeStartCapital: false,
+        nfRoundupEnabled: false,
+        nfDepositStrategies: [],
+        nfWithdrawalStrategies: [withdrawalStrategy({ type: 'once', amount: 10000, startMonth: 1 })],
+      }));
+      const month1 = r.rows.find(row => row.month === 1);
+      // Rendite 150€ (5% von 3.000€) + maximal 3.000€ nachziehbares aktives
+      // Kapital = 3.150€ verfügbar — mehr kann trotz gewünschter 10.000€
+      // nicht ausgezahlt werden.
+      close(month1.withdrawn, 3150 * (1 - 0.035));
+      close(month1.active, 0);
+      close(month1.cash, 0);
+    });
+
+    test('"Cash-Überschuss" bleibt unverändert: zieht keine zusätzlichen Blöcke aus dem aktiven Kapital', () => {
+      const r = simulateNextForrest(baseNextForrest({
+        start: 20000,
+        includeStartCapital: false,
+        nfRoundupEnabled: false,
+        nfDepositStrategies: [],
+        nfWithdrawalStrategies: [withdrawalStrategy({ type: 'cashSurplus' })],
+      }));
+      const month1 = r.rows.find(row => row.month === 1);
+      // Rendite 1.000€ ist bereits ein voller Block → cashSurplus zahlt
+      // nichts aus (kein Rest übrig), aktives Kapital bleibt unangetastet.
+      close(month1.withdrawn, 0);
+      close(month1.active, 21000);
+    });
+
+    test('Mehrere gleichzeitige Auszahlungsstrategien: der Fehlbetrag wird auf die Summe berechnet, nicht pro Strategie einzeln', () => {
+      const r = simulateNextForrest(baseNextForrest({
+        start: 20000,
+        includeStartCapital: false,
+        nfRoundupEnabled: false,
+        nfDepositStrategies: [],
+        nfWithdrawalStrategies: [
+          withdrawalStrategy({ id: 'a', type: 'once', amount: 4000, startMonth: 1 }),
+          withdrawalStrategy({ id: 'b', type: 'once', amount: 4000, startMonth: 1 }),
+        ],
+      }));
+      const month1 = r.rows.find(row => row.month === 1);
+      close(month1.withdrawn, 8000 * (1 - 0.035));
+      close(month1.active, 20000 - 7000, 'Fehlbetrag 7.000€ (8.000 - 1.000 Rendite) → 7 Blöcke nachgezogen');
+    });
+  });
 });
 
 describe('runSimulation', () => {
@@ -946,5 +1032,67 @@ describe('Team-Mitglieder: eigene Szenario-Eigenschaften (simulateTeamMember)', 
       nfWithdrawalMinCapital: 0, nfWithdrawalThresholdBasis: 'capital'
     });
     assert.ok(sim.result.totalWithdrawn > 0, 'sollte Auszahlungen erhalten haben');
+  });
+
+  test('Mitglied mit eigenem nfDepositStrategies-Array: mehrere Strategien summieren sich wie beim Hauptszenario', () => {
+    const v = baseMain();
+    const sim = simulateTeamMember(v, {
+      startCapital: 0, joinMonth: 1, includeStartCapital: false,
+      nfDepositStrategies: [
+        depositStrategy({ id: 'a', kind: 'fixed', period: 'monthly', amount: 500, startMonth: 1 }),
+        depositStrategy({ id: 'b', kind: 'fixed', period: 'once', amount: 2000, startMonth: 2 })
+      ]
+    });
+    const row2 = sim.result.rows.find(r => r.month === 2);
+    close(row2.deposit, 2500, 'Monat 2: 500 (laufend) + 2.000 (einmalig) sollten sich summieren');
+  });
+
+  test('Mitglied mit eigenem nfWithdrawalStrategies-Array: mehrere Strategien mit eigenem Start/Ende', () => {
+    const v = baseMain();
+    const sim = simulateTeamMember(v, {
+      startCapital: 50000, joinMonth: 1, includeStartCapital: false,
+      nfWithdrawalStrategies: [
+        withdrawalStrategy({ id: 'a', type: 'monthly', amount: 100, startMonth: 1, stopMode: 'date', endMonth: 1 }),
+        withdrawalStrategy({ id: 'b', type: 'once', amount: 500, startMonth: 3 })
+      ]
+    });
+    close(sim.result.rows.find(r => r.month === 1).withdrawn, 100 * (1 - 0.035));
+    close(sim.result.rows.find(r => r.month === 2).withdrawn, 0);
+    close(sim.result.rows.find(r => r.month === 3).withdrawn, 500 * (1 - 0.035));
+  });
+
+  test('Array-Felder haben Vorrang vor den alten flachen Feldern, falls beide vorhanden sind', () => {
+    const v = baseMain();
+    const sim = simulateTeamMember(v, {
+      startCapital: 0, joinMonth: 1, includeStartCapital: false,
+      // Alte flache Felder wären 1000/Monat — sollten hier ignoriert werden.
+      nfDepositStrategy: 'fixed', monthlyDeposit: 1000,
+      nfDepositStrategies: [depositStrategy({ kind: 'fixed', period: 'monthly', amount: 300 })]
+    });
+    close(sim.result.rows.find(r => r.month === 1).deposit, 300);
+  });
+});
+
+describe('migrateScenarioValues: migriert auch verschachtelte Team-Mitglieder', () => {
+  test('Mitglied mit alten flachen Feldern wird beim Laden ins Array-Schema überführt, Simulationsergebnis bleibt gleich', () => {
+    const oldMember = {
+      id: 'tm1', name: 'Alt', level: 1, startCapital: 0, joinMonth: 1, includeStartCapital: false,
+      nfDepositStrategy: 'fixed', monthlyDeposit: 400, nfMonthlyDepositPeriod: 'monthly',
+      nfDepositGoal: 0, nfDepositGoalThresholdBasis: 'interest',
+      nfWithdrawalStrategy: 'fixed', nfWithdrawalAmount: 0, nfWithdrawalPeriod: 'monthly',
+      nfWithdrawalMinCapital: 0, nfWithdrawalThresholdBasis: 'interest'
+    };
+    const values = baseNextForrest({ nfTeamMembers: [oldMember] });
+    const migrated = migrateScenarioValues(values);
+    const migratedMember = migrated.nfTeamMembers[0];
+
+    assert.ok(Array.isArray(migratedMember.nfDepositStrategies));
+    assert.strictEqual(migratedMember.nfDepositStrategies[0].amount, 400);
+    assert.strictEqual(migratedMember.nfDepositStrategy, undefined, 'alte Felder werden entfernt');
+    assert.strictEqual(migratedMember.monthlyDeposit, undefined);
+
+    const before = simulateTeamMember(values, oldMember);
+    const after = simulateTeamMember(migrated, migratedMember);
+    close(before.result.finalWealth, after.result.finalWealth);
   });
 });
