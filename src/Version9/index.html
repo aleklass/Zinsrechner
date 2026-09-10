@@ -1191,7 +1191,8 @@
                 <th title="Inkl. Startkapital (falls als Einzahlung berücksichtigt), ohne Gebühren">Einzahlungen</th>
                 <th title="Einzahlungs- + Auszahlungsgebühr">Gebühren</th>
                 <th title="Netto, nach Abzug der Auszahlungsgebühr">Auszahlungen</th>
-                <th title="Gegenüber den eigenen Einzahlungen">Wachstum</th>
+                <th title="Gegenüber den eigenen Einzahlungen, inklusive bereits erhaltener Auszahlungen">Gesamtrendite</th>
+                <th title="Gesamtrendite umgerechnet auf eine jährliche Rate — Näherung, kein zeitpunktgenauer IRR — macht Szenarien unterschiedlicher Laufzeit vergleichbar">Rendite p.a.</th>
               </tr>
             </thead>
             <tbody id="scenarioSummaryRows"></tbody>
@@ -1280,7 +1281,8 @@
   const {
     NF_RATES, NF_DEPOSIT_FEE_PCT, NF_WITHDRAWAL_FEE_PCT, NF_BLOCK,
     RANKS,
-    num, simulate, simulateNextForrest, runSimulation, migrateScenarioValues
+    num, simulate, simulateNextForrest, runSimulation, migrateScenarioValues,
+    computeRoi, computeBreakEvenMonth, monthsCountFor
   } = ZinsCalc;
 
   const els = {
@@ -2165,7 +2167,7 @@
   // Startkapital NICHT als Einzahlung zählt (dann taucht es nie in einer
   // deposit-Spalte auf, sondern nur als openingActive der ersten Zeile —
   // exakt wie result.startCapital das beim eigenen Szenario schon abbildet).
-  function combinedScenarioTotals(result, combinedList, merged) {
+  function combinedScenarioTotals(result, combinedList, merged, values) {
     if (!combinedList || !merged.length) return null;
 
     let totalInterest = result.totalInterest;
@@ -2197,9 +2199,10 @@
     const finalWealth = last.total;
     const activeCapital = last.active;
     const cash = last.cash;
-    const growth = totalPaid > 0 ? (finalWealth / totalPaid - 1) * 100 : 0;
+    const months = monthsCountFor(values);
+    const { growth, roiPerYear } = computeRoi(totalPaid, finalWealth, totalWithdrawn, months);
 
-    return { finalWealth, activeCapital, cash, totalInterest, totalDeposits, totalFees, totalWithdrawn, growth };
+    return { finalWealth, activeCapital, cash, totalInterest, totalDeposits, totalFees, totalWithdrawn, growth, roiPerYear };
   }
 
   // Ermittelt zusammenhängende Zeiträume (Start-/Endmonat), in denen eine
@@ -2227,11 +2230,33 @@
 
   // Ein- und Auszahlungs-Zeiträume, je aus den Zeilen abgeleitet, für die
   // Diagramm-Markierungen (siehe drawMarker/renderMarkerLegend).
-  function computeMarkers(result) {
-    const rows = result.rows;
+  // Zusätzliches, nicht als Einzahlungszeile gezähltes Startkapital der
+  // zusammengerechneten Team-Mitglieder (analog zu result.startCapital für
+  // das eigene Szenario) — nötig, damit der Break-even-Zeitpunkt bei "Mit
+  // meinem Investment zusammenrechnen" auch das Mitglieds-Startkapital
+  // korrekt mit einrechnet, statt es zu ignorieren.
+  function combinedInitialPaid(values, result) {
+    const ownInitial = result.startCapital || 0;
+    const membersInitial = mergedTeamMembers(values, result).reduce((sum, m) => {
+      return sum + (m.includeStartCapital === false ? Math.max(0, num(m.startCapital || 0)) : 0);
+    }, 0);
+    return ownInitial + membersInitial;
+  }
+
+  // combinedRows: die zusammengerechneten Monatszeilen (siehe
+  // buildCombinedRows), falls mindestens ein Team-Mitglied "Mit meinem
+  // Investment zusammenrechnen" aktiviert hat — sonst null, dann gelten nur
+  // die eigenen Zeilen. Ohne diese Unterscheidung würden die Diagramm-
+  // Markierungen (Ein-/Auszahlungs-Zeiträume, Break-even) weiterhin nur das
+  // eigene Investment widerspiegeln, obwohl Tabelle und Chart-Linie bereits
+  // die zusammengerechnete Summe zeigen.
+  function computeMarkers(result, combinedRows, initialPaid) {
+    const rows = combinedRows || result.rows;
+    const startCapital = initialPaid != null ? initialPaid : (result.startCapital || 0);
     return {
       depositRuns: computeActivityRuns(rows, 'deposit'),
       withdrawalRuns: computeActivityRuns(rows, 'withdrawn'),
+      breakEvenMonth: computeBreakEvenMonth(rows, startCapital),
     };
   }
 
@@ -2391,6 +2416,7 @@
       const isActive = i === fillIndex;
       const depositColor = isActive ? '#ffb86b' : 'rgba(255,184,107,.55)';
       const withdrawalColor = isActive ? '#ff7a7a' : 'rgba(255,122,122,.55)';
+      const breakEvenColor = isActive ? '#62d394' : 'rgba(98,211,148,.55)';
       const depositRuns = ds.markers.depositRuns || [];
       const withdrawalRuns = ds.markers.withdrawalRuns || [];
       // Einzahlung: wie bisher nur das Ende markieren (Start bei Monat 1 ist
@@ -2411,6 +2437,10 @@
           drawMarker(run.end, withdrawalColor, `${ds.name} · Auszahlung${n} endet`, isActive);
         }
       });
+      // Break-even: der Monat, ab dem die kumulierten Auszahlungen die
+      // kumulierten Einzahlungen erstmals erreichen/übersteigen — direkt
+      // die Antwort auf "ab wann habe ich mehr ausbezahlt als einbezahlt".
+      drawMarker(ds.markers.breakEvenMonth, breakEvenColor, `${ds.name} · Break-even`, isActive);
     });
 
     // Hover crosshair + per-series markers at the hovered month
@@ -2632,7 +2662,11 @@
         // immer 0) — das Diagramm beginnt bei Monat 1.
         data: modeSeries.filter(pt => pt.month >= 1),
         width: idx === activeIndex ? 3 : 2,
-        markers: computeMarkers(result)
+        markers: computeMarkers(
+          result,
+          combined ? combined.map(c => c.combined) : null,
+          combined ? combinedInitialPaid(sc.values, result) : undefined
+        )
       };
     });
 
@@ -2649,8 +2683,10 @@
     els.scenarioSummaryRows.innerHTML = results.map(({ sc, idx, result, combined }) => {
       const cur = sc.values.currency;
       const merged = mergedTeamMembers(sc.values, result);
-      const totals = combinedScenarioTotals(result, combined, merged) || result;
-      const growth = `${totals.growth >= 0 ? '+' : ''}${totals.growth.toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`;
+      const totals = combinedScenarioTotals(result, combined, merged, sc.values) || result;
+      const pct = (value) => `${value >= 0 ? '+' : ''}${value.toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`;
+      const growth = pct(totals.growth);
+      const roiPerYear = pct(totals.roiPerYear);
       return `
         <tr class="scenario-row${idx === activeIndex ? ' active-row' : ''}" data-scenario-index="${idx}">
           <td><span class="row-dot" style="background:${colorFor(idx)}"></span>${sc.name}</td>
@@ -2662,6 +2698,7 @@
           <td>${fmt(totals.totalFees, cur)}</td>
           <td>${fmt(totals.totalWithdrawn, cur)}</td>
           <td>${growth}</td>
+          <td>${roiPerYear}</td>
         </tr>
       `;
     }).join('');
@@ -2693,6 +2730,9 @@
           parts.push(`<span style="color:#ff7a7a;"><span class="marker-swatch"></span>${escapeHtml(ds.name)}: Auszahlung${n} endet (Monat ${run.end})</span>`);
         }
       });
+      if (ds.markers.breakEvenMonth != null) {
+        parts.push(`<span style="color:#62d394;"><span class="marker-swatch"></span>${escapeHtml(ds.name)}: Break-even — Auszahlungen ≥ Einzahlungen (Monat ${ds.markers.breakEvenMonth})</span>`);
+      }
     });
     els.chartMarkerLegend.innerHTML = parts.join('');
   }

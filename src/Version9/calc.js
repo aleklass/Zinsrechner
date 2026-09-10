@@ -19,6 +19,51 @@
     return Number.isFinite(n) ? n : 0;
   }
 
+  // ROI-Kennzahlen, gemeinsam für Klassisch und NextForrest: `growth` ist
+  // die Gesamtrendite über die komplette Laufzeit gegenüber den eigenen
+  // Einzahlungen — inklusive bereits erhaltener Auszahlungen (sonst würde
+  // eine aktive Auszahlungsstrategie die Rendite künstlich niedrig
+  // aussehen lassen, weil das ausgezahlte Geld im Endvermögen fehlt, aber
+  // ja trotzdem beim Anleger angekommen ist). `roiPerYear` rechnet dieselbe
+  // Gesamtrendite auf eine jährliche Rate um (Näherung: behandelt alle
+  // Einzahlungen so, als wären sie zu Laufzeitbeginn erfolgt — kein
+  // zeitpunktgenauer IRR), damit Szenarien unterschiedlicher Laufzeit
+  // vergleichbar werden.
+  function computeRoi(totalPaid, finalWealth, totalWithdrawn, months) {
+    if (!(totalPaid > 0)) return { growth: 0, roiPerYear: 0 };
+    const totalReturnFactor = (finalWealth + totalWithdrawn) / totalPaid;
+    const growth = (totalReturnFactor - 1) * 100;
+    const roiPerYear = months > 0 ? (Math.pow(totalReturnFactor, 12 / months) - 1) * 100 : 0;
+    return { growth, roiPerYear };
+  }
+
+  // Erster Monat, in dem die kumulierten Auszahlungen (netto) die
+  // kumulierten Einzahlungen erreichen oder übersteigen: der Zeitpunkt, ab
+  // dem man über die Auszahlungen bereits mehr zurückbekommen hat, als man
+  // eingezahlt hat — unabhängig davon, wie viel Restkapital noch investiert
+  // ist. null, wenn das innerhalb der Laufzeit nicht eintritt (z. B. ohne
+  // aktive Auszahlungsstrategie).
+  // initialPaid ist das Startkapital, FALLS es nicht bereits als eigenes
+  // Einzahlungsereignis in rows steckt (siehe die "startCapital"-Variable in
+  // simulate()/simulateNextForrest(): 0, wenn das Startkapital schon als
+  // Zeile-0-Einzahlung gezählt wurde, sonst der volle Betrag) — sonst würde
+  // reines "Startkapital + nur Auszahlungen, keine laufenden Einzahlungen"
+  // (heute der Normalfall, da die Checkbox dafür entfernt wurde) nie ein
+  // Break-even finden, obwohl real längst mehr zurückgezahlt wurde, als
+  // ursprünglich eingesetzt wurde.
+  function computeBreakEvenMonth(rows, initialPaid) {
+    let cumulativeDeposit = Math.max(0, initialPaid || 0);
+    let cumulativeWithdrawn = 0;
+    for (const r of rows) {
+      cumulativeDeposit += r.deposit || 0;
+      cumulativeWithdrawn += r.withdrawn || 0;
+      if (cumulativeDeposit > 0 && cumulativeWithdrawn >= cumulativeDeposit - 1e-9) {
+        return r.month;
+      }
+    }
+    return null;
+  }
+
   function monthsCountFor(v) {
     const d = Math.max(1, Math.round(num(v.duration)));
     return v.durationUnit === 'years' ? d * 12 : d;
@@ -203,7 +248,8 @@
       totalWithdrawalFees: 0,
       totalWithdrawn: 0,
       finalWealth,
-      growth: totalPaid > 0 ? (finalWealth / totalPaid - 1) * 100 : 0,
+      ...computeRoi(totalPaid, finalWealth, 0, settings.months),
+      breakEvenMonth: computeBreakEvenMonth(rows, startCapital),
       interestPct:
         finalWealth > 0 ? (totalInterest / finalWealth) * 100 : 0,
       series,
@@ -778,7 +824,8 @@
       totalWithdrawalFees,
       totalWithdrawn,
       finalWealth,
-      growth: totalPaid > 0 ? (finalWealth / totalPaid - 1) * 100 : 0,
+      ...computeRoi(totalPaid, finalWealth, totalWithdrawn, months),
+      breakEvenMonth: computeBreakEvenMonth(rows, startCapital),
       interestPct:
         finalWealth > 0 ? (totalInterest / finalWealth) * 100 : 0,
       series,
@@ -988,6 +1035,8 @@
     interestDue,
     contributionThisMonth,
     getSettings,
+    computeRoi,
+    computeBreakEvenMonth,
     simulate,
     strategyPeriodicAmount,
     fixedDepositAmount,

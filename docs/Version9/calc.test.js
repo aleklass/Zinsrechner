@@ -6,6 +6,8 @@ const {
   runSimulation,
   simulateTeamMember,
   migrateScenarioValues,
+  computeRoi,
+  computeBreakEvenMonth,
   NF_RATES,
 } = require('./calc.js');
 
@@ -126,6 +128,46 @@ describe('Klassisch (simulate)', () => {
     const r = simulate(baseClassic({ contribution: 100 }));
     close(r.growth, ((r.finalWealth / r.totalPaid) - 1) * 100);
   });
+
+  test('roiPerYear: 24 Monate Laufzeit, 20% Gesamtrendite → ca. 9,54% p.a.', () => {
+    const { growth, roiPerYear } = computeRoi(10000, 12000, 0, 24);
+    close(growth, 20);
+    close(roiPerYear, (Math.pow(1.2, 0.5) - 1) * 100);
+  });
+
+  test('computeBreakEvenMonth: findet den ersten Monat, in dem kumulierte Auszahlungen die kumulierten Einzahlungen erreichen', () => {
+    const rows = [
+      { month: 1, deposit: 1000, withdrawn: 0 },
+      { month: 2, deposit: 1000, withdrawn: 500 },
+      { month: 3, deposit: 0, withdrawn: 800 },
+      { month: 4, deposit: 0, withdrawn: 800 },
+    ];
+    // Kumuliert: Einzahlung 1000/2000/2000/2000, Auszahlung 0/500/1300/2100
+    // → in Monat 4 übersteigt die kumulierte Auszahlung (2100) erstmals die
+    // kumulierte Einzahlung (2000).
+    close(computeBreakEvenMonth(rows, 0), 4);
+  });
+
+  test('computeBreakEvenMonth: initialPaid (Startkapital, das nicht als Einzahlungszeile zählt) fließt mit ein', () => {
+    const rows = [
+      { month: 1, deposit: 0, withdrawn: 5000 },
+      { month: 2, deposit: 0, withdrawn: 5000 },
+      { month: 3, deposit: 0, withdrawn: 5000 },
+    ];
+    // Ohne initialPaid würde bereits Monat 1 als Break-even gelten (0
+    // Einzahlung, aber schon Auszahlung > 0 wäre unsinnig) — mit einem
+    // Startkapital von 10.000 als initialPaid erst, wenn die kumulierte
+    // Auszahlung die 10.000 erreicht (Monat 2: 10.000).
+    close(computeBreakEvenMonth(rows, 10000), 2);
+  });
+
+  test('computeBreakEvenMonth: null, wenn nie erreicht (z. B. ohne Auszahlungsstrategie)', () => {
+    const rows = [
+      { month: 1, deposit: 1000, withdrawn: 0 },
+      { month: 2, deposit: 1000, withdrawn: 0 },
+    ];
+    assert.strictEqual(computeBreakEvenMonth(rows, 0), null);
+  });
 });
 
 describe('NextForrest (simulateNextForrest)', () => {
@@ -145,6 +187,36 @@ describe('NextForrest (simulateNextForrest)', () => {
     close(r.totalDeposits, 12750.00);
     close(r.totalFees, 191.25);
     close(r.totalWithdrawn, 0);
+  });
+
+  test('growth (Gesamtrendite) rechnet bereits erhaltene Auszahlungen mit ein, nicht nur das verbleibende Endvermögen', () => {
+    const r = simulateNextForrest(baseNextForrest({
+      start: 10000, includeStartCapital: false, nfRoundupEnabled: false, nfDepositStrategies: [],
+      nfWithdrawalStrategies: [withdrawalStrategy({ type: 'monthly', amount: 200 })],
+    }));
+    // r.totalWithdrawn > 0 in diesem Szenario (siehe andere Tests) — ohne die
+    // Korrektur (nur finalWealth / totalPaid) läge growth spürbar niedriger,
+    // weil das bereits ausgezahlte Geld sonst wie ein Verlust wirken würde.
+    assert.ok(r.totalWithdrawn > 0, 'Testaufbau sollte Auszahlungen erzeugen');
+    close(r.growth, ((r.finalWealth + r.totalWithdrawn) / r.totalPaid - 1) * 100);
+    const growthWithoutFix = (r.finalWealth / r.totalPaid - 1) * 100;
+    assert.ok(r.growth > growthWithoutFix, 'korrigierte Rendite muss höher sein als die alte (Auszahlungen ignorierende) Formel');
+  });
+
+  test('breakEvenMonth: 10.000€ Startkapital, 500€/Monat Auszahlung ab Monat 1 → Break-even in Monat 21', () => {
+    const r = simulateNextForrest(baseNextForrest({
+      start: 10000, includeStartCapital: false, nfRoundupEnabled: false, nfDepositStrategies: [],
+      nfWithdrawalStrategies: [withdrawalStrategy({ type: 'monthly', amount: 500 })],
+    }));
+    // 500€ × 96,5% Netto = 482,50€/Monat; 10.000 / 482,50 ≈ 20,7 → Monat 21
+    // ist der erste Monat, in dem die kumulierte Netto-Auszahlung die
+    // 10.000€ Startkapital erstmals erreicht/übersteigt.
+    close(r.breakEvenMonth, 21);
+  });
+
+  test('breakEvenMonth: null ohne Auszahlungsstrategie', () => {
+    const r = simulateNextForrest(baseNextForrest({ nfWithdrawalStrategies: [] }));
+    assert.strictEqual(r.breakEvenMonth, null);
   });
 
   test('Zeile 0: Startkapital-Gebühr = 1,5% des Startkapitals', () => {
