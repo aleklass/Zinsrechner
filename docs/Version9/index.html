@@ -67,7 +67,7 @@
     .subtitle {
       margin-top: 8px;
       color: var(--muted);
-      font-size: 15px;
+      font-size: 0.9375rem;
     }
 
     .badge {
@@ -76,7 +76,7 @@
       color: var(--muted);
       border-radius: 999px;
       padding: 8px 12px;
-      font-size: 12px;
+      font-size: 0.75rem;
       white-space: nowrap;
     }
 
@@ -107,10 +107,44 @@
 
     label {
       display: block;
-      font-size: 13px;
+      font-size: 0.8125rem;
       color: var(--muted);
       margin-bottom: 7px;
       font-weight: 650;
+    }
+
+    /* Semantische Überschrift (h2), optisch identisch zu einem normalen
+       Feld-Label — für VoiceOver/Rotor-Navigation zwischen den Abschnitten
+       im linken Formular (Einzahlungsstrategien, Auszahlungsstrategien,
+       Team-Struktur), ohne das bestehende Erscheinungsbild zu verändern. */
+    h2.field-heading {
+      display: block;
+      font-size: 0.8125rem;
+      color: var(--muted);
+      margin: 0 0 7px;
+      font-weight: 650;
+    }
+
+    /* Nur für Screenreader sichtbar — z. B. für Tabellen ohne eigene
+       sichtbare Überschrift, damit sie trotzdem per Rotor auffindbar sind. */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* Sichtbarer Fokusring für Buttons/Toggles bei Tastaturnavigation —
+       ergänzt den bereits vorhandenen Fokusring von input/select, damit
+       auch Buttons ein konsistentes, deutliches Fokus-Feedback zeigen. */
+    button:focus-visible {
+      outline: 2px solid rgba(117,167,255,.85);
+      outline-offset: 2px;
     }
 
     .input-row {
@@ -131,7 +165,7 @@
       border-radius: 12px;
       padding: 12px 13px;
       outline: none;
-      font-size: 15px;
+      font-size: 0.9375rem;
       transition: .18s ease;
     }
 
@@ -162,7 +196,7 @@
 
     .checkbox-row span {
       color: var(--text);
-      font-size: 13px;
+      font-size: 0.8125rem;
       font-weight: 650;
     }
 
@@ -179,7 +213,7 @@
 
     .hint {
       color: var(--muted);
-      font-size: 11px;
+      font-size: 0.6875rem;
       line-height: 1.45;
       margin-top: 6px;
     }
@@ -197,7 +231,7 @@
       border-radius: 50%;
       border: 1px solid var(--muted);
       color: var(--muted);
-      font-size: 10px;
+      font-size: 0.625rem;
       font-weight: 750;
       font-style: normal;
       line-height: 1;
@@ -227,7 +261,7 @@
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 10px 12px;
-      font-size: 12px;
+      font-size: 0.75rem;
       font-weight: 500;
       text-transform: none;
       letter-spacing: normal;
@@ -252,7 +286,7 @@
       align-items: flex-start;
       gap: 6px;
       color: var(--danger);
-      font-size: 11px;
+      font-size: 0.6875rem;
       line-height: 1.45;
       margin-top: 6px;
     }
@@ -277,7 +311,7 @@
       color: var(--muted);
       padding: 9px 16px;
       border-radius: 10px 10px 0 0;
-      font-size: 13px;
+      font-size: 0.8125rem;
       font-weight: 750;
       cursor: pointer;
       transition: .15s ease;
@@ -344,7 +378,7 @@
 
     .team-member-grid label {
       display: block;
-      font-size: 10px;
+      font-size: 0.625rem;
       color: var(--muted);
       margin-bottom: 4px;
       font-weight: 650;
@@ -367,13 +401,13 @@
     }
 
     .team-checkbox-row span {
-      font-size: 11px;
+      font-size: 0.6875rem;
       color: var(--muted);
     }
 
     .team-input {
       padding: 9px 10px;
-      font-size: 13px;
+      font-size: 0.8125rem;
       border-radius: 9px;
     }
 
@@ -397,7 +431,7 @@
       top: 50%;
       transform: translateY(-50%);
       color: var(--muted);
-      font-size: 12px;
+      font-size: 0.75rem;
       font-weight: 650;
       pointer-events: none;
     }
@@ -410,7 +444,9 @@
       border-radius: 8px;
       padding: 8px 10px;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 0.75rem;
+      min-width: 28px;
+      min-height: 28px;
     }
 
     .team-remove-btn:hover {
@@ -429,6 +465,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      min-width: 28px;
+      min-height: 28px;
     }
 
     .expand-btn:hover {
@@ -460,7 +498,7 @@
       display: flex;
       align-items: center;
       gap: 7px;
-      font-size: 10px;
+      font-size: 0.625rem;
       font-weight: 750;
       text-transform: uppercase;
       letter-spacing: .05em;
@@ -485,7 +523,7 @@
     }
 
     .scenario-panel .mini-field label {
-      font-size: 10px;
+      font-size: 0.625rem;
       margin-bottom: 5px;
     }
 
@@ -506,8 +544,9 @@
 
     .scenario-panel .toggle-btn {
       padding: 7px 8px;
-      font-size: 11px;
+      font-size: 0.6875rem;
       border-radius: 7px;
+      min-height: 28px;
     }
 
     .scenario-panel .unit {
@@ -517,7 +556,7 @@
 
     .team-empty-hint {
       color: var(--muted);
-      font-size: 12px;
+      font-size: 0.75rem;
       padding: 4px 2px 10px;
     }
 
@@ -527,7 +566,7 @@
       border: 1px dashed var(--border);
       border-radius: 12px;
       color: var(--muted);
-      font-size: 13px;
+      font-size: 0.8125rem;
       text-align: center;
     }
 
@@ -547,7 +586,7 @@
       color: var(--muted);
       padding: 9px 10px;
       border-radius: 9px;
-      font-size: 13px;
+      font-size: 0.8125rem;
       font-weight: 700;
       cursor: pointer;
       transition: .15s ease;
@@ -571,7 +610,7 @@
       border: 0;
       border-radius: 12px;
       padding: 12px 16px;
-      font-size: 14px;
+      font-size: 0.875rem;
       font-weight: 750;
       cursor: pointer;
       transition: transform .15s ease, opacity .15s ease;
@@ -643,7 +682,7 @@
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 8px 11px;
-      font-size: 12px;
+      font-size: 0.75rem;
       box-shadow: 0 8px 24px rgba(0,0,0,.4);
       display: none;
       z-index: 5;
@@ -652,7 +691,7 @@
 
     .chart-tooltip .tt-month {
       font-weight: 700;
-      font-size: 11px;
+      font-size: 0.6875rem;
       text-transform: uppercase;
       letter-spacing: .04em;
       color: var(--muted);
@@ -698,8 +737,8 @@
       margin: 2px 2px 12px;
     }
 
-    .chart-title strong { font-size: 14px; }
-    .legend { color: var(--muted); font-size: 11px; }
+    .chart-title h2 { font-size: 0.875rem; font-weight: 700; margin: 0; }
+    .legend { color: var(--muted); font-size: 0.6875rem; }
 
     .chart-mode-toggle {
       max-width: 320px;
@@ -712,7 +751,7 @@
       gap: 14px;
       margin: 10px 2px 0;
       color: var(--muted);
-      font-size: 11px;
+      font-size: 0.6875rem;
     }
 
     .chart-legend-note .marker-swatch {
@@ -743,7 +782,7 @@
       border: 1px solid var(--border);
       background: var(--panel-2);
       color: var(--muted);
-      font-size: 13px;
+      font-size: 0.8125rem;
       font-weight: 650;
       white-space: nowrap;
       cursor: pointer;
@@ -775,7 +814,7 @@
       border-radius: 6px;
       color: var(--muted);
       opacity: .7;
-      font-size: 11px;
+      font-size: 0.6875rem;
     }
 
     .scenario-tab .close:hover {
@@ -799,7 +838,7 @@
       color: var(--accent);
       cursor: pointer;
       flex: 0 0 auto;
-      font-size: 17px;
+      font-size: 1.0625rem;
       line-height: 1;
       background: var(--panel-2);
       transition: .15s ease;
@@ -831,7 +870,7 @@
       border: 1px solid var(--border);
       background: rgba(255,255,255,.03);
       color: var(--text);
-      font-size: 12px;
+      font-size: 0.75rem;
       cursor: pointer;
       transition: .15s ease;
     }
@@ -864,17 +903,32 @@
     }
 
     .table-wrap {
+      position: relative;
       margin-top: 18px;
       overflow: auto;
       max-height: 420px;
       border-radius: 16px;
       border: 1px solid var(--border);
+      box-shadow: none;
+      transition: box-shadow .15s ease;
+    }
+
+    .table-wrap.has-scroll-right {
+      box-shadow: inset -24px 0 16px -16px rgba(0,0,0,.35);
+    }
+
+    .table-wrap.has-scroll-left {
+      box-shadow: inset 24px 0 16px -16px rgba(0,0,0,.35);
+    }
+
+    .table-wrap.has-scroll-left.has-scroll-right {
+      box-shadow: inset 24px 0 16px -16px rgba(0,0,0,.35), inset -24px 0 16px -16px rgba(0,0,0,.35);
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 13px;
+      font-size: 0.8125rem;
       min-width: 660px;
     }
 
@@ -892,7 +946,7 @@
       top: 0;
       background: #172239;
       z-index: 1;
-      font-size: 11px;
+      font-size: 0.6875rem;
       text-transform: uppercase;
       letter-spacing: .05em;
     }
@@ -959,7 +1013,7 @@
        Monat-Spalte sind zu einer Zelle verschmolzen, siehe subRow()). */
     #rows tr.detail-sub-row td {
       background: rgba(255,255,255,.02);
-      font-size: 12px;
+      font-size: 0.75rem;
     }
 
     .detail-table-wrap {
@@ -971,7 +1025,7 @@
 
     .detail-table-wrap table {
       min-width: 880px;
-      font-size: 12px;
+      font-size: 0.75rem;
     }
 
     .detail-table-wrap th,
@@ -981,7 +1035,7 @@
 
     .detail-table-wrap th {
       background: #101b33;
-      font-size: 10px;
+      font-size: 0.625rem;
     }
 
     .member-name-cell {
@@ -999,7 +1053,7 @@
     }
 
     .level-pill {
-      font-size: 9.5px;
+      font-size: 0.5938rem;
       font-weight: 750;
       color: var(--accent-2);
       background: rgba(117,167,255,.12);
@@ -1011,7 +1065,7 @@
     .footer {
       margin-top: 14px;
       color: var(--muted);
-      font-size: 11px;
+      font-size: 0.6875rem;
       text-align: center;
     }
 
@@ -1029,12 +1083,12 @@
       .wrap { width: calc(100% - 20px); margin: 18px auto 40px; }
       h1 { font-size: clamp(24px, 7vw, 34px); }
       .header { gap: 10px; margin-bottom: 16px; }
-      .badge { font-size: 11px; padding: 6px 10px; }
+      .badge { font-size: 0.6875rem; padding: 6px 10px; }
       .panel { border-radius: 16px; }
       .inputs, .results { padding: 16px; }
 
       /* Prevent iOS Safari from zooming in on input focus */
-      input, select { font-size: 16px; padding: 11px 12px; }
+      input, select { font-size: 1rem; padding: 11px 12px; }
 
       .unit { width: 78px; flex: 0 0 78px; }
       .actions { grid-template-columns: 1fr 52px; }
@@ -1044,7 +1098,7 @@
       canvas { height: 220px; }
 
       .table-wrap { border-radius: 12px; max-height: 320px; }
-      table { font-size: 12px; min-width: 560px; }
+      table { font-size: 0.75rem; min-width: 560px; }
       th, td { padding: 9px 8px; }
     }
 
@@ -1140,7 +1194,7 @@
 
             <div class="field-group">
               <div class="field">
-                <label>Einzahlungsstrategien <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Beliebig viele gleichzeitig aktive Strategien möglich (z. B. „500 €/Monat bis Monat 12“ + „einmalig 5.000 € in Monat 6“) — ihre Beträge werden pro Monat addiert.</span></span></label>
+                <h2 class="field-heading">Einzahlungsstrategien <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Beliebig viele gleichzeitig aktive Strategien möglich (z. B. „500 €/Monat bis Monat 12“ + „einmalig 5.000 € in Monat 6“) — ihre Beträge werden pro Monat addiert.</span></span></h2>
                 <div id="nfDepositStrategyRows"></div>
                 <button type="button" class="secondary" id="addNfDepositStrategyBtn">+ Einzahlungsstrategie hinzufügen</button>
               </div>
@@ -1152,7 +1206,7 @@
 
             <div class="field-group">
               <div class="field">
-                <label>Auszahlungsstrategien <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Beliebig viele gleichzeitig aktive Strategien möglich, auch gemischte Typen. Von jeder Auszahlung werden zusätzlich 3,5 % Gebühr abgezogen.</span></span></label>
+                <h2 class="field-heading">Auszahlungsstrategien <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Beliebig viele gleichzeitig aktive Strategien möglich, auch gemischte Typen. Von jeder Auszahlung werden zusätzlich 3,5 % Gebühr abgezogen.</span></span></h2>
                 <div id="nfWithdrawalStrategyRows"></div>
                 <button type="button" class="secondary" id="addNfWithdrawalStrategyBtn">+ Auszahlungsstrategie hinzufügen</button>
               </div>
@@ -1160,7 +1214,7 @@
 
             <div class="field-group">
               <div class="field">
-                <label>Team-Struktur <span class="info-tip" tabindex="0"><span class="info-tip-bubble" style="width:320px;">Tippgeber-Bonus: 50 € einmalig pro 1.000 €-Block, den eine direkt von dir geworbene Person (Ebene 1) investiert — unabhängig vom Rang. Dein Rang (Bronze bis Diamond) richtet sich nach deinem eigenen aktiven Kapital und dem Team-Volumen über alle Ebenen und schaltet monatliche Boni frei: auf dein eigenes Kapital (ab Gold) sowie auf das jeweilige aktive Kapital der Ebenen 1–3 (ab Bronze, Silver bzw. Platinum). Alle Boni werden direkt deinem eigenen Cash-Konto gutgeschrieben und wachsen dort mit.</span></span></label>
+                <h2 class="field-heading">Team-Struktur <span class="info-tip" tabindex="0"><span class="info-tip-bubble" style="width:320px;">Tippgeber-Bonus: 50 € einmalig pro 1.000 €-Block, den eine direkt von dir geworbene Person (Ebene 1) investiert — unabhängig vom Rang. Dein Rang (Bronze bis Diamond) richtet sich nach deinem eigenen aktiven Kapital und dem Team-Volumen über alle Ebenen und schaltet monatliche Boni frei: auf dein eigenes Kapital (ab Gold) sowie auf das jeweilige aktive Kapital der Ebenen 1–3 (ab Bronze, Silver bzw. Platinum). Alle Boni werden direkt deinem eigenen Cash-Konto gutgeschrieben und wachsen dort mit.</span></span></h2>
               </div>
 
               <div class="field">
@@ -1179,6 +1233,7 @@
       </section>
 
       <section class="panel results">
+        <h2 class="sr-only">Szenario-Übersicht</h2>
         <div class="table-wrap scenario-summary-wrap">
           <table>
             <thead>
@@ -1201,21 +1256,21 @@
 
         <div class="chart-wrap">
           <div class="chart-title">
-            <strong>Kapitalentwicklung</strong>
+            <h2>Kapitalentwicklung</h2>
             <span class="legend" id="chartModeLabel">Vergleich aller Szenarien</span>
           </div>
           <div class="toggle-row chart-mode-toggle" id="chartModeToggle">
             <button type="button" class="toggle-btn" data-value="invested">Investiertes Kapital</button>
             <button type="button" class="toggle-btn active" data-value="rendite">Rendite</button>
           </div>
-          <canvas id="chart"></canvas>
+          <canvas id="chart" role="img" aria-label="Diagramm der Kapitalentwicklung über die Laufzeit, je Szenario"></canvas>
           <div class="chart-tooltip" id="chartTooltip"></div>
           <div class="legend-list" id="chartLegend"></div>
           <div class="chart-legend-note" id="chartMarkerLegend"></div>
         </div>
 
         <div class="chart-title" style="margin: 18px 2px 8px;">
-          <strong>Monatsverlauf</strong>
+          <h2>Monatsverlauf</h2>
           <span class="legend" id="tableScenarioLabel">–</span>
         </div>
 
@@ -1241,7 +1296,7 @@
 
         <div id="teamBonusSection" style="display:none;">
           <div class="chart-title" style="margin: 18px 2px 8px;">
-            <strong>Team-Bonus</strong>
+            <h2>Team-Bonus</h2>
             <span class="legend" id="teamBonusStatusLabel">–</span>
           </div>
           <div class="table-wrap">
@@ -1620,7 +1675,7 @@
     if (isOnce) return '';
     return `
       <div class="mini-field" style="margin-top:8px;">
-        <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:5px;">Stopp-Bedingung</label>
+        <label style="font-size: 0.625rem;color:var(--muted);display:block;margin-bottom:5px;">Stopp-Bedingung</label>
         ${allowTotal ? `
         <select class="team-input" data-field="stopMode" style="width:100%;">
           <option value="none"${s.stopMode === 'none' ? ' selected' : ''}>Keine</option>
@@ -1642,7 +1697,7 @@
       </div>` : ''}
       ${s.stopMode === 'threshold' ? `
       <div class="mini-field">
-        <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:5px;">Schwellenbasis</label>
+        <label style="font-size: 0.625rem;color:var(--muted);display:block;margin-bottom:5px;">Schwellenbasis</label>
         <div class="toggle-row strategy-toggle" data-strategy-id="${s.id}" data-toggle="thresholdBasis">
           <button type="button" class="toggle-btn${s.thresholdBasis !== 'capital' ? ' active' : ''}" data-value="interest">Monatsrendite</button>
           <button type="button" class="toggle-btn${s.thresholdBasis === 'capital' ? ' active' : ''}" data-value="capital">Aktives Kapital</button>
@@ -1655,7 +1710,7 @@
       </div>` : ''}
       ${allowTotal && s.stopMode === 'total' ? `
       <div class="mini-field">
-        <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:5px;">Gesamtsumme, die insgesamt ausgezahlt werden soll (netto, nach Gebühr)</label>
+        <label style="font-size: 0.625rem;color:var(--muted);display:block;margin-bottom:5px;">Gesamtsumme, die insgesamt ausgezahlt werden soll (netto, nach Gebühr)</label>
         <div class="amount-input">
           <span class="amount-input-symbol">${sym}</span>
           <input type="number" class="team-input" data-field="thresholdValue" min="0" step="500" value="${s.thresholdValue || 0}">
@@ -1682,7 +1737,7 @@
         </div>
         ${!isRoundup ? `
         <div class="mini-field" style="margin-top:8px;">
-          <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:5px;">Häufigkeit</label>
+          <label style="font-size: 0.625rem;color:var(--muted);display:block;margin-bottom:5px;">Häufigkeit</label>
           <div class="toggle-row strategy-toggle" data-strategy-id="${s.id}" data-toggle="period">
             <button type="button" class="toggle-btn${s.period !== 'yearly' && s.period !== 'once' ? ' active' : ''}" data-value="monthly">Monatlich</button>
             <button type="button" class="toggle-btn${s.period === 'yearly' ? ' active' : ''}" data-value="yearly">Jährlich</button>
@@ -2617,6 +2672,8 @@
 
   function removeScenario(idx) {
     if (scenarios.length <= 1) return;
+    const name = scenarios[idx] && scenarios[idx].name ? scenarios[idx].name : 'dieses Szenario';
+    if (!window.confirm(`"${name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) return;
     scenarios.splice(idx, 1);
     if (idx < activeIndex) activeIndex -= 1;
     if (activeIndex >= scenarios.length) activeIndex = scenarios.length - 1;
@@ -2677,6 +2734,15 @@
     renderChart();
 
     saveState();
+    updateTableScrollHints();
+  }
+
+  function updateTableScrollHints() {
+    document.querySelectorAll('.table-wrap').forEach((el) => {
+      const scrollable = el.scrollWidth > el.clientWidth + 1;
+      el.classList.toggle('has-scroll-right', scrollable && el.scrollLeft < el.scrollWidth - el.clientWidth - 1);
+      el.classList.toggle('has-scroll-left', scrollable && el.scrollLeft > 1);
+    });
   }
 
   function renderScenarioSummaryTable(results) {
@@ -2896,6 +2962,7 @@
   }
 
   function reset() {
+    if (!window.confirm('Alle Szenarien wirklich zurücksetzen? Diese Aktion kann nicht rückgängig gemacht werden.')) return;
     scenarios = [makeScenario(defaultScenarioValues)];
     activeIndex = 0;
     applyScenarioToInputs(scenarios[0]);
@@ -3061,6 +3128,10 @@
   });
 
   window.addEventListener('resize', calculate);
+
+  document.querySelectorAll('.table-wrap').forEach((el) => {
+    el.addEventListener('scroll', updateTableScrollHints, { passive: true });
+  });
 
   if (!loadState()) {
     scenarios = [makeScenario(defaultScenarioValues)];
