@@ -1,0 +1,125 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "version4-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8744",
+        "--directory",
+        "src/Version4"
+      ],
+      "port": 8744
+    },
+    {
+      "name": "version5-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8745",
+        "--directory",
+        "src/Version5"
+      ],
+      "port": 8745
+    },
+    {
+      "name": "version6-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8746",
+        "--directory",
+        "src/Version6"
+      ],
+      "port": 8746
+    },
+    {
+      "name": "version7-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8747",
+        "--directory",
+        "src/Version7"
+      ],
+      "port": 8747
+    },
+    {
+      "name": "version8-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8748",
+        "--directory",
+        "src/Version8"
+      ],
+      "port": 8748
+    },
+    {
+      "name": "version9-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8749",
+        "--directory",
+        "src/Version9"
+      ],
+      "port": 8749
+    },
+    {
+      "name": "version10-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8750",
+        "--directory",
+        "src/Version10"
+      ],
+      "port": 8750
+    },
+    {
+      "name": "version11-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8751",
+        "--directory",
+        "src/Version11"
+      ],
+      "port": 8751
+    },
+    {
+      "name": "team-tree-mockups",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8760",
+        "--directory",
+        "mockups/team-tree"
+      ],
+      "port": 8760
+    },
+    {
+      "name": "version12-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8752",
+        "--directory",
+        "docs/Version12"
+      ],
+      "port": 8752
+    }
+  ]
+}
