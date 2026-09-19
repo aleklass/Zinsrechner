@@ -563,7 +563,7 @@
       gap: 2px;
       width: 100%;
       border-radius: 9px;
-      padding-left: calc(4px + var(--depth, 0) * 13px);
+      padding-left: calc((var(--depth, 1) - 1) * 13px);
     }
 
     .navrow:hover { background: rgba(255,255,255,.04); }
@@ -574,8 +574,8 @@
     }
 
     .nav-twist {
-      flex: 0 0 34px;
-      width: 34px;
+      flex: 0 0 22px;
+      width: 22px;
       min-height: 44px;
       display: inline-flex;
       align-items: center;
@@ -839,7 +839,7 @@
     .dialog-actions button small { display: block; color: var(--muted); font-weight: 400; margin-top: 2px; font-size: 0.6875rem; }
 
     @media (max-width: 560px) {
-      .navrow { padding-left: calc(4px + var(--depth, 0) * 9px); }
+      .navrow { padding-left: calc((var(--depth, 1) - 1) * 9px); }
     }
 
     @media (prefers-reduced-motion: reduce) {
