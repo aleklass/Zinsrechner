@@ -10,6 +10,7 @@
   }
 })(typeof self !== 'undefined' ? self : this, function () {
   const NF_RATES = { low: 0.05, high: 0.052 };
+  const TAX_RATE_DEFAULT = 26.375;
   const NF_DEPOSIT_FEE_PCT = 0.015;
   const NF_WITHDRAWAL_FEE_PCT = 0.035;
   const NF_BLOCK = 1000;
@@ -277,27 +278,63 @@
   // `stopMode` legt bei beiden fest, ob endMonth ODER die Schwelle greift —
   // nie beide gleichzeitig.
 
-  function strategyPeriodicAmount(strategy, monthIndex) {
+  // Startbedingung einer Strategie. 'month' (Vorgabe) verhält sich wie
+  // bisher; 'capital' prüft das aktive Kapital, 'yield' die Rendite dieses
+  // Monats INKLUSIVE der Boni. Das Gatter rastet ein: einmal offen, bleibt es
+  // offen — beendet wird eine Strategie ausschließlich über ihre
+  // Stopp-Bedingung. Sonst ginge sie bei schwankender Rendite oder nach einer
+  // Auszahlung wieder aus, und "Start" wäre kein Ereignis mehr, sondern ein
+  // Dauerzustand.
+  function strategyStarted(strategy, state, monthIndex, interestThisMonth, activeCapital, totalBonus) {
+    if (state && state.started) return true;
+    const mode = strategy.startMode || 'month';
+    const schwelle = Math.max(0, num(strategy.startThreshold));
+    let offen;
+    if (mode === 'capital') {
+      offen = activeCapital >= schwelle - 1e-9;
+    } else if (mode === 'yield') {
+      offen = interestThisMonth + (totalBonus || 0) >= schwelle - 1e-9;
+    } else {
+      offen = monthIndex >= strategy.startMonth;
+    }
+    if (offen && state && !state.started) {
+      state.started = true;
+      state.startedAt = monthIndex;
+    }
+    return offen;
+  }
+
+  // Bezugsmonat für 'once' und 'yearly'. Bei einer Schwelle als Startbedingung
+  // hat `startMonth` keine Bedeutung mehr — dann zählt der Monat, in dem das
+  // Gatter tatsächlich aufging.
+  function strategyAnchorMonth(strategy, state) {
+    if (state && state.startedAt != null) return state.startedAt;
+    return strategy.startMonth;
+  }
+
+  function strategyPeriodicAmount(strategy, monthIndex, anchorMonth) {
     const amount = Math.max(0, num(strategy.amount));
+    const anker = anchorMonth != null ? anchorMonth : strategy.startMonth;
     if (strategy.type === 'once') {
-      return monthIndex === strategy.startMonth ? amount : 0;
+      return monthIndex === anker ? amount : 0;
     }
     if (strategy.type === 'monthly') return amount;
     if (strategy.type === 'yearly') {
-      return (monthIndex - strategy.startMonth) % 12 === 0 ? amount : 0;
+      return (monthIndex - anker) % 12 === 0 ? amount : 0;
     }
     return 0; // 'percentage'/'cashSurplus' werden separat behandelt
   }
 
   // Betrag einer Einzahlungsstrategie vom Typ 'fixed' für diesen Monat
   // (kind 'roundup' hat keinen festen Betrag/Periode — siehe Sweep-Schritt).
-  function fixedDepositAmount(strategy, monthIndex) {
+  function fixedDepositAmount(strategy, monthIndex, anchorMonth) {
     const amount = Math.max(0, num(strategy.amount));
+    const anker = anchorMonth != null ? anchorMonth : strategy.startMonth;
     if (strategy.period === 'once') {
-      return monthIndex === strategy.startMonth ? amount : 0;
+      return monthIndex === anker ? amount : 0;
     }
     if (strategy.period === 'yearly') {
-      return (monthIndex - strategy.startMonth) % 12 === 0 ? amount : 0;
+      return (monthIndex - anker) % 12 === 0 ? amount : 0;
     }
     return amount; // 'monthly' (Default)
   }
@@ -307,10 +344,10 @@
   // genau wie das bisherige einzelne Sparziel. Gilt für beide Arten (fest
   // wie Roundup) gleichermaßen; nur 'once' (nur bei kind 'fixed' möglich)
   // ignoriert Enddatum/Schwelle, da es ohnehin nur einen Monat betrifft.
-  function depositStrategyActive(strategy, state, monthIndex, interestThisMonth, activeCapital) {
+  function depositStrategyActive(strategy, state, monthIndex, interestThisMonth, activeCapital, totalBonus) {
     if (state.stopped) return false;
-    if (monthIndex < strategy.startMonth) return false;
-    if (strategy.period === 'once') return monthIndex === strategy.startMonth;
+    if (!strategyStarted(strategy, state, monthIndex, interestThisMonth, activeCapital, totalBonus)) return false;
+    if (strategy.period === 'once') return monthIndex === strategyAnchorMonth(strategy, state);
     if (strategy.stopMode === 'date' && strategy.endMonth != null) {
       return monthIndex <= strategy.endMonth;
     }
@@ -331,10 +368,10 @@
   // kumulativer Zielbetrag interpretiert (state.paidTotal, siehe unten) und
   // der Stopp ist wie beim Einzahlungs-Schwellenwert dauerhaft, sobald der
   // Zielbetrag erreicht ist.
-  function withdrawalStrategyActive(strategy, state, monthIndex, interestThisMonth, activeCapital) {
+  function withdrawalStrategyActive(strategy, state, monthIndex, interestThisMonth, activeCapital, totalBonus) {
     if (state && state.stopped) return false;
-    if (monthIndex < strategy.startMonth) return false;
-    if (strategy.type === 'once') return monthIndex === strategy.startMonth;
+    if (!strategyStarted(strategy, state, monthIndex, interestThisMonth, activeCapital, totalBonus)) return false;
+    if (strategy.type === 'once') return monthIndex === strategyAnchorMonth(strategy, state);
     if (strategy.stopMode === 'date' && strategy.endMonth != null) {
       return monthIndex <= strategy.endMonth;
     }
@@ -376,13 +413,13 @@
     return remainingNet / (1 - NF_WITHDRAWAL_FEE_PCT);
   }
 
-  function withdrawalStrategyAmount(strategy, monthIndex, interestThisMonth, totalBonus) {
+  function withdrawalStrategyAmount(strategy, monthIndex, interestThisMonth, totalBonus, anchorMonth) {
     if (strategy.type === 'percentage') {
       const pct = Math.max(0, num(strategy.amount)) / 100;
       return (interestThisMonth + totalBonus) * pct;
     }
     if (strategy.type === 'cashSurplus') return 0; // separat, nach den Einzahlungen
-    return strategyPeriodicAmount(strategy, monthIndex);
+    return strategyPeriodicAmount(strategy, monthIndex, anchorMonth);
   }
 
   // Migriert die alten flachen Einzahlungsfelder (nfDepositStrategy,
@@ -498,9 +535,31 @@
     const startAsDeposit = v.includeStartCapital !== false;
     const startCapital = startAsDeposit ? 0 : rawStart;
     const depositStrategies = Array.isArray(v.nfDepositStrategies) ? v.nfDepositStrategies : [];
-    const depositState = depositStrategies.map(() => ({ stopped: false }));
+    const depositState = depositStrategies.map(() => ({ stopped: false, started: false, startedAt: null }));
     const withdrawalStrategies = Array.isArray(v.nfWithdrawalStrategies) ? v.nfWithdrawalStrategies : [];
-    const withdrawalState = withdrawalStrategies.map(() => ({ stopped: false, paidTotal: 0 }));
+    const withdrawalState = withdrawalStrategies.map(() => ({ stopped: false, paidTotal: 0, started: false, startedAt: null }));
+
+    // Kapitalertragsteuer: nur auf den Zins, nicht auf Team-Boni (§ 20 EStG
+    // erfasst Kapitalerträge, keine Provisionen). Kein Sparer-Pauschbetrag —
+    // der volle Jahreszins wird versteuert. Jedes Team-Mitglied bekommt seine
+    // eigene, unabhängige Einstellung (siehe simulateTeamMember()).
+    const taxEnabled = !!v.taxEnabled;
+    const taxRate = Math.max(0, v.taxRate != null ? num(v.taxRate) : TAX_RATE_DEFAULT) / 100;
+    // Steht die Steuerschuld tatsächlich aus dem Investment (Rendite, notfalls
+    // aktives Kapital) ab, oder wird sie nur ausgewiesen, weil sie aus
+    // externen Mitteln (Gehalt, Rücklage) beglichen wird? Default true erhält
+    // das bisherige Verhalten unverändert.
+    const taxPayout = v.taxPayout !== false;
+    let yearInterestAccrued = 0;
+    let totalTax = 0;
+    // Anteil der Steuer, der nicht aus der Rendite (vorhandenem Cash) gedeckt
+    // war und deshalb per Block-Entnahme aus dem aktiven Kapital kam — bleibt
+    // absichtlich getrennt von `totalWithdrawn`: verließe er die Anlage über
+    // dieselbe Variable wie eine echte Auszahlung, würde er Gesamtrendite,
+    // Rendite p.a. und den Break-even-Monat verfälschen, obwohl das Geld ans
+    // Finanzamt ging statt in die Tasche des Anlegers. Für die Anzeige in der
+    // „Auszahlung“-Spalte addiert die UI ihn separat hinzu (siehe index.html).
+    let totalTaxFromCapital = 0;
 
     // Team-/Empfehlungsstruktur: jedes Teammitglied läuft als eigene,
     // unabhängige simulateNextForrest()-Instanz ab seinem Beitrittsmonat.
@@ -573,6 +632,8 @@
         total: activeCapital + cash,
         fee: fee0,
         withdrawn: 0,
+        tax: 0,
+        taxFromCapital: 0,
       });
     }
 
@@ -589,6 +650,7 @@
       const interest = activeCapital * monthlyRate;
       totalInterest += interest;
       cash += interest;
+      yearInterestAccrued += interest;
 
       // 0) Team-Boni landen als Cash-Zufluss auf dem eigenen Konto, noch vor
       // Auszahlung/Einzahlung/Sweep dieses Monats — sie verhalten sich also
@@ -750,6 +812,54 @@
         });
       }
 
+      // 0b) Jährliche Steuerabrechnung auf den bis hierhin aufgelaufenen
+      // Zins: alle 12 Monate sowie, falls die Laufzeit dazwischen endet,
+      // einmalig als Restabrechnung im letzten Monat — sonst bliebe ein
+      // angebrochenes Jahr unversteuert. Bei taxPayout wird die Steuer
+      // tatsächlich beglichen (aus Cash, notfalls per Block-Entnahme aus dem
+      // aktiven Kapital, wie bei einer Auszahlung) — sonst wird sie nur in
+      // `tax`/`totalTax` ausgewiesen, weil sie aus externen Mitteln bezahlt
+      // wird und Cash/aktives Kapital unberührt bleiben.
+      let taxThisMonth = 0;
+      let taxFromCapitalThisMonth = 0;
+      if (taxEnabled && (m % 12 === 0 || (m === months && yearInterestAccrued > 1e-9))) {
+        const steuer = yearInterestAccrued * taxRate;
+        if (steuer > 1e-9) {
+          if (taxPayout) {
+            // Deckt die Rendite (vorhandenes Cash) die Steuer nicht, muss der
+            // Rest aus dem aktiven Kapital geholt werden — das ist eine
+            // Entnahme wie jede andere Auszahlung und trägt deshalb dieselbe
+            // 3,5%-Auszahlungsgebühr. Hochgerechnet auf den Bruttobetrag, der
+            // NETTO genau die Deckungslücke schließt (dieselbe Logik wie
+            // capToWithdrawalTarget() für ein Netto-Ziel).
+            const shortfallNet = Math.max(0, steuer - cash);
+            if (shortfallNet > 1e-9) {
+              const grossNeeded = shortfallNet / (1 - NF_WITHDRAWAL_FEE_PCT);
+              const blocksNeeded = Math.ceil((grossNeeded - 1e-9) / NF_BLOCK) * NF_BLOCK;
+              const blocksAvailable = Math.floor((activeCapital + 1e-9) / NF_BLOCK) * NF_BLOCK;
+              const pulled = Math.min(blocksNeeded, blocksAvailable);
+              if (pulled > 0) {
+                activeCapital -= pulled;
+                cash += pulled;
+                const grossFromCapital = Math.min(pulled, grossNeeded);
+                const feeFromCapital = grossFromCapital * NF_WITHDRAWAL_FEE_PCT;
+                cash -= feeFromCapital;
+                feeThisMonth += feeFromCapital;
+                totalWithdrawalFees += feeFromCapital;
+                taxFromCapitalThisMonth = grossFromCapital - feeFromCapital;
+              }
+            }
+            taxThisMonth = Math.min(steuer, Math.max(0, cash));
+            cash -= taxThisMonth;
+          } else {
+            taxThisMonth = steuer;
+          }
+          totalTax += taxThisMonth;
+          totalTaxFromCapital += taxFromCapitalThisMonth;
+        }
+        yearInterestAccrued = 0;
+      }
+
       // 1) Withdrawals skim from this month's cash before reinvestment
       // ('once'/'monthly'/'yearly'/'percentage', summed across all active
       // strategies). 'cashSurplus' strategies are deferred until after
@@ -771,8 +881,8 @@
       withdrawalStrategies.forEach((s, i) => {
         if (s.type === 'cashSurplus') return;
         const state = withdrawalState[i];
-        if (!withdrawalStrategyActive(s, state, m, interest, activeCapital)) return;
-        const amount = capToWithdrawalTarget(s, state, withdrawalStrategyAmount(s, m, interest, totalBonus));
+        if (!withdrawalStrategyActive(s, state, m, interest, activeCapital, totalBonus)) return;
+        const amount = capToWithdrawalTarget(s, state, withdrawalStrategyAmount(s, m, interest, totalBonus, strategyAnchorMonth(s, state)));
         preDepositWithdrawalGross += amount;
       });
       if (preDepositWithdrawalGross > 0) {
@@ -803,8 +913,8 @@
       // exactly like the historical single-strategy behavior did.
       depositStrategies.forEach((s, i) => {
         if (s.kind === 'roundup') return;
-        if (!depositStrategyActive(s, depositState[i], m, interest, activeCapital)) return;
-        const amount = fixedDepositAmount(s, m);
+        if (!depositStrategyActive(s, depositState[i], m, interest, activeCapital, totalBonus)) return;
+        const amount = fixedDepositAmount(s, m, strategyAnchorMonth(s, depositState[i]));
         if (amount > 0) {
           const fee = amount * NF_DEPOSIT_FEE_PCT;
           cash += amount;
@@ -818,7 +928,7 @@
 
       depositStrategies.forEach((s, i) => {
         if (s.kind !== 'roundup') return;
-        if (!depositStrategyActive(s, depositState[i], m, interest, activeCapital)) return;
+        if (!depositStrategyActive(s, depositState[i], m, interest, activeCapital, totalBonus)) return;
         if (cash <= 1e-9) return;
         const target = Math.ceil((cash - 1e-9) / NF_BLOCK) * NF_BLOCK;
         const topUp = Math.max(0, target - cash);
@@ -845,7 +955,7 @@
       // though they share the same underlying cash).
       const activeCashSurplus = withdrawalStrategies
         .map((s, i) => ({ s, state: withdrawalState[i] }))
-        .filter(({ s, state }) => s.type === 'cashSurplus' && withdrawalStrategyActive(s, state, m, interest, activeCapital));
+        .filter(({ s, state }) => s.type === 'cashSurplus' && withdrawalStrategyActive(s, state, m, interest, activeCapital, totalBonus));
       if (activeCashSurplus.length) {
         let blockRemainder = Math.max(0, cash - Math.floor((cash + 1e-9) / NF_BLOCK) * NF_BLOCK);
         activeCashSurplus.forEach(({ s, state }) => {
@@ -880,6 +990,8 @@
         total: totalWealth,
         fee: feeThisMonth,
         withdrawn: withdrawnNet,
+        tax: taxThisMonth,
+        taxFromCapital: taxFromCapitalThisMonth,
       });
 
       series.push({ month: m, value: totalWealth });
@@ -899,6 +1011,8 @@
       totalDepositFees,
       totalWithdrawalFees,
       totalWithdrawn,
+      totalTax,
+      totalTaxFromCapital,
       finalWealth,
       ...computeRoi(totalPaid, finalWealth, totalWithdrawn, months),
       breakEvenMonth: computeBreakEvenMonth(rows, startCapital),
@@ -1110,6 +1224,12 @@
       nfWithdrawalStrategies: withdrawalStrategies,
       nfTeamMembers: childMembers,
       nfTeamDepth: level + 1,
+      // Keine Vererbung: jedes Mitglied trägt seine eigene, unabhängige
+      // Steuer-Konstellation — Default ist deaktiviert, nicht die des
+      // Hauptszenarios.
+      taxEnabled: !!member.taxEnabled,
+      taxRate: member.taxRate != null ? member.taxRate : TAX_RATE_DEFAULT,
+      taxPayout: member.taxPayout !== false,
     });
 
     return { member, joinMonth, result, depth: level };
@@ -1198,6 +1318,8 @@
       reinvested: row0.reinvested + localRowM.reinvested,
       cash: localRowM.cash,
       fee: (row0.fee || 0) + (localRowM.fee || 0),
+      tax: (row0.tax || 0) + (localRowM.tax || 0),
+      taxFromCapital: (row0.taxFromCapital || 0) + (localRowM.taxFromCapital || 0),
       active: localRowM.active,
       total: localRowM.total,
     };
@@ -1225,7 +1347,7 @@
   // walkTeam/monthsCountFor/computeRoi/num aus dieser Datei. Deshalb leben
   // sie hier; index.html holt sie sich über das Export-Objekt.
   // ---------------------------------------------------------------------
-  const MERGE_ROW_FIELDS = ['openingActive', 'deposit', 'withdrawn', 'interest', 'reinvested', 'cash', 'fee', 'active', 'total'];
+  const MERGE_ROW_FIELDS = ['openingActive', 'deposit', 'withdrawn', 'interest', 'reinvested', 'cash', 'fee', 'tax', 'taxFromCapital', 'active', 'total'];
 
   // Team-Mitglieder von `values`, deren "Mit meinem Investment
   // zusammenrechnen"-Checkbox aktiv ist — nur relevant, wenn dieser Lauf
@@ -1250,7 +1372,7 @@
   // Seiten, siehe memberMonthSnapshot() weiter oben). `own` und `members`
   // bleiben für die aufklappbare Detailansicht im Monatsverlauf erhalten.
   function combineMonthRow(month, ownRow, memberEntries) {
-    const own = ownRow || { month, openingActive: 0, deposit: 0, withdrawn: 0, interest: 0, reinvested: 0, cash: 0, fee: 0, active: 0, total: 0 };
+    const own = ownRow || { month, openingActive: 0, deposit: 0, withdrawn: 0, interest: 0, reinvested: 0, cash: 0, fee: 0, tax: 0, taxFromCapital: 0, active: 0, total: 0 };
     const combined = { ...own };
     memberEntries.forEach(({ row }) => {
       MERGE_ROW_FIELDS.forEach(k => { combined[k] = (combined[k] || 0) + (row[k] || 0); });
@@ -1301,6 +1423,8 @@
     let totalWithdrawn = result.totalWithdrawn;
     let totalDeposits = result.totalDeposits;
     let totalPaid = result.totalPaid;
+    let totalTax = result.totalTax || 0;
+    let totalTaxFromCapital = result.totalTaxFromCapital || 0;
 
     merged.forEach(m => {
       let startActive = 0;
@@ -1313,6 +1437,8 @@
         if (!seen) { startActive = entry.row.openingActive || 0; seen = true; }
         totalInterest += entry.row.interest || 0;
         totalFees += entry.row.fee || 0;
+        totalTax += entry.row.tax || 0;
+        totalTaxFromCapital += entry.row.taxFromCapital || 0;
         totalWithdrawn += entry.row.withdrawn || 0;
         totalDeposits += entry.row.deposit || 0;
         memberDeposits += entry.row.deposit || 0;
@@ -1328,11 +1454,12 @@
     const months = monthsCountFor(values);
     const { growth, roiPerYear } = computeRoi(totalPaid, finalWealth, totalWithdrawn, months);
 
-    return { finalWealth, activeCapital, cash, totalInterest, totalDeposits, totalFees, totalWithdrawn, growth, roiPerYear };
+    return { finalWealth, activeCapital, cash, totalInterest, totalDeposits, totalFees, totalWithdrawn, totalTax, totalTaxFromCapital, growth, roiPerYear };
   }
 
   return {
     NF_RATES,
+    TAX_RATE_DEFAULT,
     NF_DEPOSIT_FEE_PCT,
     NF_WITHDRAWAL_FEE_PCT,
     NF_BLOCK,
@@ -1348,6 +1475,8 @@
     computeRoi,
     computeBreakEvenMonth,
     simulate,
+    strategyStarted,
+    strategyAnchorMonth,
     strategyPeriodicAmount,
     fixedDepositAmount,
     depositStrategyActive,

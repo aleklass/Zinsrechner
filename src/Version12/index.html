@@ -1487,12 +1487,33 @@
     }
 
     @media (max-width: 640px) {
-      .wrap { width: calc(100% - 20px); margin: 18px auto 40px; }
+      /* Auf dem Telefon stapeln sich fuenf Polsterungsebenen ineinander
+         (wrap -> panel -> type-tab-panel -> field-group -> Karte). Mit den
+         Desktop-Werten kostet das 66 px je Seite, also ein Drittel eines
+         375-px-Bildschirms. Die Kanten bleiben alle sichtbar, nur die
+         Polsterung wird der Breite angemessen: 44 px je Seite statt 66. */
+      .wrap { width: calc(100% - 16px); margin: 18px auto 40px; }
       h1 { font-size: clamp(24px, 7vw, 34px); }
       .header { gap: 10px; margin-bottom: 16px; }
       .badge { font-size: 0.6875rem; padding: 6px 10px; }
       .panel { border-radius: 16px; }
-      .inputs, .results { padding: 16px; }
+      .inputs, .results { padding: 12px; }
+      .type-tab-panel { padding: 10px 10px 2px; }
+      .field-group { padding: 10px 6px 0; }
+      .team-member-card { padding: 8px; }
+
+      /* Die Sprechblase haengt mit `left: 0` am Fragezeichen. Sitzt das in der
+         rechten Bildhaelfte, laufen ihre 260 px aus dem Bild — das war die
+         einzige Ursache dafuer, dass die Seite auf dem Telefon ueberhaupt
+         horizontal scrollte. Auf schmalen Schirmen wird sie deshalb aus dem
+         horizontalen Fluss genommen und spannt zwischen beiden Raendern. */
+      .info-tip-bubble {
+        position: fixed;
+        left: 8px;
+        right: 8px;
+        width: auto;
+        max-width: none;
+      }
 
       /* Prevent iOS Safari from zooming in on input focus */
       input, select { font-size: 1rem; padding: 11px 12px; }
@@ -1621,6 +1642,33 @@
 
             <div class="field-group">
               <div class="field">
+                <label class="checkbox-row" title="Versteuert die erwirtschafteten Zinsen jährlich (Kapitalertragsteuer, § 20 EStG) — Team-Boni bleiben davon unberührt, da sie keine Kapitalerträge sind.">
+                  <input type="checkbox" id="taxEnabled">
+                  <span>Kapitalertragsteuer auf Zinsen berücksichtigen</span>
+                </label>
+              </div>
+              <div class="field" id="taxRateField" style="display:none;">
+                <label for="taxRatePreset">Steuersatz <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Jährliche Abrechnung: der im Kalenderjahr aufgelaufene Zins wird mit diesem Satz besteuert, endet die Laufzeit unterjährig, wird der Rest im letzten Monat abgerechnet. Kein Sparer-Pauschbetrag berücksichtigt.</span></span></label>
+                <select id="taxRatePreset">
+                  <option value="25">25 % (ohne Soli/Kirchensteuer)</option>
+                  <option value="26.375" selected>26,375 % (mit Soli)</option>
+                  <option value="27.82">27,82 % (mit Soli + 8 % Kirchensteuer)</option>
+                  <option value="27.99">27,99 % (mit Soli + 9 % Kirchensteuer)</option>
+                  <option value="custom">Eigener Wert</option>
+                </select>
+                <div id="taxRateCustomWrap" style="display:none; margin-top:8px;">
+                  <label for="taxRateCustom" style="font-size:0.6875rem;color:var(--muted);display:block;margin-bottom:5px;">Eigener Satz (%)</label>
+                  <input id="taxRateCustom" type="number" min="0" step="0.01" value="26.375">
+                </div>
+                <label class="checkbox-row" style="margin-top:12px;" title="An: die Steuer wird tatsächlich beglichen — zuerst aus der Rendite, reicht die nicht, aus dem aktiven Kapital. Aus: die Steuer wird weiterhin berechnet und angezeigt, aber nicht abgezogen — als würdest du sie aus anderen Mitteln (Gehalt, Rücklage) bezahlen und dein Investment ungestört weiterlaufen lassen.">
+                  <input type="checkbox" id="taxPayout" checked>
+                  <span>Steuer auszahlen (aus Rendite, sonst aus aktivem Kapital)</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field">
                 <h2 class="field-heading">Team-Struktur <span class="info-tip" tabindex="0"><span class="info-tip-bubble" style="width:320px;">Tippgeber-Bonus: 50 € einmalig pro 1.000 €-Block, den eine direkt von dir geworbene Person (Ebene 1) investiert — unabhängig vom Rang. Dein Rang (Bronze bis Diamond) richtet sich nach deinem eigenen aktiven Kapital und dem Team-Volumen über alle Ebenen und schaltet monatliche Boni frei: auf dein eigenes Kapital (ab Gold) sowie auf das jeweilige aktive Kapital der Ebenen 1–3 (ab Bronze, Silver bzw. Platinum). Alle Boni werden direkt deinem eigenen Cash-Konto gutgeschrieben und wachsen dort mit.</span></span></h2>
               </div>
 
@@ -1659,6 +1707,7 @@
                 <th title="Nicht verzinstes Kapital">Cash</th>
                 <th title="Inkl. Startkapital (falls als Einzahlung berücksichtigt), ohne Gebühren">Einzahlungen</th>
                 <th title="Einzahlungs- + Auszahlungsgebühr">Gebühren</th>
+                <th title="Kapitalertragsteuer auf die Zinsen, jährlich abgerechnet (nur wenn aktiviert)">Steuer</th>
                 <th title="Netto, nach Abzug der Auszahlungsgebühr">Auszahlungen</th>
                 <th title="Gegenüber den eigenen Einzahlungen, inklusive bereits erhaltener Auszahlungen">Gesamtrendite</th>
                 <th title="Gesamtrendite umgerechnet auf eine jährliche Rate — Näherung, kein zeitpunktgenauer IRR — macht Szenarien unterschiedlicher Laufzeit vergleichbar">Rendite p.a.</th>
@@ -1700,6 +1749,7 @@
                 <th>Reinvestiert</th>
                 <th>Cash</th>
                 <th>Gebühren</th>
+                <th>Steuer</th>
                 <th>Aktives Kapital</th>
                 <th>Gesamt</th>
               </tr>
@@ -1768,7 +1818,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const {
-    NF_RATES, NF_DEPOSIT_FEE_PCT, NF_WITHDRAWAL_FEE_PCT, NF_BLOCK,
+    NF_RATES, TAX_RATE_DEFAULT, NF_DEPOSIT_FEE_PCT, NF_WITHDRAWAL_FEE_PCT, NF_BLOCK,
     RANKS,
     num, simulate, simulateNextForrest, runSimulation, migrateScenarioValues,
     computeRoi, computeBreakEvenMonth, monthsCountFor,
@@ -1790,6 +1840,12 @@
     contributionPeriod: $('contributionPeriod'),
     compound: $('compound'),
     nfRateToggle: $('nfRateToggle'),
+    taxEnabled: $('taxEnabled'),
+    taxRateField: $('taxRateField'),
+    taxRatePreset: $('taxRatePreset'),
+    taxRateCustomWrap: $('taxRateCustomWrap'),
+    taxRateCustom: $('taxRateCustom'),
+    taxPayout: $('taxPayout'),
     nfDepositStrategyRows: $('nfDepositStrategyRows'),
     addNfDepositStrategyBtn: $('addNfDepositStrategyBtn'),
     nfWithdrawalStrategyRows: $('nfWithdrawalStrategyRows'),
@@ -1855,6 +1911,9 @@
     reinvestMode: 'accumulating',
     // NextForrest
     nfRate: 'low',
+    taxEnabled: false,
+    taxRate: TAX_RATE_DEFAULT,
+    taxPayout: true,
     nfDepositStrategies: [
       { id: 'nfd1', kind: 'fixed', amount: 500, period: 'monthly', startMonth: 1, endMonth: null, stopMode: 'none', thresholdBasis: 'interest', thresholdValue: 0 }
     ],
@@ -1891,6 +1950,13 @@
   // calculate() am Ende beide Render-Funktionen aufruft, wird die Sperre
   // um den calculate()-Aufruf des input-Ereignisses gelegt.
   let teamDetailFrozen = false;
+  // Mitglieder, deren Steuersatz-Auswahl explizit auf "Eigener Wert" steht —
+  // reines UI-Flag, unabhängig vom Modell. Nötig, weil renderTeamDetail() das
+  // Panel bei jedem calculate() komplett neu aufbaut: ohne dieses Flag würde
+  // "Eigener Wert" sofort wieder zur Vorgabe zurückspringen, sobald der
+  // eingetragene Wert zufällig exakt einem Preset entspricht (z. B. dem
+  // Default 26,375 %).
+  const customTaxRateMemberIds = new Set();
   const expandedTeamBonusMonths = new Set();
   const expandedCombinedMonths = new Set();
   const CHEVRON_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>`;
@@ -2022,6 +2088,11 @@
       // (siehe buildCombinedRows()). Der Team-Bonus-Bereich bleibt davon
       // unberührt und zeigt das Mitglied unabhängig davon weiterhin einzeln.
       mergeWithOwn: false,
+      // Eigene, unabhängige Steuer-Konstellation — keine Vererbung vom
+      // Hauptszenario, Default ist deaktiviert.
+      taxEnabled: false,
+      taxRate: TAX_RATE_DEFAULT,
+      taxPayout: true,
       // Eigene Szenario-Eigenschaften — die Rendite wird vom Hauptszenario
       // übernommen. Einzahlungs-/Auszahlungsstrategien sind wie beim
       // Hauptszenario mehrfach möglich, standardmäßig leer (kein Deposit/
@@ -2270,7 +2341,33 @@
     <label class="team-checkbox-row" title="Rechnet das Investment dieses Mitglieds im Diagramm und im Monatsverlauf zum eigenen Investment hinzu (eine gemeinsame Linie/Zeile). Im Team-Bonus-Bereich bleibt das Mitglied davon unabhängig weiterhin einzeln sichtbar.">
       <input type="checkbox" class="team-input" data-field="mergeWithOwn" ${m.mergeWithOwn ? 'checked' : ''}>
       <span>Mit meinem Investment zusammenrechnen</span>
+    </label>
+    <label class="team-checkbox-row" title="Versteuert die Zinsen dieses Mitglieds jährlich, unabhängig von deiner eigenen Steuer-Einstellung. Sein Team-Bonus bleibt davon unberührt.">
+      <input type="checkbox" class="team-input" data-field="taxEnabled" ${m.taxEnabled ? 'checked' : ''}>
+      <span>Kapitalertragsteuer auf Zinsen berücksichtigen</span>
     </label>`;
+
+    if (m.taxEnabled) {
+      const memberRateStr = String(m.taxRate != null ? m.taxRate : TAX_RATE_DEFAULT);
+      const memberIsPreset = TAX_RATE_PRESETS.has(memberRateStr) && !customTaxRateMemberIds.has(m.id);
+      html += `<div class="mini-field" style="margin-top:8px;">
+        <label style="font-size:0.6875rem;color:var(--muted);display:block;margin-bottom:5px;">Steuersatz</label>
+        <select class="member-tax-rate-preset" data-member-id="${m.id}">
+          <option value="25"${memberRateStr === '25' ? ' selected' : ''}>25 % (ohne Soli/Kirchensteuer)</option>
+          <option value="26.375"${memberRateStr === '26.375' ? ' selected' : ''}>26,375 % (mit Soli)</option>
+          <option value="27.82"${memberRateStr === '27.82' ? ' selected' : ''}>27,82 % (mit Soli + 8 % Kirchensteuer)</option>
+          <option value="27.99"${memberRateStr === '27.99' ? ' selected' : ''}>27,99 % (mit Soli + 9 % Kirchensteuer)</option>
+          <option value="custom"${!memberIsPreset ? ' selected' : ''}>Eigener Wert</option>
+        </select>
+        <div style="margin-top:8px; ${memberIsPreset ? 'display:none;' : ''}">
+          <input type="number" class="team-input" data-field="taxRate" min="0" step="0.01" value="${memberIsPreset ? TAX_RATE_DEFAULT : m.taxRate}" aria-label="Eigener Steuersatz in Prozent">
+        </div>
+        <label class="team-checkbox-row" style="margin-top:10px;" title="An: die Steuer wird tatsächlich aus der Rendite dieses Mitglieds beglichen, reicht die nicht, aus seinem aktiven Kapital. Aus: die Steuer wird weiterhin berechnet und angezeigt, aber nicht abgezogen.">
+          <input type="checkbox" class="team-input" data-field="taxPayout" ${m.taxPayout !== false ? 'checked' : ''}>
+          <span>Steuer auszahlen (aus Rendite, sonst aus aktivem Kapital)</span>
+        </label>
+      </div>`;
+    }
 
     /* --- Einzahlungsstrategien: dieselben Karten wie im Hauptszenario --- */
     html += `<div class="section-block">
@@ -2371,7 +2468,9 @@
       kind: 'fixed',
       amount: 500,
       period: 'monthly',
+      startMode: 'month',
       startMonth: 1,
+      startThreshold: 0,
       endMonth: null,
       stopMode: 'none',
       thresholdBasis: 'interest',
@@ -2380,7 +2479,9 @@
       id: 'nfw' + (nfStrategySeq++),
       type: 'monthly',
       amount: 0,
+      startMode: 'month',
       startMonth: 1,
+      startThreshold: 0,
       endMonth: null,
       stopMode: 'none',
       thresholdBasis: 'interest',
@@ -2412,6 +2513,39 @@
   // "Zielbetrag" an (so lange auszahlen, bis eine kumulative Gesamtsumme
   // erreicht ist) — bei Einzahlungsstrategien unverändert nur Keine/
   // Enddatum/Schwelle.
+  // Startbedingung — das Gegenstück zur Stopp-Bedingung darunter. Ersetzt das
+  // frühere feste Feld "Start (Monat)": wer nach Kapital oder Rendite startet,
+  // braucht keinen Startmonat mehr, deshalb erscheint das Monatsfeld nur im
+  // Modus "Monat".
+  function strategyStartHtml(s, currency) {
+    const mode = s.startMode || 'month';
+    const sym = currencySymbol(currency);
+    return `
+      <div class="mini-field" style="margin-top:8px;">
+        <label style="font-size: 0.625rem;color:var(--muted);display:block;margin-bottom:5px;">Startbedingung</label>
+        <div class="toggle-row strategy-toggle" data-strategy-id="${s.id}" data-toggle="startMode">
+          <button type="button" class="toggle-btn${mode === 'month' ? ' active' : ''}" data-value="month">Monat</button>
+          <button type="button" class="toggle-btn${mode === 'capital' ? ' active' : ''}" data-value="capital">Aktives Kapital</button>
+          <button type="button" class="toggle-btn${mode === 'yield' ? ' active' : ''}" data-value="yield">Rendite inkl. Bonus</button>
+        </div>
+      </div>
+      ${mode === 'month' ? `
+      <div class="mini-field">
+        <input type="number" class="team-input" data-field="startMonth" min="1" step="1" placeholder="Startmonat" value="${s.startMonth || 1}" style="width:100%;" aria-label="Startmonat">
+      </div>` : `
+      <div class="mini-field">
+        <label style="font-size: 0.625rem;color:var(--muted);display:block;margin-bottom:5px;">${mode === 'capital'
+          ? 'Startet, sobald das aktive Kapital diesen Betrag erreicht'
+          : 'Startet, sobald die Rendite eines Monats (Zins + Boni) diesen Betrag erreicht'}</label>
+        <div class="amount-input">
+          <span class="amount-input-symbol">${sym}</span>
+          <input type="number" class="team-input" data-field="startThreshold" min="0" step="500" value="${s.startThreshold || 0}">
+        </div>
+        <div class="field-warning visible" style="color:var(--muted);">Einmal gestartet, läuft die Strategie weiter — auch wenn der Wert wieder darunter fällt.</div>
+      </div>`}
+    `;
+  }
+
   function strategyScheduleHtml(s, isOnce, startCapital, currency, allowTotal) {
     const thresholdTooLow = s.stopMode === 'threshold' && s.thresholdBasis === 'capital'
       && s.thresholdValue > 0 && s.thresholdValue < startCapital;
@@ -2443,7 +2577,7 @@
       <div class="mini-field">
         <label style="font-size: 0.625rem;color:var(--muted);display:block;margin-bottom:5px;">Schwellenbasis</label>
         <div class="toggle-row strategy-toggle" data-strategy-id="${s.id}" data-toggle="thresholdBasis">
-          <button type="button" class="toggle-btn${s.thresholdBasis !== 'capital' ? ' active' : ''}" data-value="interest">Monatsrendite</button>
+          <button type="button" class="toggle-btn${s.thresholdBasis !== 'capital' ? ' active' : ''}" data-value="interest">Monatszins ohne Bonus</button>
           <button type="button" class="toggle-btn${s.thresholdBasis === 'capital' ? ' active' : ''}" data-value="capital">Aktives Kapital</button>
         </div>
         <div class="amount-input" style="margin-top:7px;">
@@ -2490,8 +2624,9 @@
         </div>` : ''}
         <div class="team-member-grid" style="margin-top:8px;">
           ${!isRoundup ? `<label>Betrag<div class="amount-input"><span class="amount-input-symbol">${sym}</span><input type="number" class="team-input" data-field="amount" min="0" step="50" value="${s.amount || 0}"></div></label>` : ''}
-          <label>Start (Monat)<input type="number" class="team-input" data-field="startMonth" min="1" step="1" value="${s.startMonth || 1}"></label>
+
         </div>
+        ${strategyStartHtml(s, currency)}
         ${strategyScheduleHtml(s, isOnce, startCapital, currency)}
       </div>
     `;
@@ -2518,8 +2653,9 @@
         </div>
         <div class="team-member-grid">
           ${!isCashSurplus ? `<label>${amountLabel}<div class="amount-input"><span class="amount-input-symbol">${amountSymbol}</span><input type="number" class="team-input" data-field="amount" min="0" step="${isPercentage ? 1 : 50}" value="${s.amount || 0}"></div></label>` : ''}
-          <label>Start (Monat)<input type="number" class="team-input" data-field="startMonth" min="1" step="1" value="${s.startMonth || 1}"></label>
+
         </div>
+        ${strategyStartHtml(s, currency)}
         ${strategyScheduleHtml(s, isOnce, startCapital, currency, true)}
       </div>
     `;
@@ -2980,19 +3116,32 @@
     <th>Reinvestiert</th>
     <th>Cash</th>
     <th>Gebühren</th>
+    <th>Steuer</th>
     <th>Aktives Kapital</th>
     <th>Gesamt</th>
   </tr>`;
+
+  // Der kapitalgedeckte Steueranteil (taxFromCapital: konnte die Rendite die
+  // fällige Steuer nicht allein decken, wurde ein 1000er-Block aus dem
+  // aktiven Kapital geholt) zählt sichtbar in "Auszahlung" mit — das Geld hat
+  // die Anlage genauso dauerhaft verlassen wie eine echte Auszahlung, nur ans
+  // Finanzamt statt an dich. `withdrawn`/`totalWithdrawn` selbst bleiben in
+  // calc.js davon unberührt, damit Gesamtrendite, Rendite p.a. und der
+  // Break-even-Monat korrekt bleiben (siehe simulateNextForrest()).
+  function auszahlungMitSteuer(r) {
+    return (r.withdrawn || 0) + (r.taxFromCapital || 0);
+  }
 
   function monatsverlaufCells(r) {
     return `
         <td>${fmt(r.openingActive)}</td>
         <td>${fmt(r.deposit)}</td>
-        <td>${fmt(r.withdrawn || 0)}</td>
+        <td>${fmt(auszahlungMitSteuer(r))}</td>
         <td>${fmt(r.interest)}</td>
         <td>${fmt(r.reinvested)}</td>
         <td>${fmt(r.cash)}</td>
         <td>${fmt(r.fee || 0)}</td>
+        <td>${fmt(r.tax || 0)}</td>
         <td><strong>${fmt(r.active)}</strong></td>
         <td><strong>${fmt(r.total)}</strong></td>`;
   }
@@ -3169,6 +3318,8 @@
       reinvested: row0.reinvested + row1.reinvested,
       cash: row1.cash,
       fee: (row0.fee || 0) + (row1.fee || 0),
+      tax: (row0.tax || 0) + (row1.tax || 0),
+      taxFromCapital: (row0.taxFromCapital || 0) + (row1.taxFromCapital || 0),
       active: row1.active,
       total: row1.total,
     };
@@ -3481,11 +3632,31 @@
     els.nfRateToggle.dataset.value = value;
   }
 
+  const TAX_RATE_PRESETS = new Set(['25', '26.375', '27.82', '27.99']);
+
+  function setTaxUI(enabled, rate, payout) {
+    els.taxEnabled.checked = !!enabled;
+    els.taxRateField.style.display = enabled ? '' : 'none';
+    const rateStr = String(rate != null ? rate : TAX_RATE_DEFAULT);
+    const isPreset = TAX_RATE_PRESETS.has(rateStr);
+    els.taxRatePreset.value = isPreset ? rateStr : 'custom';
+    els.taxRateCustomWrap.style.display = isPreset ? 'none' : '';
+    els.taxRateCustom.value = isPreset ? TAX_RATE_DEFAULT : rate;
+    els.taxPayout.checked = payout !== false;
+  }
+
+  function readTaxRateFromInputs() {
+    return els.taxRatePreset.value === 'custom'
+      ? num(els.taxRateCustom.value)
+      : num(els.taxRatePreset.value);
+  }
+
   function applyScenarioToInputs(scenario) {
     applyValuesToInputs(scenario.values);
     els.scenarioName.value = scenario.name;
     setInvestmentTypeUI(scenario.values.investmentType || 'nextforrest');
     setNfRateUI(scenario.values.nfRate || 'low');
+    setTaxUI(scenario.values.taxEnabled, scenario.values.taxRate, scenario.values.taxPayout);
     renderStrategyRows('deposit');
     renderStrategyRows('withdrawal');
     // Beim Szenario-Wechsel gibt es keine sinnvolle Vorauswahl mehr — das
@@ -3506,6 +3677,9 @@
     // dieser Umstellung mit aktivierter Checkbox gespeichert wurden.
     scenarios[activeIndex].values.includeStartCapital = false;
     scenarios[activeIndex].values.nfRate = els.nfRateToggle.dataset.value || 'low';
+    scenarios[activeIndex].values.taxEnabled = els.taxEnabled.checked;
+    scenarios[activeIndex].values.taxRate = readTaxRateFromInputs();
+    scenarios[activeIndex].values.taxPayout = els.taxPayout.checked;
     // Keine Währungsauswahl mehr in der UI — fest auf USD, auch für
     // Szenarien, die vor dieser Umstellung mit einer anderen Währung
     // gespeichert wurden.
@@ -3688,7 +3862,8 @@
           <td>${fmt(totals.cash, cur)}</td>
           <td>${fmt(totals.totalDeposits, cur)}</td>
           <td>${fmt(totals.totalFees, cur)}</td>
-          <td>${fmt(totals.totalWithdrawn, cur)}</td>
+          <td>${fmt(totals.totalTax || 0, cur)}</td>
+          <td>${fmt((totals.totalWithdrawn || 0) + (totals.totalTaxFromCapital || 0), cur)}</td>
           <td>${growth}</td>
           <td>${roiPerYear}</td>
         </tr>
@@ -3974,6 +4149,21 @@
     calculate();
   });
 
+  els.taxEnabled.addEventListener('change', () => {
+    els.taxRateField.style.display = els.taxEnabled.checked ? '' : 'none';
+    calculate();
+  });
+
+  els.taxRatePreset.addEventListener('change', () => {
+    els.taxRateCustomWrap.style.display = els.taxRatePreset.value === 'custom' ? '' : 'none';
+    calculate();
+  });
+
+  els.taxRateCustom.addEventListener('input', calculate);
+  els.taxRateCustom.addEventListener('change', calculate);
+
+  els.taxPayout.addEventListener('change', calculate);
+
   els.addNfDepositStrategyBtn.addEventListener('click', () => addStrategy('deposit'));
   els.addNfWithdrawalStrategyBtn.addEventListener('click', () => addStrategy('withdrawal'));
   bindStrategyRowEvents('deposit');
@@ -3983,7 +4173,7 @@
   // alle anderen .team-input-Felder sind numerisch, außer den Checkbox-
   // Sonderfällen in BOOLEAN_TEAM_FIELDS unten.
   const STRING_TEAM_FIELDS = new Set(['name', 'nfMonthlyDepositPeriod', 'nfWithdrawalPeriod']);
-  const BOOLEAN_TEAM_FIELDS = new Set(['includeStartCapital', 'mergeWithOwn']);
+  const BOOLEAN_TEAM_FIELDS = new Set(['includeStartCapital', 'mergeWithOwn', 'taxEnabled', 'taxPayout']);
 
   function handleTeamMemberFieldChange(e) {
     const input = e.target.closest('.team-input');
@@ -4046,6 +4236,26 @@
   });
 
   els.teamDetail.addEventListener('change', handleTeamAreaFieldChange);
+
+  // Der Steuersatz-Vorgaben-Select eines Mitglieds ist bewusst kein
+  // .team-input (er trägt selbst keinen Modellwert, "custom" wäre keine
+  // gültige Zahl) — bei einer festen Vorgabe setzt er taxRate direkt, bei
+  // "Eigener Wert" bleibt der zuletzt gesetzte Wert stehen und das
+  // Zahlenfeld (echtes .team-input mit data-field="taxRate") erscheint.
+  els.teamDetail.addEventListener('change', (e) => {
+    const presetSelect = e.target.closest('.member-tax-rate-preset');
+    if (!presetSelect) return;
+    const entry = findTeamEntry(presetSelect.dataset.memberId);
+    if (!entry) return;
+    if (presetSelect.value === 'custom') {
+      customTaxRateMemberIds.add(entry.member.id);
+      if (entry.member.taxRate == null) entry.member.taxRate = TAX_RATE_DEFAULT;
+    } else {
+      customTaxRateMemberIds.delete(entry.member.id);
+      entry.member.taxRate = num(presetSelect.value);
+    }
+    calculate();
+  });
 
   els.teamNav.addEventListener('click', (e) => {
     if (e.target.closest('[data-act="add-root"]')) {

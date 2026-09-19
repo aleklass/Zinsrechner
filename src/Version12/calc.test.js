@@ -1853,3 +1853,394 @@ describe('Migrationshinweis und beschädigte gespeicherte Daten', () => {
     assert.deepStrictEqual(gesehen, ['a', 'b']);
   });
 });
+
+describe('Startbedingung für Strategien: Monat, aktives Kapital oder Rendite', () => {
+  // Herleitung der erwarteten Monate: bei 10.000 € Startkapital, 5 %/Monat und
+  // ohne Einzahlungen entwickelt sich das aktive Kapital zu Monatsbeginn —
+  // genau der Wert, den das Startgatter prüft — wie folgt:
+  //
+  //   Monat    1      2      3      4      5      6      7      8      9
+  //   Kapital 10000  10000  11000  11000  12000  12000  13000  13000  14000
+  //   Zins      500    500    550    550    600    600    650    650    700
+  //
+  // Eine Kapitalschwelle von 12.000 € greift damit erstmals in Monat 5, eine
+  // Renditeschwelle von 600 € ebenfalls. Weil die Strategien vor Monat 5
+  // nichts beitragen, bleibt diese Reihe durch sie unverändert — die
+  // Herleitung ist also in sich stimmig.
+  function baseStart(overrides) {
+    return {
+      investmentType: 'nextforrest', start: 10000, includeStartCapital: false,
+      currency: 'EUR', duration: 10, durationUnit: 'months', nfRate: 'low',
+      nfDepositStrategies: [], nfWithdrawalStrategies: [], nfTeamMembers: [],
+      ...overrides
+    };
+  }
+  const ersterMonatMitEinzahlung = (r) => {
+    const treffer = r.rows.find(x => x.month > 0 && x.deposit > 1e-9);
+    return treffer ? treffer.month : null;
+  };
+
+  test('startMode "capital": die Einzahlung beginnt erst, wenn das aktive Kapital die Schwelle erreicht', () => {
+    const r = simulateNextForrest(baseStart({
+      nfDepositStrategies: [depositStrategy({
+        amount: 1000, period: 'monthly', startMode: 'capital', startThreshold: 12000
+      })]
+    }));
+    assert.strictEqual(ersterMonatMitEinzahlung(r), 5);
+    // Vorher wirklich nichts, nicht bloß später mehr:
+    r.rows.filter(x => x.month > 0 && x.month < 5)
+      .forEach(x => close(x.deposit, 0, `Monat ${x.month} darf keine Einzahlung haben`));
+  });
+
+  test('startMode "yield": die Schwelle prüft die Rendite des Monats', () => {
+    const r = simulateNextForrest(baseStart({
+      nfDepositStrategies: [depositStrategy({
+        amount: 1000, period: 'monthly', startMode: 'yield', startThreshold: 600
+      })]
+    }));
+    assert.strictEqual(ersterMonatMitEinzahlung(r), 5);
+  });
+
+  test('startMode "yield" zählt Bonuszahlungen mit — mit Team startet dieselbe Schwelle früher', () => {
+    const werte = {
+      nfDepositStrategies: [depositStrategy({
+        amount: 1000, period: 'monthly', startMode: 'yield', startThreshold: 600
+      })]
+    };
+    const ohneTeam = simulateNextForrest(baseStart(werte));
+    const mitTeam = simulateNextForrest(baseStart({
+      ...werte,
+      nfTeamMembers: [{
+        id: 'a', name: 'A', startCapital: 40000, joinMonth: 1,
+        includeStartCapital: true, children: []
+      }]
+    }));
+    const ohne = ersterMonatMitEinzahlung(ohneTeam);
+    const mit = ersterMonatMitEinzahlung(mitTeam);
+    assert.ok(mit < ohne, `mit Team (${mit}) muss früher starten als ohne (${ohne})`);
+    // Und zwar in einem Monat, in dem der Zins allein die Schwelle noch NICHT
+    // erreicht — nur so ist belegt, dass der Bonus mitzählt.
+    const zeile = mitTeam.rows.find(x => x.month === mit);
+    assert.ok(zeile.interest < 600,
+      `Zins allein (${zeile.interest}) muss unter der Schwelle liegen, sonst beweist der Test nichts`);
+  });
+
+  test('Die Startbedingung rastet ein: fällt das Kapital wieder unter die Schwelle, läuft die Strategie weiter', () => {
+    const r = simulateNextForrest(baseStart({
+      duration: 12,
+      nfDepositStrategies: [depositStrategy({
+        amount: 500, period: 'monthly', startMode: 'capital', startThreshold: 12000
+      })],
+      // Große Einmalauszahlung nach dem Start, die das aktive Kapital wieder
+      // unter 12.000 € drückt.
+      nfWithdrawalStrategies: [withdrawalStrategy({
+        type: 'once', amount: 6000, startMonth: 6
+      })]
+    }));
+    const nachDemEinbruch = r.rows.filter(x => x.month > 6);
+    assert.ok(nachDemEinbruch.some(x => x.openingActive < 12000),
+      'Testaufbau: das Kapital muss nach der Auszahlung wirklich unter die Schwelle fallen');
+    nachDemEinbruch.forEach(x =>
+      assert.ok(x.deposit > 1e-9, `Monat ${x.month} muss weiter einzahlen, obwohl das Kapital gefallen ist`));
+  });
+
+  test('"Einmalig" mit Schwelle feuert in dem Monat, in dem die Schwelle zuerst greift', () => {
+    const r = simulateNextForrest(baseStart({
+      nfDepositStrategies: [depositStrategy({
+        amount: 2000, period: 'once', startMode: 'capital', startThreshold: 12000
+      })]
+    }));
+    const monateMitEinzahlung = r.rows.filter(x => x.month > 0 && x.deposit > 1e-9).map(x => x.month);
+    assert.deepStrictEqual(monateMitEinzahlung, [5]);
+  });
+
+  test('"Jährlich" mit Schwelle ankert am tatsächlichen Startmonat, nicht am Feld startMonth', () => {
+    const r = simulateNextForrest(baseStart({
+      duration: 20,
+      nfDepositStrategies: [depositStrategy({
+        // startMonth bleibt 1 und muss ignoriert werden
+        amount: 1000, period: 'yearly', startMonth: 1,
+        startMode: 'capital', startThreshold: 12000
+      })]
+    }));
+    const monateMitEinzahlung = r.rows.filter(x => x.month > 0 && x.deposit > 1e-9).map(x => x.month);
+    assert.deepStrictEqual(monateMitEinzahlung, [5, 17]);
+  });
+
+  test('Ohne startMode rechnet eine Strategie exakt wie bisher', () => {
+    const alt = simulateNextForrest(baseStart({
+      nfDepositStrategies: [depositStrategy({ amount: 1000, period: 'monthly', startMonth: 3 })]
+    }));
+    const neu = simulateNextForrest(baseStart({
+      nfDepositStrategies: [depositStrategy({
+        amount: 1000, period: 'monthly', startMonth: 3, startMode: 'month'
+      })]
+    }));
+    assert.deepStrictEqual(
+      neu.rows.map(x => [x.month, x.deposit, x.active]),
+      alt.rows.map(x => [x.month, x.deposit, x.active]),
+      'startMode "month" muss identisch zum Weglassen des Feldes sein'
+    );
+    assert.strictEqual(ersterMonatMitEinzahlung(alt), 3);
+  });
+
+  test('Auch Auszahlungsstrategien kennen die Startbedingung', () => {
+    const r = simulateNextForrest(baseStart({
+      nfWithdrawalStrategies: [withdrawalStrategy({
+        type: 'monthly', amount: 200, startMode: 'capital', startThreshold: 12000
+      })]
+    }));
+    const ersterMonatMitAuszahlung = r.rows.find(x => x.month > 0 && x.withdrawn > 1e-9);
+    assert.strictEqual(ersterMonatMitAuszahlung.month, 5);
+  });
+});
+
+describe('Steueroption: Kapitalertragsteuer auf Zinsen, jährliche Abrechnung', () => {
+  // 10.000 € Startkapital, aktiv ab Monat 1 (kein Deposit-Ereignis), keine
+  // Ein-/Auszahlungsstrategien — der einzige Cashflow ist der monatliche
+  // Zins, exakt das Szenario, das eine Steuer treffen soll.
+  function baseTax(overrides) {
+    return {
+      investmentType: 'nextforrest', start: 10000, includeStartCapital: false,
+      currency: 'EUR', duration: 12, durationUnit: 'months', nfRate: 'low',
+      nfDepositStrategies: [], nfWithdrawalStrategies: [], nfTeamMembers: [],
+      ...overrides
+    };
+  }
+
+  test('Ohne Steuer (Default) bleibt das Ergebnis unverändert — Regression', () => {
+    const ohneFeld = simulateNextForrest(baseTax());
+    const explizitAus = simulateNextForrest(baseTax({ taxEnabled: false, taxRate: 42 }));
+    assert.deepStrictEqual(ohneFeld.rows, explizitAus.rows);
+    close(ohneFeld.finalWealth, explizitAus.finalWealth);
+    assert.strictEqual(ohneFeld.totalTax || 0, 0);
+  });
+
+  test('Endet die Laufzeit vor Monat 12, wird der Rest erst im letzten Monat fällig', () => {
+    // 11 Monate: kein volles Jahr läuft ab, also keine reguläre 12er-
+    // Abrechnung — aber der Lauf endet trotzdem, deshalb muss der bis dahin
+    // aufgelaufene Zins spätestens im letzten Monat (11) besteuert werden,
+    // sonst bliebe das angebrochene Jahr komplett unversteuert.
+    const r = simulateNextForrest(baseTax({ duration: 11, taxEnabled: true, taxRate: 26.375 }));
+    r.rows.filter(x => x.month < 11).forEach(x =>
+      close(x.tax || 0, 0, `Monat ${x.month} darf noch keine Steuer zeigen`));
+    const letzterMonat = r.rows.find(x => x.month === 11);
+    assert.ok(letzterMonat.tax > 0, 'Monat 11 muss die Restabrechnung zeigen');
+    close(r.totalTax, r.totalInterest * 0.26375);
+  });
+
+  test('Jährliche Abrechnung in Monat 12: Steuer = Gesamtzins × Satz, Boni bleiben außen vor', () => {
+    const satz = 25;
+    const ohneSteuer = simulateNextForrest(baseTax());
+    const mitSteuer = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: satz }));
+
+    // Über exakt ein volles Jahr findet genau eine Abrechnung statt, die den
+    // kompletten Jahreszins erfasst — unabhängig vom Verlauf des aktiven
+    // Kapitals bleibt totalInterest der Simulation die maßgebliche Bezugsgröße.
+    close(mitSteuer.totalTax, ohneSteuer.totalInterest * (satz / 100));
+    // Die Steuer wird aus Cash bzw. per Block-Entnahme aus dem aktiven
+    // Kapital bezahlt — die Summe (Gesamtvermögen) sinkt um genau die Steuer,
+    // der Zins selbst bleibt unangetastet.
+    close(mitSteuer.totalInterest, ohneSteuer.totalInterest);
+    // Deckte die Rendite die Steuer nicht voll, fiel zusätzlich zur Steuer
+    // selbst noch die 3,5%-Auszahlungsgebühr auf den kapitalgedeckten Anteil
+    // an (siehe eigener Test dazu weiter unten) — das Gesamtvermögen sinkt
+    // also um Steuer PLUS diese zusätzliche Gebühr.
+    const zusaetzlicheGebuehr = mitSteuer.totalFees - ohneSteuer.totalFees;
+    close(mitSteuer.finalWealth, ohneSteuer.finalWealth - mitSteuer.totalTax - zusaetzlicheGebuehr);
+    const abrechnungsMonat = mitSteuer.rows.find(x => x.month === 12);
+    assert.ok(abrechnungsMonat.tax > 0, 'Monat 12 muss die Abrechnung zeigen');
+  });
+
+  test('Reicht die Rendite nicht, fällt auf den kapitalgedeckten Anteil die 3,5%-Auszahlungsgebühr an', () => {
+    const r = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: 25 }));
+    const row = r.rows.find(x => x.month === 12);
+    assert.ok(row.taxFromCapital > 0, 'Testaufbau: es muss eine kapitalgedeckte Steuer geben');
+    // taxFromCapital ist NETTO (nach Gebühr) — hochgerechnet auf brutto muss
+    // sich exakt der 3,5%-Satz ergeben, und die Gebühr steckt in row.fee.
+    const grossFromCapital = row.taxFromCapital / (1 - 0.035);
+    const feeFromCapital = grossFromCapital - row.taxFromCapital;
+    close(row.fee, feeFromCapital, 'row.fee muss diese Gebühr enthalten (keine anderen Ein-/Auszahlungen in diesem Test)');
+  });
+
+  test('Läuft die Simulation über Monat 12 hinaus, wird am Laufzeitende der Rest abgerechnet', () => {
+    const satz = 26.375;
+    const r = simulateNextForrest(baseTax({ duration: 18, taxEnabled: true, taxRate: satz }));
+    const monateMitSteuer = r.rows.filter(x => x.tax > 1e-9).map(x => x.month);
+    assert.deepStrictEqual(monateMitSteuer, [12, 18], 'Abrechnung nach 12 Monaten und am Laufzeitende (Rest)');
+    // Die Summe aus beiden Teil-Abrechnungen bleibt exakt Gesamtzins × Satz,
+    // weil jeder Monatszins in genau eine der beiden Abrechnungen fällt.
+    close(r.totalTax, r.totalInterest * (satz / 100));
+  });
+
+  test('Boni bleiben unversteuert, auch mit aktiver Team-Struktur', () => {
+    const satz = 26.375;
+    const r = simulateNextForrest(baseTax({
+      taxEnabled: true, taxRate: satz,
+      nfTeamMembers: [{
+        id: 'a', name: 'A', startCapital: 40000, joinMonth: 1,
+        includeStartCapital: true, children: []
+      }]
+    }));
+    assert.ok(r.team.totalBonus > 0, 'Testaufbau: es muss tatsächlich Bonus geben');
+    close(r.totalTax, r.totalInterest * (satz / 100),
+      'Steuer darf nur vom eigenen Zins abhängen, nicht vom (viel größeren) Team-Bonus');
+  });
+
+  test('Eigener Steuersatz ist frei wählbar (z. B. 27,99 % für den Sonderfall Kirchensteuer)', () => {
+    const r = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: 27.99 }));
+    close(r.totalTax, r.totalInterest * 0.2799);
+  });
+
+  test('Jedes Team-Mitglied hat seine eigene, unabhängige Steuer-Konstellation', () => {
+    const v = baseTax({
+      taxEnabled: false,
+      nfTeamMembers: [{
+        id: 'a', name: 'A', startCapital: 10000, joinMonth: 1,
+        includeStartCapital: false, taxEnabled: true, taxRate: 25, children: []
+      }]
+    });
+    const own = simulateNextForrest(v);
+    assert.strictEqual(own.totalTax || 0, 0, 'Hauptszenario hat Steuer deaktiviert');
+    const sim = simulateTeamMember(v, v.nfTeamMembers[0], 1);
+    assert.ok(sim.result.totalTax > 0, 'Mitglied hat seine eigene Steuer aktiviert');
+    close(sim.result.totalTax, sim.result.totalInterest * 0.25);
+  });
+
+  test('taxPayout Default (unverändert): Steuer wird wie bisher aus Cash/aktivem Kapital beglichen', () => {
+    const ohneFeld = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: 25 }));
+    const explizitAn = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: 25, taxPayout: true }));
+    assert.deepStrictEqual(ohneFeld.rows, explizitAn.rows);
+  });
+
+  test('taxPayout: false — Steuer wird ausgewiesen, aber nicht aus dem Investment beglichen', () => {
+    const satz = 25;
+    const bezahlt = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: satz, taxPayout: true }));
+    const ausgewiesen = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: satz, taxPayout: false }));
+    const ohneSteuer = simulateNextForrest(baseTax());
+
+    // Dieselbe Steuerschuld, exakt derselbe Zinsverlauf — nur die Frage, ob
+    // sie das Investment tatsächlich verlässt, unterscheidet sich.
+    close(ausgewiesen.totalTax, bezahlt.totalTax);
+    close(ausgewiesen.totalInterest, bezahlt.totalInterest);
+    const abrechnungsMonat = ausgewiesen.rows.find(x => x.month === 12);
+    assert.ok(abrechnungsMonat.tax > 0, 'Die Steuer muss trotzdem in der Zeile ausgewiesen werden');
+
+    // Ohne Zahlung bleibt das Gesamtvermögen um Steuer PLUS die zusätzliche
+    // Auszahlungsgebühr auf den kapitalgedeckten Anteil höher, weil weder
+    // Cash noch aktives Kapital angetastet werden — der komplette
+    // Kapitalverlauf ist dann identisch zum steuerfreien Lauf.
+    const zusaetzlicheGebuehr = bezahlt.totalFees - ausgewiesen.totalFees;
+    close(ausgewiesen.finalWealth, bezahlt.finalWealth + bezahlt.totalTax + zusaetzlicheGebuehr);
+    assert.deepStrictEqual(
+      ausgewiesen.rows.map(x => [x.month, x.cash, x.active, x.total]),
+      ohneSteuer.rows.map(x => [x.month, x.cash, x.active, x.total])
+    );
+  });
+
+  test('taxPayout: false verändert weder Cash noch aktives Kapital in der Abrechnungszeile', () => {
+    const r = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: 26.375, taxPayout: false, duration: 18 }));
+    const ohneSteuer = simulateNextForrest(baseTax({ duration: 18 }));
+    // Ohne Auszahlung der Steuer ist der komplette Kapitalverlauf identisch
+    // zum steuerfreien Lauf — nur `tax`/`totalTax` unterscheiden sich.
+    assert.deepStrictEqual(
+      r.rows.map(x => [x.month, x.cash, x.active, x.total]),
+      ohneSteuer.rows.map(x => [x.month, x.cash, x.active, x.total])
+    );
+    assert.ok(r.totalTax > 0);
+  });
+
+  test('Jedes Team-Mitglied hat sein eigenes taxPayout, unabhängig vom Hauptszenario', () => {
+    const memberBase = {
+      id: 'a', name: 'A', startCapital: 10000, joinMonth: 1,
+      includeStartCapital: false, children: []
+    };
+    const v = baseTax({
+      taxEnabled: true, taxRate: 25, taxPayout: true,
+      nfTeamMembers: [{ ...memberBase, taxEnabled: true, taxRate: 25, taxPayout: false }]
+    });
+    const vOhneSteuer = baseTax({ taxEnabled: false, nfTeamMembers: [{ ...memberBase }] });
+
+    const own = simulateNextForrest(v);
+    const ownOhneSteuer = simulateNextForrest(vOhneSteuer);
+    const sim = simulateTeamMember(v, v.nfTeamMembers[0], 1);
+    const simOhneSteuer = simulateTeamMember(vOhneSteuer, vOhneSteuer.nfTeamMembers[0], 1);
+
+    // Das Hauptszenario zahlt seine Steuer tatsächlich aus dem Kapital —
+    // der Verlauf muss vom steuerfreien Lauf abweichen.
+    assert.notDeepStrictEqual(
+      own.rows.map(x => [x.cash, x.active]),
+      ownOhneSteuer.rows.map(x => [x.cash, x.active])
+    );
+    // Das Mitglied zahlt seine Steuer NICHT aus — sein Kapitalverlauf bleibt
+    // exakt wie ohne Steuer, obwohl seine Steuer weiterhin berechnet wird.
+    assert.deepStrictEqual(
+      sim.result.rows.map(x => [x.cash, x.active]),
+      simOhneSteuer.result.rows.map(x => [x.cash, x.active])
+    );
+    assert.ok(sim.result.totalTax > 0, 'Steuer des Mitglieds wird trotzdem berechnet');
+  });
+
+  test('taxFromCapital: 0, wenn die Rendite (vorhandenes Cash) die Steuer allein deckt', () => {
+    // 1 Monat, Restabrechnung sofort: Zins 500 €, Steuer bei 25 % = 125 € —
+    // das vorhandene Cash (500 €) reicht bequem, keine Block-Entnahme nötig.
+    const r = simulateNextForrest(baseTax({ duration: 1, taxEnabled: true, taxRate: 25, taxPayout: true }));
+    const row = r.rows.find(x => x.month === 1);
+    assert.ok(row.tax > 0, 'Testaufbau: es muss tatsächlich Steuer anfallen');
+    close(row.taxFromCapital || 0, 0, 'Die Rendite allein deckt die Steuer, keine Kapital-Entnahme nötig');
+    close(r.totalTaxFromCapital || 0, 0);
+  });
+
+  test('taxFromCapital > 0, wenn die Rendite die Steuer NICHT deckt (Block-Entnahme aus aktivem Kapital nötig)', () => {
+    // Über 12 Monate ist die meiste Rendite längst in 1000er-Blöcken
+    // reinvestiert — das verbleibende Cash reicht bei Weitem nicht für den
+    // vollen Jahreszins × Satz, ein Teil kommt zwangsläufig aus dem Kapital.
+    const r = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: 25, taxPayout: true }));
+    const row = r.rows.find(x => x.month === 12);
+    assert.ok(row.taxFromCapital > 0, 'Die Rendite allein darf hier nicht ausreichen');
+    assert.ok(row.taxFromCapital <= row.tax, 'Der kapitalgedeckte Anteil darf die Gesamtsteuer nicht übersteigen');
+    close(r.totalTaxFromCapital, row.taxFromCapital);
+  });
+
+  test('taxFromCapital verfälscht weder Gesamtrendite, Rendite p.a. noch den Break-even-Monat', () => {
+    const satz = 25;
+    const mitSteuer = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: satz, taxPayout: true }));
+    const ohneSteuer = simulateNextForrest(baseTax());
+
+    assert.ok(mitSteuer.totalTaxFromCapital > 0, 'Testaufbau: es muss tatsächlich kapitalgedeckte Steuer geben');
+    // totalWithdrawn (die ROI-relevante Größe) bleibt unberührt von der
+    // Steuer — hier gibt es keine einzige echte Auszahlungsstrategie.
+    close(mitSteuer.totalWithdrawn, 0);
+    close(mitSteuer.totalWithdrawn, ohneSteuer.totalWithdrawn);
+    assert.strictEqual(mitSteuer.breakEvenMonth, ohneSteuer.breakEvenMonth);
+  });
+
+  test('taxFromCapital nur in "Steuer auszahlen"-Läufen, nie wenn die Steuer nur ausgewiesen wird', () => {
+    const r = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: 25, taxPayout: false }));
+    r.rows.forEach(x => close(x.taxFromCapital || 0, 0, `Monat ${x.month} darf ohne Auszahlung keine Kapital-Entnahme zeigen`));
+    close(r.totalTaxFromCapital || 0, 0);
+    assert.ok(r.totalTax > 0, 'Die Steuer selbst wird trotzdem weiter ausgewiesen');
+  });
+
+  test('Zusammengerechnete Ansicht: taxFromCapital des Mitglieds fließt in die kombinierte Zeile und die Gesamtsumme ein', () => {
+    const memberBase = {
+      id: 'a', name: 'A', startCapital: 10000, joinMonth: 1,
+      includeStartCapital: false, mergeWithOwn: true,
+      taxEnabled: true, taxRate: 25, taxPayout: true, children: []
+    };
+    const v = baseTax({ taxEnabled: false, nfTeamMembers: [memberBase] });
+    const own = simulateNextForrest(v);
+    const combined = buildCombinedRows(v, own);
+    const merged = mergedTeamMembers(v, own);
+    const totals = combinedScenarioTotals(own, combined, merged, v);
+
+    const combinedMonth12 = combined.find(c => c.month === 12);
+    const memberEntry = combinedMonth12.members.find(x => x.id === 'a');
+    assert.ok(memberEntry.row.taxFromCapital > 0, 'Testaufbau: das Mitglied muss kapitalgedeckte Steuer haben');
+    close(combinedMonth12.combined.taxFromCapital, memberEntry.row.taxFromCapital);
+    close(totals.totalTaxFromCapital, memberEntry.row.taxFromCapital);
+    // Auch zusammengerechnet bleibt totalWithdrawn (ROI-relevant) davon
+    // unberührt.
+    close(totals.totalWithdrawn, 0);
+  });
+});
