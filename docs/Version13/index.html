@@ -1,0 +1,4387 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zinseszinsrechner</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #121b2e;
+      --panel-2: #18243b;
+      --text: #f4f7fb;
+      --muted: #9eabc1;
+      --accent: #62d394;
+      --accent-2: #75a7ff;
+      --danger: #ff7a7a;
+      --border: rgba(255,255,255,.08);
+      --shadow: 0 20px 60px rgba(0,0,0,.28);
+
+      /* Ebenenfarben der Baum-Navigation. --level-deep erreicht 5,45:1 auf
+         --panel-2 und bleibt damit auch für tiefe Ebenen lesbar. */
+      --level-1: #62d394;
+      --level-2: #75a7ff;
+      --level-3: #c79bff;
+      --level-deep: #8b9ab5;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(117,167,255,.12), transparent 32%),
+        radial-gradient(circle at top right, rgba(98,211,148,.10), transparent 28%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .wrap {
+      width: min(1180px, calc(100% - 32px));
+      margin: 36px auto 60px;
+    }
+
+    @media (min-width: 1220px) and (orientation: landscape) {
+      .wrap {
+        width: calc(100% - 48px);
+        max-width: 2200px;
+      }
+    }
+
+    @supports (padding: max(0px)) {
+      .wrap {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      }
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 46px);
+      letter-spacing: -0.04em;
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.9375rem;
+    }
+
+    .badge {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 390px 1fr;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015)), var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+
+    .inputs {
+      padding: 22px;
+      position: sticky;
+      top: 20px;
+    }
+
+    .field {
+      margin-bottom: 17px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8125rem;
+      color: var(--muted);
+      margin-bottom: 7px;
+      font-weight: 650;
+    }
+
+    /* Semantische Überschrift (h2), optisch identisch zu einem normalen
+       Feld-Label — für VoiceOver/Rotor-Navigation zwischen den Abschnitten
+       im linken Formular (Einzahlungsstrategien, Auszahlungsstrategien,
+       Team-Struktur), ohne das bestehende Erscheinungsbild zu verändern. */
+    h2.field-heading {
+      display: block;
+      font-size: 0.8125rem;
+      color: var(--muted);
+      margin: 0 0 7px;
+      font-weight: 650;
+    }
+
+    /* Nur für Screenreader sichtbar — z. B. für Tabellen ohne eigene
+       sichtbare Überschrift, damit sie trotzdem per Rotor auffindbar sind. */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* Sichtbarer Fokusring für Buttons/Toggles bei Tastaturnavigation —
+       ergänzt den bereits vorhandenen Fokusring von input/select, damit
+       auch Buttons ein konsistentes, deutliches Fokus-Feedback zeigen. */
+    button:focus-visible {
+      outline: 2px solid rgba(117,167,255,.85);
+      outline-offset: 2px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .input-row input,
+    .input-row select {
+      min-width: 0;
+    }
+
+    input, select {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 12px 13px;
+      outline: none;
+      font-size: 0.9375rem;
+      transition: .18s ease;
+    }
+
+    input:focus, select:focus {
+      border-color: rgba(117,167,255,.7);
+      box-shadow: 0 0 0 3px rgba(117,167,255,.12);
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 2px;
+      padding: 12px 13px;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 18px;
+      padding: 0;
+      border-radius: 4px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .checkbox-row span {
+      color: var(--text);
+      font-size: 0.8125rem;
+      font-weight: 650;
+    }
+
+    .unit {
+      width: 92px;
+      flex: 0 0 92px;
+    }
+
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.6875rem;
+      line-height: 1.45;
+      margin-top: 6px;
+    }
+
+    /* Erklärtext hinter einem kleinen "i"-Kreis statt als eigener Absatz —
+       spart Platz, Inhalt erscheint als Tooltip bei Hover/Fokus. */
+    .info-tip {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 15px;
+      height: 15px;
+      flex: 0 0 15px;
+      border-radius: 50%;
+      border: 1px solid var(--muted);
+      color: var(--muted);
+      font-size: 0.625rem;
+      font-weight: 750;
+      font-style: normal;
+      line-height: 1;
+      cursor: help;
+      vertical-align: middle;
+      margin-left: 2px;
+    }
+
+    .info-tip::before {
+      content: "i";
+    }
+
+    .info-tip:hover,
+    .info-tip:focus-visible {
+      border-color: var(--accent-2);
+      color: var(--accent-2);
+      outline: none;
+    }
+
+    .info-tip-bubble {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 0;
+      width: 260px;
+      max-width: min(320px, 70vw);
+      background: #0d1626;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: none;
+      letter-spacing: normal;
+      line-height: 1.5;
+      color: var(--text);
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+      z-index: 20;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(4px);
+      transition: opacity .15s ease, transform .15s ease;
+    }
+
+    .info-tip:hover .info-tip-bubble,
+    .info-tip:focus-visible .info-tip-bubble {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .field-warning {
+      display: none;
+      align-items: flex-start;
+      gap: 6px;
+      color: var(--danger);
+      font-size: 0.6875rem;
+      line-height: 1.45;
+      margin-top: 6px;
+    }
+
+    .field-warning.visible {
+      display: flex;
+    }
+
+    .type-tab-bar {
+      display: flex;
+      gap: 4px;
+      margin-bottom: -1px;
+      position: relative;
+      z-index: 1;
+      padding-left: 2px;
+    }
+
+    .type-tab {
+      border: 1px solid var(--border);
+      border-bottom: none;
+      background: rgba(255,255,255,.02);
+      color: var(--muted);
+      padding: 9px 16px;
+      border-radius: 10px 10px 0 0;
+      font-size: 0.8125rem;
+      font-weight: 750;
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    .type-tab:hover {
+      color: var(--text);
+    }
+
+    .type-tab.active {
+      background: var(--panel-2);
+      color: var(--accent);
+    }
+
+    /* Keine eigene Box mehr (Rahmen/Hintergrund) — nur noch die Trennlinie
+       unter der Tab-Leiste, die dank `.type-tab-bar { margin-bottom: -1px }`
+       weiterhin optisch an den aktiven Tab andockt. Spart die letzte
+       durchgehende Polsterungsebene über allen Feldern (Klassisch wie
+       NextForrest, inkl. Team-Struktur). */
+    .type-tab-panel {
+      border-top: 1px solid var(--border);
+      padding: 16px 0 2px;
+    }
+
+    #classicFields .field:last-child,
+    #nextForrestFields .field:last-child {
+      margin-bottom: 14px;
+    }
+
+    /* Statt einer eigenen Box (Rahmen + Hintergrund + Padding) trennt nur
+       eine obere Trennlinie die Abschnitte innerhalb von .type-tab-panel —
+       das spart eine ganze Polsterungsebene bei jeder Verschachtelungstiefe
+       (z. B. NextForrest -> Team-Struktur -> Mitglieds-Formular). */
+    .field-group {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .team-member-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: var(--panel-2);
+    }
+
+    .team-member-card-header {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      /* Bei großer Schriftgröße passen Umschalter und Entfernen-Knopf nicht
+         mehr nebeneinander — dann bricht der Knopf um, statt die Karte aus
+         dem Bild zu schieben. */
+      flex-wrap: wrap;
+    }
+
+    /* Flex-Kinder haben min-width: auto und schrumpfen sonst nie unter ihre
+       Min-Content-Breite. */
+    .team-member-card-header > .toggle-row,
+    .team-member-card-header > select {
+      flex: 1 1 10rem;
+      min-width: 0;
+    }
+
+    .team-member-card-header .team-input {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .team-member-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .team-member-grid label {
+      display: block;
+      font-size: 0.625rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+      font-weight: 650;
+    }
+
+    .team-checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      /* Mindestens 44 px hoch — eine Zeile mit 15-px-Kästchen wäre als
+         Tippziel zu klein, obwohl das ganze Label klickbar ist. */
+      min-height: 44px;
+      padding: 9px 0;
+      cursor: pointer;
+    }
+
+    .team-checkbox-row input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 18px;
+      margin: 1px 0 0;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .team-checkbox-row span {
+      min-width: 0;
+      font-size: 0.6875rem;
+      line-height: 1.45;
+      color: var(--muted);
+      overflow-wrap: anywhere;
+    }
+
+    .team-input {
+      padding: 9px 10px;
+      font-size: 0.8125rem;
+      border-radius: 9px;
+    }
+
+    .amount-input {
+      position: relative;
+    }
+
+    .amount-input input {
+      width: 100%;
+      padding-left: 32px;
+    }
+
+    .input-row .amount-input {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .amount-input-symbol {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-weight: 650;
+      pointer-events: none;
+    }
+
+    .team-remove-btn {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      /* Klein, allein stehend und zerstörend — gerade dieser Knopf darf kein
+         knappes Tippziel sein. */
+      min-width: 44px;
+      min-height: 44px;
+    }
+
+    .team-remove-btn:hover {
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+
+    .team-empty-hint {
+      color: var(--muted);
+      font-size: 0.75rem;
+      padding: 4px 2px 10px;
+    }
+
+    /* ===================================================================
+       Team-Struktur: Master-Detail (Navigation links, Eingabemaske rechts)
+       Übernommen aus mockups/team-tree/tree.css.
+       =================================================================== */
+
+    /* Grundabstand der kleinen Feldgruppen in den Strategie-Karten. */
+    .mini-field { margin-bottom: 10px; }
+    .mini-field:last-child { margin-bottom: 0; }
+
+    .variant-note {
+      display: flex;
+      gap: 9px;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent-2);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      background: rgba(117,167,255,.07);
+      color: var(--muted);
+      font-size: 0.75rem;
+      line-height: 1.5;
+    }
+
+    /* display: flex oben schlägt das display: none des Browsers für
+       [hidden] — ohne diese Regel bliebe der Hinweis immer sichtbar. */
+    .variant-note[hidden] { display: none; }
+
+    /* Lange deutsche Komposita dürfen brechen, sonst schieben sie den
+       Hinweis aus dem Bild. */
+    .variant-note > div { min-width: 0; overflow-wrap: anywhere; }
+
+    /* Einspaltig mit Absicht: Navigation oben, Eingabemaske darunter. Der
+       Team-Bereich sitzt in der linken Eingabespalte, die auf einem breiten
+       Schirm rund 390 px misst — innerhalb des Feldrahmens bleiben davon
+       etwa 280 px. Zwei Spalten nebeneinander ergäben dort je rund 130 px
+       und wären unbrauchbar. Das Mockup macht es unterhalb von 900 px
+       genauso. Eine Ansicht nebeneinander setzt voraus, dass der Bereich aus
+       der Eingabespalte herauszieht — das ist eine Platzierungsfrage, keine
+       CSS-Frage. */
+    .v2-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+    }
+
+    /* Grid-Elemente haben wie Flex-Elemente min-width: auto und schrumpfen
+       sonst nicht unter ihre Min-Content-Breite — bei großer Schrift schiebt
+       sonst die längste Navigationszeile die ganze Spalte aus dem Bild. */
+    .v2-nav, .v2-detail { min-width: 0; }
+    .v2-detail-grid > label, .team-member-grid > label { min-width: 0; }
+
+    .v2-nav {
+      background: var(--panel-2);
+      border-radius: 14px;
+      padding: 6px;
+    }
+
+    .v2-nav-scroll { max-height: 300px; overflow: auto; }
+
+    /* Eine Zeile besteht aus zwei getrennten Schaltflächen: dem Aufklapp-
+       Pfeil und der Auswahl. Ein Knopf im Knopf wäre ungültiges HTML — sein
+       aria-label erreichte dann keinen Screenreader. Die Einrückung steckt in
+       --depth (vom Skript gesetzt, auf 8 Ebenen gedeckelt), damit die
+       Schrittweite auf schmalen Schirmen kleiner werden kann. */
+    .navrow {
+      display: flex;
+      align-items: stretch;
+      gap: 2px;
+      width: 100%;
+      border-radius: 9px;
+      padding-left: calc((var(--depth, 1) - 1) * 13px);
+    }
+
+    .navrow:hover { background: rgba(255,255,255,.04); }
+
+    .navrow.selected {
+      background: rgba(98,211,148,.12);
+      box-shadow: inset 0 0 0 1px var(--accent);
+    }
+
+    .nav-twist {
+      flex: 0 0 22px;
+      width: 22px;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: 0;
+      border-radius: 8px;
+      color: var(--muted);
+      font: inherit;
+      cursor: pointer;
+      transition: transform .15s ease;
+    }
+
+    .nav-twist.open { transform: rotate(90deg); }
+    .nav-twist.leaf { opacity: 0; cursor: default; }
+    .nav-twist:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; }
+
+    .nav-select {
+      /* Umbruch erlaubt: bei großer Schriftgröße rutschen Rang und Betrag in
+         eine zweite Zeile, statt die Zeile aus dem Bild zu schieben. */
+      flex: 1 1 auto;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      row-gap: 2px;
+      min-height: 44px;
+      padding: 6px 8px 6px 2px;
+      background: transparent;
+      border: 0;
+      border-radius: 9px;
+      color: var(--text);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .nav-select:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; }
+
+    .nav-select .nav-name {
+      flex: 1 1 5rem;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.8125rem;
+    }
+
+    .nav-select .nav-cap {
+      margin-left: auto;
+      font-size: 0.6875rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .navrow-add {
+      width: 100%;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      padding: 6px 8px 6px 40px;
+      background: transparent;
+      border: 0;
+      border-radius: 9px;
+      color: var(--accent);
+      font: inherit;
+      font-size: 0.8125rem;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .navrow-add:hover { background: rgba(255,255,255,.04); }
+    .navrow-add:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; }
+
+    /* Gleiches Trennlinien-Muster wie .field-group statt eigener Box — das
+       Formular des ausgewählten Mitglieds bleibt durch die Linie und den
+       Abstand zu .v2-nav erkennbar, ohne eine weitere Polsterungsebene zu
+       kosten. */
+    .v2-detail {
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+      /* Lange Namen und deutsche Komposita brechen, statt zu überlaufen. */
+      overflow-wrap: anywhere;
+    }
+
+    .v2-crumb {
+      font-size: 0.6875rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+      overflow-wrap: anywhere;
+    }
+
+    .v2-crumb span + span::before { content: "\203A"; margin: 0 5px; opacity: .6; }
+
+    .v2-detail-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .v2-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+    }
+
+    .v2-detail-grid > label {
+      font-size: 0.6875rem;
+      color: var(--muted);
+      display: block;
+      font-weight: 650;
+    }
+
+    .v2-detail-grid > label input { margin-top: 4px; }
+
+    .section-block {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .section-block h3 {
+      font-size: 0.6875rem;
+      margin: 0 0 9px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      font-weight: 750;
+    }
+
+    .kpi-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+
+    .kpi {
+      /* min-width: 0 ist Pflicht: ohne das schrumpft ein Flex-Element nie
+         unter seine Min-Content-Breite, und bei 200 % Schriftgröße schiebt
+         ein Label wie "AKTIVES KAPITAL" die ganze Seite aus dem Bild. */
+      flex: 1 1 120px;
+      min-width: 0;
+      padding: 9px 11px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+    }
+
+    .kpi .k-label, .kpi .k-value { overflow-wrap: anywhere; }
+
+    .kpi .k-label {
+      font-size: 0.625rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      font-weight: 700;
+    }
+
+    .kpi .k-value {
+      font-size: 0.9375rem;
+      font-weight: 700;
+      margin-top: 3px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .child-chip-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+    .child-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      min-height: 44px;
+      max-width: 100%;
+      min-width: 0;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--text);
+      font: inherit;
+      font-size: 0.75rem;
+      cursor: pointer;
+      overflow-wrap: anywhere;
+    }
+
+    .child-chip .muted { color: var(--muted); font-variant-numeric: tabular-nums; }
+    .child-chip:hover { border-color: var(--accent); }
+    .child-chip:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+
+    .detail-delete-btn {
+      margin-left: auto;
+      min-height: 44px;
+      padding: 0 12px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      color: var(--muted);
+      font: inherit;
+      font-size: 0.75rem;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    .detail-delete-btn:hover { color: var(--danger); border-color: var(--danger); }
+
+    .recursion-note {
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 9px 11px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.6875rem;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .recursion-note b { color: var(--text); }
+
+    /* Ebenenfarbe je Tiefe — die Grundform steht weiter oben bei .level-pill. */
+    .level-pill.lv1 { color: var(--level-1); background: rgba(98,211,148,.12); border-color: rgba(98,211,148,.35); }
+    .level-pill.lv2 { color: var(--level-2); background: rgba(117,167,255,.12); border-color: rgba(117,167,255,.35); }
+    .level-pill.lv3 { color: var(--level-3); background: rgba(199,155,255,.12); border-color: rgba(199,155,255,.35); }
+    .level-pill.lvdeep { color: var(--level-deep); background: rgba(139,154,181,.14); border-color: rgba(139,154,181,.4); }
+
+    .rank-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 7px;
+      border-radius: 999px;
+      font-size: 0.5938rem;
+      font-weight: 750;
+      letter-spacing: .03em;
+      white-space: nowrap;
+      border: 1px solid currentColor;
+    }
+
+    .rank-0 { color: var(--muted); }
+    .rank-1 { color: #d79a6a; }
+    .rank-2 { color: #b9c4d4; }
+    .rank-3 { color: #e8c15c; }
+    .rank-4 { color: #8fd8e8; }
+    .rank-5 { color: #b79bff; }
+
+    dialog#teamDeleteDialog {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+      max-width: 420px;
+      width: calc(100% - 32px);
+    }
+
+    dialog#teamDeleteDialog::backdrop { background: rgba(4,8,16,.66); }
+    dialog#teamDeleteDialog h3 { margin: 0 0 8px; font-size: 1rem; overflow-wrap: anywhere; }
+    dialog#teamDeleteDialog p { color: var(--muted); font-size: 0.8125rem; margin: 0 0 16px; overflow-wrap: anywhere; }
+
+    .dialog-actions { display: flex; flex-direction: column; gap: 8px; }
+    .dialog-actions button { width: 100%; text-align: left; padding: 11px 13px; min-height: 44px; overflow-wrap: anywhere; }
+    .dialog-actions .cancel { text-align: center; color: var(--muted); }
+    .dialog-actions button b { display: block; font-size: 0.8125rem; }
+    .dialog-actions button small { display: block; color: var(--muted); font-weight: 400; margin-top: 2px; font-size: 0.6875rem; }
+
+    @media (max-width: 560px) {
+      .navrow { padding-left: calc((var(--depth, 1) - 1) * 9px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    @media (prefers-contrast: more) {
+      .level-pill, .rank-badge { border-width: 1.5px; }
+      .navrow.selected { box-shadow: inset 0 0 0 2px var(--accent); }
+    }
+
+    .type-placeholder {
+      padding: 16px;
+      margin-bottom: 14px;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      color: var(--muted);
+      font-size: 0.8125rem;
+      text-align: center;
+    }
+
+    .toggle-row {
+      display: flex;
+      /* Bei großer Schriftgröße passen drei Segmente nicht mehr nebeneinander.
+         Dann brechen sie untereinander um, statt die Seite aus dem Bild zu
+         schieben — dasselbe Verhalten wie ein Segmented Control unter
+         Dynamic Type. */
+      flex-wrap: wrap;
+      gap: 6px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px;
+    }
+
+    .toggle-btn {
+      flex: 1 1 7rem;
+      min-width: 0;
+      min-height: 44px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      padding: 9px 10px;
+      border-radius: 9px;
+      overflow-wrap: anywhere;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    .toggle-btn:hover { color: var(--text); }
+
+    .toggle-btn.active {
+      background: var(--accent);
+      color: #062514;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 0.875rem;
+      font-weight: 750;
+      cursor: pointer;
+      transition: transform .15s ease, opacity .15s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+
+    .primary {
+      background: var(--accent);
+      color: #062514;
+    }
+
+    .secondary {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .results {
+      padding: 22px;
+    }
+
+    .scenario-summary-wrap {
+      margin-top: 0;
+      margin-bottom: 20px;
+    }
+
+    .scenario-summary-wrap tr {
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    .scenario-summary-wrap tbody tr:hover td {
+      background: rgba(255,255,255,.03);
+    }
+
+    .scenario-summary-wrap tbody tr.active-row td {
+      background: rgba(98,211,148,.08);
+    }
+
+    .scenario-summary-wrap td:first-child {
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .row-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    .chart-wrap {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 14px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .chart-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: #0d1626;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 11px;
+      font-size: 0.75rem;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+      display: none;
+      z-index: 5;
+      white-space: nowrap;
+    }
+
+    .chart-tooltip .tt-month {
+      font-weight: 700;
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--muted);
+      margin-bottom: 6px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .chart-tooltip .tt-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 3px 4px;
+      border-radius: 6px;
+    }
+
+    .chart-tooltip .tt-row.hovered {
+      background: rgba(255,255,255,.08);
+    }
+
+    .chart-tooltip .tt-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex: 0 0 8px;
+    }
+
+    .chart-tooltip .tt-name {
+      font-weight: 650;
+      margin-right: 14px;
+    }
+
+    .chart-tooltip .tt-value {
+      margin-left: auto;
+      font-weight: 700;
+    }
+
+    .chart-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 2px 2px 12px;
+    }
+
+    .chart-title h2 { font-size: 0.875rem; font-weight: 700; margin: 0; }
+    .legend { color: var(--muted); font-size: 0.6875rem; }
+
+    .chart-mode-toggle {
+      max-width: 320px;
+      margin: 0 2px 14px;
+    }
+
+    .chart-legend-note {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin: 10px 2px 0;
+      color: var(--muted);
+      font-size: 0.6875rem;
+    }
+
+    .chart-legend-note .marker-swatch {
+      display: inline-block;
+      width: 14px;
+      height: 0;
+      border-top: 2px dashed currentColor;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    .scenario-tabs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      margin-bottom: 18px;
+      position: relative;
+    }
+
+    .scenario-tab {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 10px 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--muted);
+      font-size: 0.8125rem;
+      font-weight: 650;
+      white-space: nowrap;
+      cursor: pointer;
+      flex: 0 0 auto;
+      transition: .15s ease;
+    }
+
+    .scenario-tab:hover { color: var(--text); }
+
+    .scenario-tab.active {
+      background: rgba(98,211,148,.14);
+      border-color: rgba(98,211,148,.5);
+      color: var(--text);
+    }
+
+    .scenario-tab .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex: 0 0 8px;
+    }
+
+    .scenario-tab .close {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      color: var(--muted);
+      opacity: .7;
+      font-size: 0.6875rem;
+    }
+
+    .scenario-tab .close:hover {
+      opacity: 1;
+      background: rgba(255,255,255,.1);
+      color: var(--text);
+    }
+
+    .scenario-tab .name {
+      color: inherit;
+    }
+
+    .scenario-tab-add {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      border: 1px dashed rgba(98,211,148,.5);
+      color: var(--accent);
+      cursor: pointer;
+      flex: 0 0 auto;
+      font-size: 1.0625rem;
+      line-height: 1;
+      background: var(--panel-2);
+      transition: .15s ease;
+      position: sticky;
+      right: 0;
+      margin-left: auto;
+      z-index: 2;
+      box-shadow: -10px 0 12px -6px rgba(5,9,18,.65);
+    }
+
+    .scenario-tab-add:hover {
+      color: var(--text);
+      border-color: rgba(117,167,255,.6);
+    }
+
+    .legend-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 10px 2px 0;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    .legend-item:hover {
+      border-color: rgba(117,167,255,.5);
+      background: rgba(255,255,255,.06);
+    }
+
+    .legend-item.active {
+      border-color: rgba(98,211,148,.5);
+      background: rgba(98,211,148,.12);
+    }
+
+    #chart {
+      cursor: default;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex: 0 0 10px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 330px;
+      display: block;
+    }
+
+    .table-wrap {
+      position: relative;
+      margin-top: 18px;
+      overflow: auto;
+      max-height: 420px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: none;
+      transition: box-shadow .15s ease;
+    }
+
+    .table-wrap.has-scroll-right {
+      box-shadow: inset -24px 0 16px -16px rgba(0,0,0,.35);
+    }
+
+    .table-wrap.has-scroll-left {
+      box-shadow: inset 24px 0 16px -16px rgba(0,0,0,.35);
+    }
+
+    .table-wrap.has-scroll-left.has-scroll-right {
+      box-shadow: inset 24px 0 16px -16px rgba(0,0,0,.35), inset -24px 0 16px -16px rgba(0,0,0,.35);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+      min-width: 660px;
+    }
+
+    th, td {
+      padding: 11px 12px;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th:first-child, td:first-child { text-align: left; }
+
+    th {
+      color: var(--muted);
+      position: sticky;
+      top: 0;
+      background: #172239;
+      z-index: 1;
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    #teamBonusSection thead th:nth-child(2),
+    #teamBonusRows > tr > td:nth-child(2) {
+      text-align: left;
+    }
+
+    .expand-cell {
+      width: 30px;
+      padding: 11px 4px 11px 12px;
+    }
+
+    .expand-icon {
+      display: inline-flex;
+      color: var(--muted);
+      transition: transform .15s ease;
+    }
+
+    #teamBonusRows tr.month-row,
+    #rows tr.month-row {
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    /* Die Monatszeile der Team-Bonus-Tabelle ist ein Bedienelement
+       (role="button", per Tastatur erreichbar) — sie braucht ein sichtbares
+       Fokusziel und mindestens 44 px Höhe. */
+    #teamBonusRows tr.month-row > td {
+      padding-top: 14px;
+      padding-bottom: 14px;
+    }
+
+    /* Beide Monatstabellen sind per Tastatur bedienbar und brauchen deshalb
+       beide einen sichtbaren Fokusring. */
+    #teamBonusRows tr.month-row:focus-visible,
+    #rows tr.month-row:focus-visible {
+      outline: 2px solid var(--accent-2);
+      outline-offset: -2px;
+    }
+
+    #teamBonusRows tr.month-row:hover td,
+    #rows tr.month-row:hover td {
+      background: rgba(255,255,255,.03);
+    }
+
+    #teamBonusRows tr.month-row.open td,
+    #rows tr.month-row.open td {
+      background: rgba(98,211,148,.06);
+    }
+
+    #teamBonusRows tr.month-row.open .expand-icon,
+    #rows tr.month-row.open .expand-icon {
+      color: var(--accent);
+      transform: rotate(90deg);
+    }
+
+    .detail-cell {
+      background: #0e1830;
+      padding: 0;
+      cursor: default;
+      border-bottom: none;
+    }
+
+    /* Aufgeklappte Monatszeile der Team-Bonus-Tabelle: keine zweite
+       Tabelle mehr, sondern eine nach Ebenen gruppierte Liste (siehe
+       teamMonthDetail()). Lange deutsche Namen dürfen umbrechen. */
+    .detail-inner {
+      padding: 10px 12px 14px;
+      overflow-wrap: anywhere;
+      /* Die Monatstabelle ist breiter als ein Telefon und scrollt waagerecht
+         in ihrem eigenen Container. Die Detailansicht ist aber keine Tabelle
+         mehr — sie bleibt am linken Rand stehen und höchstens so breit wie
+         der sichtbare Ausschnitt (--detail-w, aus der Breite des Containers
+         gesetzt), damit sie ohne Seitwärtsscrollen lesbar bleibt. */
+      position: sticky;
+      left: 0;
+      width: min(100%, var(--detail-w, 100%));
+    }
+
+    .member-line {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      row-gap: 2px;
+      padding: 5px 0;
+      font-size: 0.8125rem;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+
+    /* Einrückung je Ebene, aber gedeckelt: ab Ebene 5 wandert die Zeile
+       nicht weiter nach rechts, sonst bleibt auf 375 px nichts übrig. */
+    .member-line,
+    .level-subtotal {
+      padding-left: calc(min(var(--lvl, 0), 4) * 14px);
+      min-width: 0;
+    }
+
+    .member-line .ml-name {
+      flex: 1 1 7rem;
+      min-width: 0;
+      overflow-wrap: anywhere;
+      font-weight: 650;
+    }
+
+    .member-line .ml-num,
+    .level-subtotal .ml-num {
+      margin-left: auto;
+      min-width: 0;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Noch nicht beigetreten: gedämpft UND mit „(ab M…)" beschriftet —
+       die Deckkraft allein wäre bei erhöhtem Kontrast keine Auskunft. */
+    .member-line.not-joined {
+      opacity: .62;
+    }
+
+    .member-note {
+      font-size: 0.6875rem;
+      color: var(--muted);
+      min-width: 0;
+    }
+
+    .member-note.accent {
+      color: var(--accent);
+    }
+
+    .level-subtotal {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding-top: 6px;
+      padding-bottom: 6px;
+      margin: 4px 0 12px;
+      border-top: 1px solid var(--border);
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .level-subtotal .ls-bonus { color: var(--text); }
+    .level-subtotal:last-child { margin-bottom: 0; }
+
+    /* Aufgeklappte "Ich"/Mitglied-Zeilen im Monatsverlauf sind normale
+       <tr> derselben Tabelle (siehe renderTable()) statt einer eigenen
+       umrahmten Tabelle, damit sie optisch in die Monatsverlauf-Tabelle
+       einfließen statt wie ein separater Block darin zu wirken. Name/Punkt
+       stehen bewusst ohne Einrückung ganz am linken Rand (Expand-Spalte und
+       Monat-Spalte sind zu einer Zelle verschmolzen, siehe subRow()). */
+    #rows tr.detail-sub-row td {
+      background: rgba(255,255,255,.02);
+      font-size: 0.75rem;
+    }
+
+    /* Ebenen-Umschalter des Team-Diagramms. Gefüllter Punkt = sichtbar,
+       hohler = ausgeblendet — Transparenz allein fällt bei erhöhtem
+       Kontrast weg. 44 px Mindesthöhe als Tippziel. */
+    .chart-toggles {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 10px 2px 12px;
+    }
+
+    .chart-toggles button {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      font-size: 0.75rem;
+    }
+
+    .chart-toggles button[aria-pressed="false"] {
+      color: var(--muted);
+    }
+
+    .band-swatch {
+      flex: 0 0 auto;
+    }
+
+    .team-legend .legend-item {
+      cursor: default;
+      gap: 7px;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .member-name-cell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 650;
+    }
+
+    .member-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex: 0 0 7px;
+    }
+
+    .level-pill {
+      font-size: 0.5938rem;
+      font-weight: 750;
+      color: var(--accent-2);
+      background: rgba(117,167,255,.12);
+      border: 1px solid rgba(117,167,255,.35);
+      border-radius: 999px;
+      padding: 2px 7px;
+    }
+
+    .footer {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 0.6875rem;
+      text-align: center;
+    }
+
+    @media (max-width: 860px) {
+      .grid { grid-template-columns: minmax(0, 1fr); }
+      .inputs { position: static; }
+      .header { align-items: start; flex-direction: column; }
+    }
+
+    @media (max-width: 560px) {
+      .two { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      /* .type-tab-panel und .v2-detail sind jetzt reine Trennlinien statt
+         eigener Boxen (wie schon .field-group) — auf dem Telefon bleiben
+         seitlich nur noch wrap (8px) und der Panel-Rand (10px) übrig, 18px
+         statt vormals 34px je Seite. */
+      .wrap { width: calc(100% - 16px); margin: 18px auto 40px; }
+      h1 { font-size: clamp(24px, 7vw, 34px); }
+      .header { gap: 10px; margin-bottom: 16px; }
+      .badge { font-size: 0.6875rem; padding: 6px 10px; }
+      .panel { border-radius: 16px; }
+      .inputs, .results { padding: 10px; }
+      .type-tab-panel { padding: 8px 0 2px; }
+      .field-group { margin-top: 14px; padding-top: 10px; }
+      .v2-detail { padding-top: 8px; }
+      .team-member-card { padding: 8px; }
+
+      /* Die Sprechblase haengt mit `left: 0` am Fragezeichen. Sitzt das in der
+         rechten Bildhaelfte, laufen ihre 260 px aus dem Bild — das war die
+         einzige Ursache dafuer, dass die Seite auf dem Telefon ueberhaupt
+         horizontal scrollte. Auf schmalen Schirmen wird sie deshalb aus dem
+         horizontalen Fluss genommen und spannt zwischen beiden Raendern. */
+      .info-tip-bubble {
+        position: fixed;
+        left: 8px;
+        right: 8px;
+        width: auto;
+        max-width: none;
+      }
+
+      /* Prevent iOS Safari from zooming in on input focus */
+      input, select { font-size: 1rem; padding: 11px 12px; }
+
+      .unit { width: 78px; flex: 0 0 78px; }
+      .actions { grid-template-columns: 1fr 52px; }
+      button { padding: 12px 10px; }
+
+      .chart-wrap { padding: 10px; border-radius: 14px; }
+      canvas { height: 220px; }
+
+      .table-wrap { border-radius: 12px; max-height: 320px; }
+      table { font-size: 0.75rem; min-width: 560px; }
+      th, td { padding: 9px 8px; }
+    }
+
+    @media (max-width: 400px) {
+      .input-row { flex-wrap: wrap; }
+      .unit { width: 100%; flex: 1 1 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="header">
+      <div>
+        <h1>Zinseszinsrechner</h1>
+        <div class="subtitle">Läuft vollständig lokal im Browser – keine Daten werden übertragen.</div>
+      </div>
+      <div class="badge">Offline · HTML + JavaScript</div>
+    </div>
+
+    <div class="grid">
+      <section class="panel inputs">
+        <div class="scenario-tabs" id="scenarioTabs"></div>
+
+        <div class="field">
+          <label for="scenarioName">Szenarioname</label>
+          <input id="scenarioName" type="text" value="Szenario 1">
+        </div>
+
+        <div class="field">
+          <label>Laufzeit <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Gilt für alle Szenarien gleichermaßen.</span></span></label>
+          <div class="two">
+            <input id="duration" type="number" min="1" step="1" value="24">
+            <select id="durationUnit">
+              <option value="months">Monate</option>
+              <option value="years">Jahre</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="start">Startkapital</label>
+          <div class="amount-input">
+            <span class="amount-input-symbol">$</span>
+            <input id="start" type="number" min="0" step="100" value="10000">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Investment-Typ</label>
+          <div class="type-tab-bar" id="investmentTypeToggle">
+            <button type="button" class="type-tab" data-type="classic">Klassisch</button>
+            <button type="button" class="type-tab active" data-type="nextforrest">NextForrest</button>
+          </div>
+          <div class="type-tab-panel">
+          <div id="classicFields" style="display:none;">
+          <div class="field">
+            <label for="rate">Zinssatz (% p.a.) <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Der Zinssatz gilt als Jahresrendite. Wie oft er gutgeschrieben wird, legt „Zinsgutschrift / Verzinsung“ unten fest.</span></span></label>
+            <input id="rate" type="number" step="0.01" value="5">
+          </div>
+
+          <div class="field">
+            <label for="contribution">Regelmäßige Einzahlung <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Einzahlungen werden direkt am Monatsende investiert und ab dem Folgemonat mitverzinst.</span></span></label>
+            <div class="input-row">
+              <div class="amount-input">
+                <span class="amount-input-symbol">$</span>
+                <input id="contribution" type="number" min="0" step="50" value="0">
+              </div>
+              <select id="contributionPeriod" class="unit">
+                <option value="monthly">monatlich</option>
+                <option value="yearly">jährlich</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="compound">Zinsgutschrift / Verzinsung <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Legt fest, wie oft die Jahresrendite anteilig gutgeschrieben und dem Kapital zugeschlagen wird.</span></span></label>
+            <select id="compound">
+              <option value="monthly">Monatlich</option>
+              <option value="quarterly">Vierteljährlich</option>
+              <option value="annual">Jährlich</option>
+            </select>
+          </div>
+        </div>
+
+          <div id="nextForrestFields">
+            <div class="field">
+              <label>Monatliche Rendite</label>
+              <div class="toggle-row" id="nfRateToggle">
+                <button type="button" class="toggle-btn active" data-value="low">5 % / Monat</button>
+                <button type="button" class="toggle-btn" data-value="high">5,2 % / Monat</button>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field">
+                <h2 class="field-heading">Einzahlungsstrategien <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Beliebig viele gleichzeitig aktive Strategien möglich (z. B. „500 €/Monat bis Monat 12“ + „einmalig 5.000 € in Monat 6“) — ihre Beträge werden pro Monat addiert.</span></span></h2>
+                <div id="nfDepositStrategyRows"></div>
+                <button type="button" class="secondary" id="addNfDepositStrategyBtn">+ Einzahlungsstrategie hinzufügen</button>
+              </div>
+
+              <div class="field">
+                <label>Einzahlungsgebühr <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Bei jeder Einzahlung fallen zusätzlich 1,5 % Gebühr an (z. B. 100 € Einzahlung → 101,50 € Gesamtkosten).</span></span></label>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field">
+                <h2 class="field-heading">Auszahlungsstrategien <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Beliebig viele gleichzeitig aktive Strategien möglich, auch gemischte Typen. Von jeder Auszahlung werden zusätzlich 3,5 % Gebühr abgezogen.</span></span></h2>
+                <div id="nfWithdrawalStrategyRows"></div>
+                <button type="button" class="secondary" id="addNfWithdrawalStrategyBtn">+ Auszahlungsstrategie hinzufügen</button>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field">
+                <label class="checkbox-row" title="Versteuert die erwirtschafteten Zinsen jährlich (Kapitalertragsteuer, § 20 EStG) — Team-Boni bleiben davon unberührt, da sie keine Kapitalerträge sind.">
+                  <input type="checkbox" id="taxEnabled">
+                  <span>Kapitalertragsteuer auf Zinsen berücksichtigen</span>
+                </label>
+              </div>
+              <div class="field" id="taxRateField" style="display:none;">
+                <label for="taxRatePreset">Steuersatz <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Jährliche Abrechnung: der im Kalenderjahr aufgelaufene Zins wird mit diesem Satz besteuert, endet die Laufzeit unterjährig, wird der Rest im letzten Monat abgerechnet. Kein Sparer-Pauschbetrag berücksichtigt.</span></span></label>
+                <select id="taxRatePreset">
+                  <option value="25">25 % (ohne Soli/Kirchensteuer)</option>
+                  <option value="26.375" selected>26,375 % (mit Soli)</option>
+                  <option value="27.82">27,82 % (mit Soli + 8 % Kirchensteuer)</option>
+                  <option value="27.99">27,99 % (mit Soli + 9 % Kirchensteuer)</option>
+                  <option value="custom">Eigener Wert</option>
+                </select>
+                <div id="taxRateCustomWrap" style="display:none; margin-top:8px;">
+                  <label for="taxRateCustom" style="font-size:0.6875rem;color:var(--muted);display:block;margin-bottom:5px;">Eigener Satz (%)</label>
+                  <input id="taxRateCustom" type="number" min="0" step="0.01" value="26.375">
+                </div>
+                <label class="checkbox-row" style="margin-top:12px;" title="An: die Steuer wird tatsächlich beglichen — zuerst aus der Rendite, reicht die nicht, aus dem aktiven Kapital. Aus: die Steuer wird weiterhin berechnet und angezeigt, aber nicht abgezogen — als würdest du sie aus anderen Mitteln (Gehalt, Rücklage) bezahlen und dein Investment ungestört weiterlaufen lassen.">
+                  <input type="checkbox" id="taxPayout" checked>
+                  <span>Steuer auszahlen (aus Rendite, sonst aus aktivem Kapital)</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field">
+                <h2 class="field-heading">Team-Struktur <span class="info-tip" tabindex="0"><span class="info-tip-bubble" style="width:320px;">Tippgeber-Bonus: 50 € einmalig pro 1.000 €-Block, den eine direkt von dir geworbene Person (Ebene 1) investiert — unabhängig vom Rang. Dein Rang (Bronze bis Diamond) richtet sich nach deinem eigenen aktiven Kapital und dem Team-Volumen über alle Ebenen und schaltet monatliche Boni frei: auf dein eigenes Kapital (ab Gold) sowie auf das jeweilige aktive Kapital der Ebenen 1–3 (ab Bronze, Silver bzw. Platinum). Alle Boni werden direkt deinem eigenen Cash-Konto gutgeschrieben und wachsen dort mit.</span></span></h2>
+              </div>
+
+              <div class="field">
+                <div id="teamMigrationNote" class="variant-note" role="status" hidden>
+                  <div>Deine gespeicherte Team-Struktur wurde in einen Baum überführt. Wer wen geworben hat, war in den alten Daten nicht gespeichert — die Zuordnung ist geraten. Dabei wurde der Beitrittsmonat nach hinten verschoben, wo jemand vor seinem Werbenden beitrat, und Einträge ab Ebene 2 ohne passenden Werbenden darüber wurden auf Ebene 1 gehoben. Die Ergebnisse weichen deshalb von den zuletzt gespeicherten ab. Bitte prüfe die Zuordnung — ändern lässt sie sich zurzeit nur, indem du den betroffenen Ast löschst und neu anlegst.</div>
+                </div>
+                <div class="v2-layout">
+                  <div class="v2-nav">
+                    <div class="v2-nav-scroll" id="teamNav" role="group" aria-label="Team-Struktur"></div>
+                  </div>
+                  <div class="v2-detail" id="teamDetail"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="calcBtn">Berechnen</button>
+          <button class="secondary" id="resetBtn" title="Standardwerte wiederherstellen">↺</button>
+        </div>
+      </section>
+
+      <section class="panel results">
+        <h2 class="sr-only">Szenario-Übersicht</h2>
+        <div class="table-wrap scenario-summary-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Szenario</th>
+                <th title="Aktives Kapital + Cash">Gesamtvermögen</th>
+                <th title="Kapital, auf das aktuell Rendite berechnet wird">Aktiv verzinst</th>
+                <th title="Erwirtschaftete Zinsen">Zinsen</th>
+                <th title="Nicht verzinstes Kapital">Cash</th>
+                <th title="Inkl. Startkapital (falls als Einzahlung berücksichtigt), ohne Gebühren">Einzahlungen</th>
+                <th title="Einzahlungs- + Auszahlungsgebühr">Gebühren</th>
+                <th title="Kapitalertragsteuer auf die Zinsen, jährlich abgerechnet (nur wenn aktiviert)">Steuer</th>
+                <th title="Netto, nach Abzug der Auszahlungsgebühr">Auszahlungen</th>
+                <th title="Gegenüber den eigenen Einzahlungen, inklusive bereits erhaltener Auszahlungen">Gesamtrendite</th>
+                <th title="Gesamtrendite umgerechnet auf eine jährliche Rate — Näherung, kein zeitpunktgenauer IRR — macht Szenarien unterschiedlicher Laufzeit vergleichbar">Rendite p.a.</th>
+              </tr>
+            </thead>
+            <tbody id="scenarioSummaryRows"></tbody>
+          </table>
+        </div>
+
+        <div class="chart-wrap">
+          <div class="chart-title">
+            <h2>Kapitalentwicklung</h2>
+            <span class="legend" id="chartModeLabel">Vergleich aller Szenarien</span>
+          </div>
+          <div class="toggle-row chart-mode-toggle" id="chartModeToggle">
+            <button type="button" class="toggle-btn" data-value="invested">Investiertes Kapital</button>
+            <button type="button" class="toggle-btn active" data-value="rendite">Rendite</button>
+          </div>
+          <canvas id="chart" role="img" aria-label="Diagramm der Kapitalentwicklung über die Laufzeit, je Szenario"></canvas>
+          <div class="chart-tooltip" id="chartTooltip"></div>
+          <div class="legend-list" id="chartLegend"></div>
+          <div class="chart-legend-note" id="chartMarkerLegend"></div>
+        </div>
+
+        <div class="chart-title" style="margin: 18px 2px 8px;">
+          <h2>Monatsverlauf</h2>
+          <span class="legend" id="tableScenarioLabel">–</span>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead id="rowsThead">
+              <tr>
+                <th>Monat</th>
+                <th>Start aktiv</th>
+                <th>Einzahlung</th>
+                <th>Auszahlung</th>
+                <th>Zinsen</th>
+                <th>Reinvestiert</th>
+                <th>Cash</th>
+                <th>Gebühren</th>
+                <th>Steuer</th>
+                <th>Aktives Kapital</th>
+                <th>Gesamt</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+
+        <div id="teamBonusSection" style="display:none;">
+          <div class="chart-title" style="margin: 18px 2px 8px;">
+            <h2>Team-Bonus</h2>
+            <span class="legend" id="teamBonusStatusLabel">–</span>
+          </div>
+
+          <div class="chart-wrap">
+            <div class="chart-title">
+              <h2>Team-Volumen je Ebene</h2>
+              <span class="legend">Gestapelt, darüber dein eigenes Kapital</span>
+            </div>
+            <div class="chart-toggles" id="teamChartToggles"></div>
+            <canvas id="teamChart" role="img" aria-label="Kapitalverlauf: eigenes Kapital über dem gestapelten Team-Volumen je Ebene, mit Markern für Rang-Aufstiege. Das aktive Kapital je Ebene steht als Text in der Team-Bonus-Tabelle, sobald du eine Monatszeile aufklappst — dort in den Zwischensummen je Ebene. Dein eigenes aktives Kapital steht im Monatsverlauf."></canvas>
+            <div class="legend-list team-legend" id="teamChartLegend"></div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th class="expand-cell"></th>
+                  <th>Monat</th>
+                  <th title="Der aktuell erreichte Rang, dauerhaft ab Erreichen">Rang</th>
+                  <th title="Summe des aktiven (verzinsten) Kapitals aller Empfehlungen, über alle Ebenen — bestimmt den Rang">Team-Volumen</th>
+                  <th title="50 € je 1.000 €-Block, einmalig, nur Ebene 1">Tippgeber-Bonus</th>
+                  <th title="Prozentsatz auf dein eigenes aktives Kapital, ab Rang Gold">Eigen-Bonus</th>
+                  <th title="Prozentsatz auf das aktive Kapital der Ebene-1-Empfehlungen, ab Rang Bronze">E1-Bonus</th>
+                  <th title="Prozentsatz auf das aktive Kapital der Ebene-2-Empfehlungen, ab Rang Silver">E2-Bonus</th>
+                  <th title="Prozentsatz auf das aktive Kapital der Ebene-3-Empfehlungen, ab Rang Platinum">E3-Bonus</th>
+                  <th>Bonus gesamt</th>
+                </tr>
+              </thead>
+              <tbody id="teamBonusRows"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="footer">
+          Rechenhilfe ohne Gewähr. Renditen sind mathematische Annahmen und keine Prognose zukünftiger Ergebnisse.<br>
+          Lizenziert unter der <a href="LICENSE" target="_blank" rel="noopener">MIT-Lizenz</a>.
+        </div>
+      </section>
+    </div>
+  </main>
+
+<dialog id="teamDeleteDialog" aria-labelledby="teamDeleteTitle">
+  <h3 id="teamDeleteTitle">Empfehlung entfernen</h3>
+  <p id="teamDeleteBody"></p>
+  <div class="dialog-actions">
+    <button type="button" class="secondary" id="teamDeleteSubtree"><b>Mit gesamtem Unterbau löschen</b><small>Der Knoten und alle darunter verschwinden.</small></button>
+    <button type="button" class="secondary" id="teamDeletePromote"><b>Nur diesen Knoten löschen</b><small>Seine Geworbenen rücken eine Ebene nach oben.</small></button>
+    <button type="button" class="secondary cancel" id="teamDeleteCancel">Abbrechen</button>
+  </div>
+</dialog>
+
+<script src="calc.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const {
+    NF_RATES, TAX_RATE_DEFAULT, NF_DEPOSIT_FEE_PCT, NF_WITHDRAWAL_FEE_PCT, NF_BLOCK,
+    RANKS,
+    num, simulate, simulateNextForrest, runSimulation, migrateScenarioValues,
+    computeRoi, computeBreakEvenMonth, monthsCountFor,
+    MAX_TEAM_DEPTH, walkTeam, clampTeamJoinMonths, simulateTeamMember,
+    mergedTeamMembers, buildCombinedRows, combinedScenarioTotals
+  } = ZinsCalc;
+
+  const els = {
+    scenarioTabs: $('scenarioTabs'),
+    scenarioName: $('scenarioName'),
+    typeToggle: $('investmentTypeToggle'),
+    classicFields: $('classicFields'),
+    nextForrestFields: $('nextForrestFields'),
+    start: $('start'),
+    rate: $('rate'),
+    duration: $('duration'),
+    durationUnit: $('durationUnit'),
+    contribution: $('contribution'),
+    contributionPeriod: $('contributionPeriod'),
+    compound: $('compound'),
+    nfRateToggle: $('nfRateToggle'),
+    taxEnabled: $('taxEnabled'),
+    taxRateField: $('taxRateField'),
+    taxRatePreset: $('taxRatePreset'),
+    taxRateCustomWrap: $('taxRateCustomWrap'),
+    taxRateCustom: $('taxRateCustom'),
+    taxPayout: $('taxPayout'),
+    nfDepositStrategyRows: $('nfDepositStrategyRows'),
+    addNfDepositStrategyBtn: $('addNfDepositStrategyBtn'),
+    nfWithdrawalStrategyRows: $('nfWithdrawalStrategyRows'),
+    addNfWithdrawalStrategyBtn: $('addNfWithdrawalStrategyBtn'),
+    teamNav: $('teamNav'),
+    teamDetail: $('teamDetail'),
+    teamMigrationNote: $('teamMigrationNote'),
+    teamDeleteDialog: $('teamDeleteDialog'),
+    teamDeleteTitle: $('teamDeleteTitle'),
+    teamDeleteBody: $('teamDeleteBody'),
+    teamDeleteSubtree: $('teamDeleteSubtree'),
+    teamDeletePromote: $('teamDeletePromote'),
+    teamDeleteCancel: $('teamDeleteCancel'),
+    teamBonusSection: $('teamBonusSection'),
+    teamBonusStatusLabel: $('teamBonusStatusLabel'),
+    teamBonusRows: $('teamBonusRows'),
+    teamChart: $('teamChart'),
+    teamChartToggles: $('teamChartToggles'),
+    teamChartLegend: $('teamChartLegend'),
+    scenarioSummaryRows: $('scenarioSummaryRows'),
+    rows: $('rows'),
+    rowsThead: $('rowsThead'),
+    tableScenarioLabel: $('tableScenarioLabel'),
+    chart: $('chart'),
+    chartTooltip: $('chartTooltip'),
+    chartLegend: $('chartLegend'),
+    chartMarkerLegend: $('chartMarkerLegend'),
+    chartModeToggle: $('chartModeToggle'),
+    chartModeLabel: $('chartModeLabel'),
+    calcBtn: $('calcBtn'),
+    resetBtn: $('resetBtn'),
+  };
+
+  const FIELD_KEYS = [
+    'start', 'rate', 'duration', 'durationUnit',
+    'contribution', 'contributionPeriod', 'compound'
+  ];
+
+  // These fields are shared across all scenarios: changing them in one
+  // scenario applies the same value to every other scenario as well.
+  const GLOBAL_FIELD_KEYS = ['duration', 'durationUnit'];
+
+  const defaultScenarioValues = {
+    investmentType: 'nextforrest',
+    start: 10000,
+    // Kein Umschalter mehr in der UI: Startkapital ist immer sofort aktives
+    // Kapital ohne Einzahlungsgebühr (früher "unchecked"). Wer eine
+    // Einzahlung mit Gebühr simulieren will, nutzt dafür eine
+    // Einzahlungsstrategie vom Typ "Einmalig".
+    includeStartCapital: false,
+    currency: 'USD',
+    rate: 5,
+    duration: 24,
+    durationUnit: 'months',
+    contribution: 0,
+    contributionPeriod: 'monthly',
+    compound: 'monthly',
+    // Fixed for Klassisch (no longer user-editable there); reused as-is
+    // once NextForrest exposes its own controls for these.
+    ratePeriod: 'annual',
+    reinvestThreshold: 0,
+    depositTiming: 'end',
+    reinvestMode: 'accumulating',
+    // NextForrest
+    nfRate: 'low',
+    taxEnabled: false,
+    taxRate: TAX_RATE_DEFAULT,
+    taxPayout: true,
+    nfDepositStrategies: [
+      { id: 'nfd1', kind: 'fixed', amount: 500, period: 'monthly', startMonth: 1, endMonth: null, stopMode: 'none', thresholdBasis: 'interest', thresholdValue: 0 }
+    ],
+    nfWithdrawalStrategies: [],
+    nfTeamMembers: []
+  };
+
+  let nfStrategySeq = 1;
+
+  const COLORS = ['#62d394', '#75a7ff', '#ffb86b', '#ff7a7a', '#c28cff', '#7fe7e7'];
+  const STORAGE_KEY = 'zinseszinsrechner_v2';
+  const LEGACY_STORAGE_KEY = 'zinseszinsrechner';
+
+  let scenarios = [];
+  let activeIndex = 0;
+  let scenarioSeq = 1;
+  let teamMemberSeq = 1;
+
+  // Ergebnis der zuletzt gerechneten Simulation des aktiven Szenarios —
+  // renderTeamNav() und renderTeamDetail() lesen daraus Rang und Kapital
+  // je Mitglied, ohne selbst zu rechnen. calculate() setzt es, siehe dort.
+  let teamResult = null;
+
+  // Das in der Baum-Navigation ausgewählte Mitglied; null bedeutet "noch
+  // keine Wahl getroffen" — renderTeamDetail() nimmt dann das erste.
+  let selectedTeamMemberId = null;
+
+  // Eingeklappte Knoten der Navigation. Ein Knoten ist sichtbar, wenn alle
+  // seine Vorfahren aufgeklappt sind.
+  const collapsedTeamIds = new Set();
+
+  // Während des Tippens darf das Detail-Panel nicht neu gezeichnet werden —
+  // sonst verliert das Eingabefeld bei jedem Tastendruck den Fokus. Da
+  // calculate() am Ende beide Render-Funktionen aufruft, wird die Sperre
+  // um den calculate()-Aufruf des input-Ereignisses gelegt.
+  let teamDetailFrozen = false;
+  // Mitglieder, deren Steuersatz-Auswahl explizit auf "Eigener Wert" steht —
+  // reines UI-Flag, unabhängig vom Modell. Nötig, weil renderTeamDetail() das
+  // Panel bei jedem calculate() komplett neu aufbaut: ohne dieses Flag würde
+  // "Eigener Wert" sofort wieder zur Vorgabe zurückspringen, sobald der
+  // eingetragene Wert zufällig exakt einem Preset entspricht (z. B. dem
+  // Default 26,375 %).
+  const customTaxRateMemberIds = new Set();
+  const expandedTeamBonusMonths = new Set();
+  const expandedCombinedMonths = new Set();
+  const CHEVRON_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>`;
+  let lastDatasets = [];
+  let hoverState = { index: -1, datasetIndex: -1 };
+  let chartMode = 'rendite'; // 'invested' | 'rendite'
+
+  function colorFor(index) {
+    return COLORS[index % COLORS.length];
+  }
+
+  // Tiefe Kopie des Mitglieder-Baums: ohne sie teilten sich ein
+  // dupliziertes Szenario und sein Original dieselben children-Arrays und
+  // Strategie-Objekte — eine Strukturänderung im einen würde im anderen
+  // mit auftauchen.
+  function cloneTeamMembers(list) {
+    if (!Array.isArray(list)) return [];
+    return list.map(m => ({
+      ...m,
+      nfDepositStrategies: Array.isArray(m.nfDepositStrategies) ? m.nfDepositStrategies.map(s => ({ ...s })) : [],
+      nfWithdrawalStrategies: Array.isArray(m.nfWithdrawalStrategies) ? m.nfWithdrawalStrategies.map(s => ({ ...s })) : [],
+      children: cloneTeamMembers(m.children)
+    }));
+  }
+
+  function makeScenario(values, name) {
+    const scenario = {
+      id: 'sc' + scenarioSeq,
+      name: name || `Szenario ${scenarioSeq}`,
+      // Flache Kopie reicht für alle primitiven Felder; Array-Felder müssen
+      // explizit tief kopiert werden, sonst teilen sich duplizierte
+      // Szenarien dieselben Listen.
+      values: {
+        ...values,
+        nfTeamMembers: cloneTeamMembers(values.nfTeamMembers),
+        nfDepositStrategies: Array.isArray(values.nfDepositStrategies) ? values.nfDepositStrategies.map(s => ({ ...s })) : [],
+        nfWithdrawalStrategies: Array.isArray(values.nfWithdrawalStrategies) ? values.nfWithdrawalStrategies.map(s => ({ ...s })) : []
+      }
+    };
+    scenarioSeq += 1;
+    return scenario;
+  }
+
+  // Währung ist fest auf USD gestellt (keine Auswahl mehr in der UI).
+  function fmt(value, currency) {
+    const cur = currency || 'USD';
+    return new Intl.NumberFormat('de-DE', {
+      style: 'currency',
+      currency: cur,
+      maximumFractionDigits: 2
+    }).format(value);
+  }
+
+  // Kurzes Symbol für Betragsfelder (kein voll formatierter Betrag, nur ein
+  // Präfix im Eingabefeld, damit auf einen Blick klar ist: hier wird ein
+  // Geldbetrag erwartet, keine reine Zahl.
+  function currencySymbol(currency) {
+    const cur = currency || 'USD';
+    if (cur === 'EUR') return '€';
+    if (cur === 'CHF') return 'CHF';
+    return '$';
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function activeTeamMembers() {
+    const v = scenarios[activeIndex] && scenarios[activeIndex].values;
+    if (!v) return [];
+    if (!Array.isArray(v.nfTeamMembers)) v.nfTeamMembers = [];
+    return v.nfTeamMembers;
+  }
+
+  // Sucht ein Mitglied im Baum und liefert zugleich seinen Werbenden, seine
+  // Tiefe (1 = eigene Direkte) und die Liste, in der es steht — damit
+  // Struktur-Aktionen an derselben Stelle einfügen und löschen können.
+  function findTeamEntry(id) {
+    if (!id) return null;
+    const roots = activeTeamMembers();
+    let found = null;
+    walkTeam(roots, (m, depth, parent) => {
+      if (found || m.id !== id) return;
+      found = {
+        member: m,
+        parent: parent,
+        depth: depth,
+        siblings: parent ? parent.children : roots
+      };
+    });
+    return found;
+  }
+
+  // Anzahl aller Nachfahren eines Mitglieds (ohne es selbst).
+  function teamSubtreeSize(member) {
+    let n = 0;
+    walkTeam(Array.isArray(member.children) ? member.children : [], () => { n += 1; });
+    return n;
+  }
+
+  // Der Migrationshinweis gilt nur so lange, bis der Nutzer die geratene
+  // Struktur selbst angefasst hat.
+  function markTeamStructureTouched() {
+    const v = scenarios[activeIndex] && scenarios[activeIndex].values;
+    if (v && v.nfTeamTreeMigrated) v.nfTeamTreeMigrated = false;
+  }
+
+  // Nach jeder Strukturänderung: Beitrittsmonate nachziehen (niemand tritt
+  // vor seinem Werbenden bei) und genau einmal rechnen. calculate() zeichnet
+  // Navigation und Detail selbst — ein zusätzlicher direkter Aufruf von
+  // renderTeamNav() würde mit veraltetem teamResult zeichnen.
+  function afterTeamStructureChange() {
+    clampTeamJoinMonths(activeTeamMembers());
+    markTeamStructureTouched();
+    calculate();
+  }
+
+  function newTeamMember(parent) {
+    const v = scenarios[activeIndex].values;
+    return {
+      id: 'tm' + (teamMemberSeq++),
+      name: '',
+      // Kein getipptes Ebenen-Feld mehr: die Ebene ist die Tiefe im Baum.
+      startCapital: 1000,
+      joinMonth: parent ? Math.max(1, Math.round(num(parent.joinMonth) || 1)) : 1,
+      includeStartCapital: true,
+      // Wenn aktiv, wird dieses Mitglied im Diagramm und im Monatsverlauf zu
+      // einer gemeinsamen Summe mit dem eigenen Investment zusammengerechnet
+      // (siehe buildCombinedRows()). Der Team-Bonus-Bereich bleibt davon
+      // unberührt und zeigt das Mitglied unabhängig davon weiterhin einzeln.
+      mergeWithOwn: false,
+      // Eigene, unabhängige Steuer-Konstellation — keine Vererbung vom
+      // Hauptszenario, Default ist deaktiviert.
+      taxEnabled: false,
+      taxRate: TAX_RATE_DEFAULT,
+      taxPayout: true,
+      // Eigene Szenario-Eigenschaften — die Rendite wird vom Hauptszenario
+      // übernommen. Einzahlungs-/Auszahlungsstrategien sind wie beim
+      // Hauptszenario mehrfach möglich, standardmäßig leer (kein Deposit/
+      // Withdrawal), bis der Nutzer explizit eine hinzufügt.
+      nfRate: v.nfRate || 'low',
+      nfDepositStrategies: [],
+      nfWithdrawalStrategies: [],
+      children: []
+    };
+  }
+
+  // parentId leer → neue Empfehlung auf Ebene 1 (eigene Direkte).
+  function addTeamMember(parentId) {
+    const v = scenarios[activeIndex].values;
+    if (!Array.isArray(v.nfTeamMembers)) v.nfTeamMembers = [];
+    let member;
+    if (parentId) {
+      const entry = findTeamEntry(parentId);
+      if (!entry || entry.depth >= MAX_TEAM_DEPTH) return;
+      if (!Array.isArray(entry.member.children)) entry.member.children = [];
+      member = newTeamMember(entry.member);
+      entry.member.children.push(member);
+      collapsedTeamIds.delete(parentId);
+    } else {
+      member = newTeamMember(null);
+      v.nfTeamMembers.push(member);
+    }
+    selectedTeamMemberId = member.id;
+    afterTeamStructureChange();
+    const nameInput = els.teamDetail.querySelector('input[data-field="name"]');
+    if (nameInput) nameInput.focus();
+  }
+
+  // mode 'subtree' → Knoten samt Unterbau entfernen; mode 'promote' → nur
+  // den Knoten entfernen, seine Geworbenen rücken an dessen Stelle eine
+  // Ebene nach oben.
+  function removeTeamMember(id, mode) {
+    const entry = findTeamEntry(id);
+    if (!entry) return;
+    const index = entry.siblings.indexOf(entry.member);
+    if (index < 0) return;
+    const kids = Array.isArray(entry.member.children) ? entry.member.children : [];
+    if (mode === 'promote' && kids.length) {
+      entry.siblings.splice(index, 1, ...kids);
+    } else {
+      entry.siblings.splice(index, 1);
+    }
+    if (selectedTeamMemberId === id) {
+      selectedTeamMemberId = entry.parent ? entry.parent.id : null;
+    }
+    afterTeamStructureChange();
+  }
+
+  let pendingTeamDelete = null;
+
+  function askRemoveTeamMember(id) {
+    const entry = findTeamEntry(id);
+    if (!entry) return;
+    const size = teamSubtreeSize(entry.member);
+    pendingTeamDelete = id;
+    els.teamDeleteTitle.textContent = (entry.member.name || 'Ohne Namen') + ' entfernen';
+    if (size === 0) {
+      els.teamDeleteBody.textContent = 'Dieses Mitglied hat keine Geworbenen und wird einfach entfernt.';
+      els.teamDeleteSubtree.querySelector('b').textContent = 'Entfernen';
+      els.teamDeleteSubtree.querySelector('small').textContent = 'Es hängt nichts darunter.';
+      els.teamDeletePromote.hidden = true;
+    } else {
+      els.teamDeleteBody.textContent = size === 1
+        ? 'Unter diesem Mitglied hängt 1 weitere Person. Was soll damit passieren?'
+        : 'Unter diesem Mitglied hängen ' + size + ' weitere Personen. Was soll damit passieren?';
+      els.teamDeleteSubtree.querySelector('b').textContent = 'Mit gesamtem Unterbau löschen';
+      els.teamDeleteSubtree.querySelector('small').textContent = size + (size === 1 ? ' Person verschwindet' : ' Personen verschwinden') + ' mit — ihr Kapital fällt aus der Rechnung.';
+      els.teamDeletePromote.hidden = false;
+      const direct = Array.isArray(entry.member.children) ? entry.member.children.length : 0;
+      const recruiter = (entry.parent && entry.parent.name) || (entry.parent ? 'dem Werbenden darüber' : 'dir');
+      els.teamDeletePromote.querySelector('small').textContent =
+        (direct === 1 ? 'Sein Geworbener rückt' : 'Seine ' + direct + ' Geworbenen rücken')
+        + ' eine Ebene nach oben und ' + (direct === 1 ? 'zählt' : 'zählen')
+        + ' künftig als direkt von ' + recruiter + ' geworben.';
+    }
+    if (typeof els.teamDeleteDialog.showModal === 'function') {
+      els.teamDeleteDialog.showModal();
+    } else {
+      // Ohne <dialog>-Unterstützung: ohne Rückfrage nichts löschen.
+      pendingTeamDelete = null;
+    }
+  }
+
+  function confirmTeamDelete(mode) {
+    const id = pendingTeamDelete;
+    pendingTeamDelete = null;
+    els.teamDeleteDialog.close();
+    if (id) removeTeamMember(id, mode);
+  }
+
+  // Sucht die Monatszeile des letzten Monats und darin das Mitglied. Die
+  // Einträge tragen den eigenen Rang des Mitglieds (ownRankIndex) und seine
+  // eigene Monatszeile (row) — beides bezieht sich auf das Mitglied selbst,
+  // nicht auf das Hauptszenario.
+  function teamMemberInfo(team, month, id) {
+    if (!team || !Array.isArray(team.rows) || !team.rows.length) return null;
+    const row = team.rows.find(r => r.month === month) || team.rows[team.rows.length - 1];
+    if (!row) return null;
+    const hit = row.members.find(x => x.id === id);
+    if (!hit) return null;
+    return { rankIndex: hit.ownRankIndex || 0, active: hit.row ? hit.row.active : 0 };
+  }
+
+  function rankShort(index) {
+    const rank = RANKS[index] || RANKS[0];
+    return rank.name.replace('Forrest ', '');
+  }
+
+  function levelPillClass(depth) {
+    return depth === 1 ? 'lv1' : depth === 2 ? 'lv2' : depth === 3 ? 'lv3' : 'lvdeep';
+  }
+
+  function renderTeamNav() {
+    const v = scenarios[activeIndex].values;
+    const members = activeTeamMembers();
+    // teamResult wird von calculate() gesetzt — hier wird nie gerechnet,
+    // das ergäbe eine Endlosschleife.
+    const result = teamResult;
+    const lastMonth = monthsCountFor(v);
+    const rows = [];
+    // Ein Knoten ist sichtbar, wenn alle seine Vorfahren aufgeklappt sind.
+    // walkTeam() läuft in Vorordnung, der Elternteil ist also schon
+    // entschieden, wenn das Kind dran ist.
+    const hidden = new Set();
+
+    els.teamMigrationNote.hidden = !v.nfTeamTreeMigrated;
+
+    walkTeam(members, (m, depth, parent) => {
+      if (parent && (collapsedTeamIds.has(parent.id) || hidden.has(parent.id))) {
+        hidden.add(m.id);
+        return;
+      }
+      const kids = Array.isArray(m.children) ? m.children : [];
+      const open = !collapsedTeamIds.has(m.id);
+      const info = teamMemberInfo(result, lastMonth, m.id);
+      const label = m.name || 'Ohne Namen';
+      rows.push(`
+        <div class="navrow${selectedTeamMemberId === m.id ? ' selected' : ''}" style="--depth:${Math.min(depth, 8)}">
+          ${kids.length
+            ? `<button type="button" class="nav-twist${open ? ' open' : ''}" data-act="twist" data-member-id="${m.id}" aria-expanded="${open}" aria-label="Unterbau von ${escapeHtml(label)} ${open ? 'einklappen' : 'ausklappen'}">&#9656;</button>`
+            : `<span class="nav-twist leaf" aria-hidden="true">&#9656;</span>`}
+          <button type="button" class="nav-select" data-member-id="${m.id}"${selectedTeamMemberId === m.id ? ' aria-current="true"' : ''}>
+            <span class="level-pill ${levelPillClass(depth)}">E${depth}</span>
+            <span class="nav-name">${escapeHtml(label)}</span>
+            ${info ? `<span class="rank-badge rank-${info.rankIndex}">${escapeHtml(rankShort(info.rankIndex))}</span>` : ''}
+            <span class="nav-cap">${info ? fmt(info.active, v.currency) : '–'}</span>
+          </button>
+        </div>`);
+    });
+
+    els.teamNav.innerHTML = rows.join('')
+      + `<button type="button" class="navrow-add" data-act="add-root">+ Empfehlung auf Ebene 1</button>`;
+  }
+
+  function teamKpiHtml(label, value) {
+    return `<div class="kpi"><div class="k-label">${escapeHtml(label)}</div><div class="k-value">${escapeHtml(value)}</div></div>`;
+  }
+
+  function renderTeamDetail() {
+    // Während des Tippens stehen lassen, sonst springt der Fokus aus dem
+    // Feld. Das change-Ereignis zeichnet anschließend vollständig neu.
+    if (teamDetailFrozen) return;
+
+    const v = scenarios[activeIndex].values;
+    const members = activeTeamMembers();
+    if (!members.length) {
+      selectedTeamMemberId = null;
+      els.teamDetail.innerHTML = `<div class="team-empty-hint">Noch keine Empfehlungen erfasst. Links „+ Empfehlung auf Ebene 1“ legt die erste an.</div>`;
+      return;
+    }
+
+    let entry = findTeamEntry(selectedTeamMemberId);
+    if (!entry) {
+      selectedTeamMemberId = members[0].id;
+      entry = findTeamEntry(selectedTeamMemberId);
+    }
+    if (!entry) { els.teamDetail.innerHTML = ''; return; }
+
+    const m = entry.member;
+    const depth = entry.depth;
+    const kids = Array.isArray(m.children) ? m.children : [];
+    const lastMonth = monthsCountFor(v);
+    const minJoin = entry.parent ? Math.max(1, Math.round(num(entry.parent.joinMonth) || 1)) : 1;
+    const memberDeposits = Array.isArray(m.nfDepositStrategies) ? m.nfDepositStrategies : [];
+    const memberWithdrawals = Array.isArray(m.nfWithdrawalStrategies) ? m.nfWithdrawalStrategies : [];
+    const memberStartCapital = Math.max(0, num(m.startCapital || 0));
+    const cur = v.currency;
+
+    // Pfad vom Hauptszenario bis zu diesem Mitglied.
+    const crumbs = ['Du'];
+    (function collect(node) {
+      const e = findTeamEntry(node.id);
+      if (e && e.parent) collect(e.parent);
+      crumbs.push(node.name || 'Ohne Namen');
+    })(m);
+
+    const info = teamMemberInfo(teamResult, lastMonth, m.id);
+    const rankIndex = info ? info.rankIndex : 0;
+
+    // Eigene Sub-Simulation dieses Mitglieds — dieselbe Rechnung, die auch
+    // im Hauptergebnis steckt, hier aber aus der Sicht des Mitglieds: sein
+    // eigener Rang, sein eigenes Team-Volumen, seine eigenen Boni.
+    const sim = simulateTeamMember(v, m, depth);
+    const simRows = sim ? sim.result.rows : [];
+    const ownLastRow = simRows.length ? simRows[simRows.length - 1] : null;
+    const ownTeam = sim && sim.result.team ? sim.result.team : null;
+    const ownTeamRow = ownTeam && ownTeam.rows.length ? ownTeam.rows[ownTeam.rows.length - 1] : null;
+    const ownRankIndex = ownTeam ? ownTeam.rankIndex : 0;
+
+    let html = '';
+
+    html += `<div class="v2-crumb">${crumbs.map(c => `<span>${escapeHtml(c)}</span>`).join('')}</div>`;
+
+    html += `<div class="v2-detail-head">
+      <span class="level-pill ${levelPillClass(depth)}">Ebene ${depth} von dir aus</span>
+      <span class="rank-badge rank-${rankIndex}">${escapeHtml(rankShort(rankIndex))}</span>
+      <button type="button" class="detail-delete-btn" data-act="delete" data-member-id="${m.id}" aria-label="${escapeHtml(m.name || 'Ohne Namen')} aus der Team-Struktur entfernen">Entfernen</button>
+    </div>`;
+
+    /* --- Stammdaten --- */
+    html += `<div class="v2-detail-grid">
+      <label>Name<input type="text" class="team-input" data-field="name" value="${escapeHtml(m.name || '')}" placeholder="Name (optional)"></label>
+      <label>Beitrittsmonat${minJoin > 1 ? ` (frühestens ${minJoin})` : ''}<input type="number" class="team-input" data-field="joinMonth" min="${minJoin}" max="${lastMonth}" step="1" value="${m.joinMonth}"></label>
+      <label>Startkapital<div class="amount-input"><span class="amount-input-symbol">${currencySymbol(cur)}</span><input type="number" class="team-input" data-field="startCapital" min="0" step="500" value="${m.startCapital}"></div></label>
+    </div>`;
+
+    /* --- Rendite --- */
+    html += `<div class="mini-field" style="margin-top:14px;">
+      <label style="font-size:0.6875rem;color:var(--muted);display:block;margin-bottom:5px;">Monatliche Rendite</label>
+      <div class="toggle-row team-toggle" data-member-id="${m.id}" data-toggle="nfRate">
+        <button type="button" class="toggle-btn${m.nfRate !== 'high' ? ' active' : ''}" data-value="low" aria-pressed="${m.nfRate !== 'high'}">5 % / Monat</button>
+        <button type="button" class="toggle-btn${m.nfRate === 'high' ? ' active' : ''}" data-value="high" aria-pressed="${m.nfRate === 'high'}">5,2 % / Monat</button>
+      </div>
+    </div>`;
+
+    /* --- Optionen --- */
+    html += `<label class="team-checkbox-row" title="Deaktivieren, wenn das Startkapital bereits vor dieser Simulation investiert war und der Tippgeber-Bonus dafür schon ausgezahlt wurde — dann gibt's dafür keinen erneuten Bonus. Laufende Einzahlungen danach lösen weiterhin normal pro 1.000 €-Block einen Bonus aus, und das Kapital zählt unverändert fürs Team-Volumen.">
+      <input type="checkbox" class="team-input" data-field="includeStartCapital" ${m.includeStartCapital !== false ? 'checked' : ''}>
+      <span>Tippgeber-Bonus auf Startkapital (neu, nicht bereits ausgezahlt)</span>
+    </label>
+    <label class="team-checkbox-row" title="Rechnet das Investment dieses Mitglieds im Diagramm und im Monatsverlauf zum eigenen Investment hinzu (eine gemeinsame Linie/Zeile). Im Team-Bonus-Bereich bleibt das Mitglied davon unabhängig weiterhin einzeln sichtbar.">
+      <input type="checkbox" class="team-input" data-field="mergeWithOwn" ${m.mergeWithOwn ? 'checked' : ''}>
+      <span>Mit meinem Investment zusammenrechnen</span>
+    </label>
+    <label class="team-checkbox-row" title="Versteuert die Zinsen dieses Mitglieds jährlich, unabhängig von deiner eigenen Steuer-Einstellung. Sein Team-Bonus bleibt davon unberührt.">
+      <input type="checkbox" class="team-input" data-field="taxEnabled" ${m.taxEnabled ? 'checked' : ''}>
+      <span>Kapitalertragsteuer auf Zinsen berücksichtigen</span>
+    </label>`;
+
+    if (m.taxEnabled) {
+      const memberRateStr = String(m.taxRate != null ? m.taxRate : TAX_RATE_DEFAULT);
+      const memberIsPreset = TAX_RATE_PRESETS.has(memberRateStr) && !customTaxRateMemberIds.has(m.id);
+      html += `<div class="mini-field" style="margin-top:8px;">
+        <label style="font-size:0.6875rem;color:var(--muted);display:block;margin-bottom:5px;">Steuersatz</label>
+        <select class="member-tax-rate-preset" data-member-id="${m.id}">
+          <option value="25"${memberRateStr === '25' ? ' selected' : ''}>25 % (ohne Soli/Kirchensteuer)</option>
+          <option value="26.375"${memberRateStr === '26.375' ? ' selected' : ''}>26,375 % (mit Soli)</option>
+          <option value="27.82"${memberRateStr === '27.82' ? ' selected' : ''}>27,82 % (mit Soli + 8 % Kirchensteuer)</option>
+          <option value="27.99"${memberRateStr === '27.99' ? ' selected' : ''}>27,99 % (mit Soli + 9 % Kirchensteuer)</option>
+          <option value="custom"${!memberIsPreset ? ' selected' : ''}>Eigener Wert</option>
+        </select>
+        <div style="margin-top:8px; ${memberIsPreset ? 'display:none;' : ''}">
+          <input type="number" class="team-input" data-field="taxRate" min="0" step="0.01" value="${memberIsPreset ? TAX_RATE_DEFAULT : m.taxRate}" aria-label="Eigener Steuersatz in Prozent">
+        </div>
+        <label class="team-checkbox-row" style="margin-top:10px;" title="An: die Steuer wird tatsächlich aus der Rendite dieses Mitglieds beglichen, reicht die nicht, aus seinem aktiven Kapital. Aus: die Steuer wird weiterhin berechnet und angezeigt, aber nicht abgezogen.">
+          <input type="checkbox" class="team-input" data-field="taxPayout" ${m.taxPayout !== false ? 'checked' : ''}>
+          <span>Steuer auszahlen (aus Rendite, sonst aus aktivem Kapital)</span>
+        </label>
+      </div>`;
+    }
+
+    /* --- Einzahlungsstrategien: dieselben Karten wie im Hauptszenario --- */
+    html += `<div class="section-block">
+      <h3>Einzahlungsstrategien</h3>
+      ${memberDeposits.length
+        ? memberDeposits.map(s => depositStrategyCardHtml(s, memberStartCapital, cur, m.id)).join('')
+        : `<div class="team-empty-hint">Noch keine Einzahlungsstrategie angelegt.</div>`}
+      <button type="button" class="secondary" data-add-strategy="deposit" data-member-id="${m.id}" style="width:100%;">+ Einzahlungsstrategie hinzufügen</button>
+    </div>`;
+
+    /* --- Auszahlungsstrategien --- */
+    html += `<div class="section-block">
+      <h3>Auszahlungsstrategien</h3>
+      ${memberWithdrawals.length
+        ? memberWithdrawals.map(s => withdrawalStrategyCardHtml(s, memberStartCapital, cur, m.id)).join('')
+        : `<div class="team-empty-hint">Noch keine Auszahlungsstrategie angelegt.</div>`}
+      <button type="button" class="secondary" data-add-strategy="withdrawal" data-member-id="${m.id}" style="width:100%;">+ Auszahlungsstrategie hinzufügen</button>
+    </div>`;
+
+    /* --- Eigene Sub-Simulation --- */
+    const downline = teamSubtreeSize(m);
+    html += `<div class="section-block">
+      <h3>Eigene Sub-Simulation (Monat ${lastMonth})</h3>
+      ${sim ? `
+      <div class="kpi-row">
+        ${teamKpiHtml('Aktives Kapital', fmt(ownLastRow ? ownLastRow.active : 0, cur))}
+        ${teamKpiHtml('Eigener Rang', rankShort(ownRankIndex))}
+        ${teamKpiHtml('Eigenes Team-Volumen', fmt(ownTeamRow ? ownTeamRow.teamVolume : 0, cur))}
+        ${teamKpiHtml('Eigene Downline', downline + (downline === 1 ? ' Person' : ' Personen'))}
+      </div>
+      <div class="kpi-row">
+        ${teamKpiHtml('Tippgeber-Bonus', fmt(ownTeamRow ? ownTeamRow.tippgeberBonus : 0, cur))}
+        ${teamKpiHtml('Eigen-Bonus', fmt(ownTeamRow ? ownTeamRow.ownBonus : 0, cur))}
+        ${teamKpiHtml('Level-Bonus', fmt(ownTeamRow ? ownTeamRow.e1Bonus + ownTeamRow.e2Bonus + ownTeamRow.e3Bonus : 0, cur))}
+        ${teamKpiHtml('Boni gesamt', fmt(ownTeamRow ? ownTeamRow.totalBonus : 0, cur))}
+      </div>
+      <div class="recursion-note"><div><b>${escapeHtml(m.name || 'Dieses Mitglied')}</b> zählt für ${escapeHtml((entry.parent && entry.parent.name) || (entry.parent ? 'den Werbenden darüber' : 'dich'))} als Ebene 1 und ${downline === 0 ? 'hat selbst noch niemanden geworben' : `verdient selbst an ${downline} eigenen Geworbenen`}. Die hier gezeigten Boni sind die des Mitglieds selbst — sie erhöhen sein Kapital und damit dein Team-Volumen.</div></div>
+      ` : `<div class="team-empty-hint">Dieses Mitglied tritt erst nach dem Ende der Laufzeit bei (Monat ${m.joinMonth} von ${lastMonth}) und taucht deshalb in der Rechnung nicht auf.</div>`}
+    </div>`;
+
+    /* --- Geworbene --- */
+    html += `<div class="section-block">
+      <h3>Geworbene (${kids.length})</h3>
+      <div class="child-chip-row">
+        ${kids.map(c => {
+          const ci = teamMemberInfo(teamResult, lastMonth, c.id);
+          return `<button type="button" class="child-chip" data-act="select" data-member-id="${c.id}">${escapeHtml(c.name || 'Ohne Namen')} <span class="muted">${ci ? fmt(ci.active, cur) : '–'}</span></button>`;
+        }).join('')}
+        ${depth >= MAX_TEAM_DEPTH
+          ? `<span class="team-empty-hint">Ebene ${MAX_TEAM_DEPTH} erreicht — tiefer geht es nicht.</span>`
+          : `<button type="button" class="child-chip" data-act="add-child" data-member-id="${m.id}" style="color:var(--accent)">+ Empfehlung</button>`}
+      </div>
+    </div>`;
+
+    els.teamDetail.innerHTML = html;
+  }
+
+  // Mehrfach-Ein-/Auszahlungsstrategien (nur NextForrest): listKind ist
+  // 'deposit' oder 'withdrawal', adressiert scenarios[activeIndex].values.
+  // nfDepositStrategies bzw. .nfWithdrawalStrategies. Beide Listen teilen
+  // sich Render-Aufruf/Event-Delegation, aber nicht die Kartenform: eine
+  // Einzahlungsstrategie ist { kind: 'fixed'|'roundup', amount, period:
+  // 'monthly'|'yearly'|'once' (nur bei kind 'fixed'), startMonth, endMonth,
+  // stopMode, thresholdBasis, thresholdValue } — die beiden Einzahlungsarten
+  // (fester Betrag vs. 1000er-Aufrundung) entsprechen weiterhin genau den
+  // bisherigen zwei Optionen, jetzt nur mehrfach mit eigenem Start/Ende.
+  // Eine Auszahlungsstrategie bleibt bei { type: 'once'|'monthly'|'yearly'
+  // |'percentage'|'cashSurplus', amount, startMonth, endMonth, stopMode,
+  // thresholdBasis, thresholdValue }, ebenfalls unverändert bis auf die
+  // neue Mehrfachheit und Start/Ende.
+  const STRATEGY_KEY = { deposit: 'nfDepositStrategies', withdrawal: 'nfWithdrawalStrategies' };
+  const WITHDRAWAL_TYPE_LABELS = { once: 'Einmalig', monthly: 'Monatlich', yearly: 'Jährlich', percentage: 'Prozentual', cashSurplus: 'Cash-Überschuss' };
+
+  // memberId gesetzt → Strategien eines Team-Mitglieds (dessen eigenes
+  // nfDepositStrategies/nfWithdrawalStrategies); ohne memberId → die des
+  // Hauptszenarios (scenarios[activeIndex].values). Beide teilen sich
+  // dasselbe Array-Schema und dieselben Karten-/Bearbeitungsfunktionen.
+  function activeStrategies(listKind, memberId) {
+    const key = STRATEGY_KEY[listKind];
+    if (memberId) {
+      // Mitglieder stehen im Baum, nicht in einer flachen Liste — eine Suche
+      // nur über die Wurzeln fände ab Ebene 2 nichts mehr.
+      const entry = findTeamEntry(memberId);
+      if (!entry) return [];
+      if (!Array.isArray(entry.member[key])) entry.member[key] = [];
+      return entry.member[key];
+    }
+    const v = scenarios[activeIndex] && scenarios[activeIndex].values;
+    if (!v) return [];
+    if (!Array.isArray(v[key])) v[key] = [];
+    return v[key];
+  }
+
+  function addStrategy(listKind, memberId) {
+    const list = activeStrategies(listKind, memberId);
+    list.push(listKind === 'deposit' ? {
+      id: 'nfd' + (nfStrategySeq++),
+      kind: 'fixed',
+      amount: 500,
+      period: 'monthly',
+      startMode: 'month',
+      startMonth: 1,
+      startThreshold: 0,
+      endMonth: null,
+      stopMode: 'none',
+      thresholdBasis: 'interest',
+      thresholdValue: 0
+    } : {
+      id: 'nfw' + (nfStrategySeq++),
+      type: 'monthly',
+      amount: 0,
+      startMode: 'month',
+      startMonth: 1,
+      startThreshold: 0,
+      endMonth: null,
+      stopMode: 'none',
+      thresholdBasis: 'interest',
+      thresholdValue: 0
+    });
+    // Bei einem Mitglied zeichnet calculate() das Detail-Panel ohnehin neu
+    // (siehe dort) — nur die Listen des Hauptszenarios brauchen den
+    // gezielten Aufruf.
+    if (!memberId) renderStrategyRows(listKind);
+    calculate();
+  }
+
+  function removeStrategy(listKind, id, memberId) {
+    const key = STRATEGY_KEY[listKind];
+    if (memberId) {
+      const entry = findTeamEntry(memberId);
+      if (!entry) return;
+      entry.member[key] = activeStrategies(listKind, memberId).filter(s => s.id !== id);
+    } else {
+      scenarios[activeIndex].values[key] = activeStrategies(listKind).filter(s => s.id !== id);
+      renderStrategyRows(listKind);
+    }
+    calculate();
+  }
+
+  // Gemeinsamer Baustein für beide Kartenarten: Start-/Endmonat plus
+  // Stopp-Bedingung (Enddatum vs. Schwelle) und ggf. Schwellenbasis/-wert.
+  // allowTotal: nur Auszahlungsstrategien bieten die Stopp-Bedingung
+  // "Zielbetrag" an (so lange auszahlen, bis eine kumulative Gesamtsumme
+  // erreicht ist) — bei Einzahlungsstrategien unverändert nur Keine/
+  // Enddatum/Schwelle.
+  // Startbedingung — das Gegenstück zur Stopp-Bedingung darunter. Ersetzt das
+  // frühere feste Feld "Start (Monat)": wer nach Kapital oder Rendite startet,
+  // braucht keinen Startmonat mehr, deshalb erscheint das Monatsfeld nur im
+  // Modus "Monat".
+  function strategyStartHtml(s, currency) {
+    const mode = s.startMode || 'month';
+    const sym = currencySymbol(currency);
+    return `
+      <div class="mini-field" style="margin-top:8px;">
+        <label style="font-size: 0.625rem;color:var(--muted);display:block;margin-bottom:5px;">Startbedingung</label>
+        <div class="toggle-row strategy-toggle" data-strategy-id="${s.id}" data-toggle="startMode">
+          <button type="button" class="toggle-btn${mode === 'month' ? ' active' : ''}" data-value="month">Monat</button>
+          <button type="button" class="toggle-btn${mode === 'capital' ? ' active' : ''}" data-value="capital">Aktives Kapital</button>
+          <button type="button" class="toggle-btn${mode === 'yield' ? ' active' : ''}" data-value="yield">Rendite inkl. Bonus</button>
+        </div>
+      </div>
+      ${mode === 'month' ? `
+      <div class="mini-field">
+        <input type="number" class="team-input" data-field="startMonth" min="1" step="1" placeholder="Startmonat" value="${s.startMonth || 1}" style="width:100%;" aria-label="Startmonat">
+      </div>` : `
+      <div class="mini-field">
+        <label style="font-size: 0.625rem;color:var(--muted);display:block;margin-bottom:5px;">${mode === 'capital'
+          ? 'Startet, sobald das aktive Kapital diesen Betrag erreicht'
+          : 'Startet, sobald die Rendite eines Monats (Zins + Boni) diesen Betrag erreicht'}</label>
+        <div class="amount-input">
+          <span class="amount-input-symbol">${sym}</span>
+          <input type="number" class="team-input" data-field="startThreshold" min="0" step="500" value="${s.startThreshold || 0}">
+        </div>
+        <div class="field-warning visible" style="color:var(--muted);">Einmal gestartet, läuft die Strategie weiter — auch wenn der Wert wieder darunter fällt.</div>
+      </div>`}
+    `;
+  }
+
+  function strategyScheduleHtml(s, isOnce, startCapital, currency, allowTotal) {
+    const thresholdTooLow = s.stopMode === 'threshold' && s.thresholdBasis === 'capital'
+      && s.thresholdValue > 0 && s.thresholdValue < startCapital;
+    const sym = currencySymbol(currency);
+    if (isOnce) return '';
+    return `
+      <div class="mini-field" style="margin-top:8px;">
+        <label style="font-size: 0.625rem;color:var(--muted);display:block;margin-bottom:5px;">Stopp-Bedingung</label>
+        ${allowTotal ? `
+        <select class="team-input" data-field="stopMode" style="width:100%;">
+          <option value="none"${s.stopMode === 'none' ? ' selected' : ''}>Keine</option>
+          <option value="date"${s.stopMode === 'date' ? ' selected' : ''}>Enddatum</option>
+          <option value="threshold"${s.stopMode === 'threshold' ? ' selected' : ''}>Schwelle</option>
+          <option value="total"${s.stopMode === 'total' ? ' selected' : ''}>Zielbetrag</option>
+        </select>
+        ` : `
+        <div class="toggle-row strategy-toggle" data-strategy-id="${s.id}" data-toggle="stopMode">
+          <button type="button" class="toggle-btn${s.stopMode === 'none' ? ' active' : ''}" data-value="none">Keine</button>
+          <button type="button" class="toggle-btn${s.stopMode === 'date' ? ' active' : ''}" data-value="date">Enddatum</button>
+          <button type="button" class="toggle-btn${s.stopMode === 'threshold' ? ' active' : ''}" data-value="threshold">Schwelle</button>
+        </div>
+        `}
+      </div>
+      ${s.stopMode === 'date' ? `
+      <div class="mini-field">
+        <input type="number" class="team-input" data-field="endMonth" min="1" step="1" placeholder="Endmonat" value="${s.endMonth != null ? s.endMonth : ''}" style="width:100%;">
+      </div>` : ''}
+      ${s.stopMode === 'threshold' ? `
+      <div class="mini-field">
+        <label style="font-size: 0.625rem;color:var(--muted);display:block;margin-bottom:5px;">Schwellenbasis</label>
+        <div class="toggle-row strategy-toggle" data-strategy-id="${s.id}" data-toggle="thresholdBasis">
+          <button type="button" class="toggle-btn${s.thresholdBasis !== 'capital' ? ' active' : ''}" data-value="interest">Monatszins ohne Bonus</button>
+          <button type="button" class="toggle-btn${s.thresholdBasis === 'capital' ? ' active' : ''}" data-value="capital">Aktives Kapital</button>
+        </div>
+        <div class="amount-input" style="margin-top:7px;">
+          <span class="amount-input-symbol">${sym}</span>
+          <input type="number" class="team-input" data-field="thresholdValue" min="0" step="500" value="${s.thresholdValue || 0}">
+        </div>
+        <div class="field-warning${thresholdTooLow ? ' visible' : ''}">⚠ Schwelle liegt unter dem Startkapital.</div>
+      </div>` : ''}
+      ${allowTotal && s.stopMode === 'total' ? `
+      <div class="mini-field">
+        <label style="font-size: 0.625rem;color:var(--muted);display:block;margin-bottom:5px;">Gesamtsumme, die insgesamt ausgezahlt werden soll (netto, nach Gebühr)</label>
+        <div class="amount-input">
+          <span class="amount-input-symbol">${sym}</span>
+          <input type="number" class="team-input" data-field="thresholdValue" min="0" step="500" value="${s.thresholdValue || 0}">
+        </div>
+      </div>` : ''}
+    `;
+  }
+
+  // Einzahlungsstrategie: "Fester Betrag/Monat" vs. "1000er-Aufrundung" —
+  // genau die zwei bisherigen Optionen, als Toggle wie zuvor. Bei festem
+  // Betrag zusätzlich eine Häufigkeit (monatlich/jährlich/einmalig).
+  function depositStrategyCardHtml(s, startCapital, currency, memberId) {
+    const isRoundup = s.kind === 'roundup';
+    const isOnce = !isRoundup && s.period === 'once';
+    const sym = currencySymbol(currency);
+    return `
+      <div class="team-member-card" data-strategy-id="${s.id}" data-list="deposit"${memberId ? ` data-member-id="${memberId}"` : ''}>
+        <div class="team-member-card-header">
+          <div class="toggle-row strategy-toggle" data-strategy-id="${s.id}" data-toggle="kind" style="flex:1;">
+            <button type="button" class="toggle-btn${!isRoundup ? ' active' : ''}" data-value="fixed">Fester Betrag/Monat</button>
+            <button type="button" class="toggle-btn${isRoundup ? ' active' : ''}" data-value="roundup">1000er-Aufrundung</button>
+          </div>
+          <button type="button" class="team-remove-btn" data-remove-id="${s.id}" title="Einzahlungsstrategie entfernen" aria-label="Einzahlungsstrategie entfernen">✕</button>
+        </div>
+        ${!isRoundup ? `
+        <div class="mini-field" style="margin-top:8px;">
+          <label style="font-size: 0.625rem;color:var(--muted);display:block;margin-bottom:5px;">Häufigkeit</label>
+          <div class="toggle-row strategy-toggle" data-strategy-id="${s.id}" data-toggle="period">
+            <button type="button" class="toggle-btn${s.period !== 'yearly' && s.period !== 'once' ? ' active' : ''}" data-value="monthly">Monatlich</button>
+            <button type="button" class="toggle-btn${s.period === 'yearly' ? ' active' : ''}" data-value="yearly">Jährlich</button>
+            <button type="button" class="toggle-btn${s.period === 'once' ? ' active' : ''}" data-value="once">Einmalig</button>
+          </div>
+        </div>` : ''}
+        <div class="team-member-grid" style="margin-top:8px;">
+          ${!isRoundup ? `<label>Betrag<div class="amount-input"><span class="amount-input-symbol">${sym}</span><input type="number" class="team-input" data-field="amount" min="0" step="50" value="${s.amount || 0}"></div></label>` : ''}
+
+        </div>
+        ${strategyStartHtml(s, currency)}
+        ${strategyScheduleHtml(s, isOnce, startCapital, currency)}
+      </div>
+    `;
+  }
+
+  // Auszahlungsstrategie: unverändert gegenüber der bisherigen Auswahl
+  // (Fester Betrag/Prozentual/Cash-Überschuss, jetzt mit "Einmalig" als
+  // weiterer fester-Betrag-Variante), nur mit eigenem Start/Ende je Eintrag.
+  function withdrawalStrategyCardHtml(s, startCapital, currency, memberId) {
+    const isOnce = s.type === 'once';
+    const isPercentage = s.type === 'percentage';
+    const isCashSurplus = s.type === 'cashSurplus';
+    const amountLabel = isPercentage ? 'Anteil (% der Rendite)' : 'Betrag';
+    // Prozentualer Anteil ist kein Geldbetrag — dort bleibt das Feld ohne
+    // Währungssymbol, nur bei echten Beträgen (fest/einmalig/monatl./jährl.).
+    const amountSymbol = isPercentage ? '%' : currencySymbol(currency);
+    return `
+      <div class="team-member-card" data-strategy-id="${s.id}" data-list="withdrawal"${memberId ? ` data-member-id="${memberId}"` : ''}>
+        <div class="team-member-card-header">
+          <select class="team-input" data-field="type" style="flex:1;">
+            ${Object.keys(WITHDRAWAL_TYPE_LABELS).map(t => `<option value="${t}"${s.type === t ? ' selected' : ''}>${WITHDRAWAL_TYPE_LABELS[t]}</option>`).join('')}
+          </select>
+          <button type="button" class="team-remove-btn" data-remove-id="${s.id}" title="Auszahlungsstrategie entfernen" aria-label="Auszahlungsstrategie entfernen">✕</button>
+        </div>
+        <div class="team-member-grid">
+          ${!isCashSurplus ? `<label>${amountLabel}<div class="amount-input"><span class="amount-input-symbol">${amountSymbol}</span><input type="number" class="team-input" data-field="amount" min="0" step="${isPercentage ? 1 : 50}" value="${s.amount || 0}"></div></label>` : ''}
+
+        </div>
+        ${strategyStartHtml(s, currency)}
+        ${strategyScheduleHtml(s, isOnce, startCapital, currency, true)}
+      </div>
+    `;
+  }
+
+  function renderStrategyRows(listKind) {
+    const container = listKind === 'deposit' ? els.nfDepositStrategyRows : els.nfWithdrawalStrategyRows;
+    const list = activeStrategies(listKind);
+    const values = scenarios[activeIndex] && scenarios[activeIndex].values;
+    const startCapital = Math.max(0, num((values && values.start) || 0));
+    const currency = (values && values.currency) || 'USD';
+    const emptyLabel = listKind === 'deposit' ? 'Noch keine Einzahlungsstrategie angelegt.' : 'Noch keine Auszahlungsstrategie angelegt.';
+    const cardFn = listKind === 'deposit' ? depositStrategyCardHtml : withdrawalStrategyCardHtml;
+    container.innerHTML = list.length
+      ? list.map(s => cardFn(s, startCapital, currency)).join('')
+      : `<div class="team-empty-hint">${emptyLabel}</div>`;
+  }
+
+  function handleStrategyFieldChange(e) {
+    const input = e.target.closest('.team-input');
+    if (!input) return;
+    const card = input.closest('.team-member-card[data-strategy-id]');
+    if (!card) return;
+    const listKind = card.dataset.list;
+    const memberId = card.dataset.memberId || undefined;
+    const strategy = activeStrategies(listKind, memberId).find(s => s.id === card.dataset.strategyId);
+    if (!strategy) return;
+    const field = input.dataset.field;
+    if (field === 'type') {
+      // Nur bei Auszahlungsstrategien: eigenes <select> statt Toggle, da 5
+      // Optionen. Einzahlungsstrategien setzen ihre Art über den 'kind'-
+      // Toggle (siehe Klick-Handler unten).
+      strategy.type = input.value;
+      if (strategy.type === 'once') {
+        strategy.endMonth = null;
+        strategy.stopMode = 'none';
+      }
+      if (!memberId) renderStrategyRows(listKind);
+      calculate();
+      return;
+    }
+    if (field === 'stopMode') {
+      // Nur bei Auszahlungsstrategien: eigenes <select> statt Toggle-Row, da
+      // dort 4 Optionen (inkl. "Zielbetrag") sonst zu eng werden. Bei
+      // Einzahlungsstrategien (3 Optionen) läuft das weiterhin über den
+      // Toggle-Klick-Handler unten.
+      strategy.stopMode = input.value;
+      if (!memberId) renderStrategyRows(listKind);
+      calculate();
+      return;
+    }
+    if (field === 'endMonth') {
+      // Erscheint nur, wenn die Stopp-Bedingung schon auf "Enddatum" steht
+      // (siehe strategyScheduleHtml) — braucht also keinen Umschalt-Effekt
+      // wie bei "type" oben, sondern verhält sich wie thresholdValue.
+      strategy.endMonth = input.value === '' ? null : Math.max(1, Math.round(num(input.value)) || 1);
+    } else if (field === 'startMonth') {
+      strategy.startMonth = Math.max(1, Math.round(num(input.value)) || 1);
+    } else {
+      strategy[field] = num(input.value);
+    }
+    // Kein renderStrategyRows()/renderTeamDetail() hier — würde bei
+    // jedem Tastendruck den Eingabefokus verlieren. Die Schwellen-Warnung
+    // hängt aber genau von diesem Feld ab, also gezielt nur ihren
+    // DOM-Knoten aktualisieren.
+    if (field === 'thresholdValue') refreshStrategyWarning(card, strategy, memberId);
+    calculate();
+  }
+
+  function refreshStrategyWarning(card, strategy, memberId) {
+    const warningEl = card.querySelector('.field-warning');
+    if (!warningEl) return;
+    const memberEntry = memberId ? findTeamEntry(memberId) : null;
+    const startCapital = memberId
+      ? Math.max(0, num((memberEntry ? memberEntry.member.startCapital : 0) || 0))
+      : Math.max(0, num((scenarios[activeIndex] && scenarios[activeIndex].values.start) || 0));
+    const tooLow = strategy.stopMode === 'threshold' && strategy.thresholdBasis === 'capital'
+      && strategy.thresholdValue > 0 && strategy.thresholdValue < startCapital;
+    warningEl.classList.toggle('visible', tooLow);
+  }
+
+  function bindStrategyRowEvents(listKind) {
+    const container = listKind === 'deposit' ? els.nfDepositStrategyRows : els.nfWithdrawalStrategyRows;
+    container.addEventListener('input', handleStrategyFieldChange);
+    container.addEventListener('change', handleStrategyFieldChange);
+    container.addEventListener('click', (e) => {
+      const removeBtn = e.target.closest('.team-remove-btn');
+      if (removeBtn) {
+        removeStrategy(listKind, removeBtn.dataset.removeId);
+        return;
+      }
+      const toggleBtn = e.target.closest('.strategy-toggle .toggle-btn');
+      if (toggleBtn) {
+        const group = toggleBtn.closest('.strategy-toggle');
+        const strategy = activeStrategies(listKind).find(s => s.id === group.dataset.strategyId);
+        if (!strategy) return;
+        strategy[group.dataset.toggle] = toggleBtn.dataset.value;
+        // 'period' -> 'once' blendet Enddatum/Stopp-Bedingung aus —
+        // zurücksetzen, damit sie nicht unsichtbar weiterwirken, falls
+        // später zurückgewechselt wird.
+        if (group.dataset.toggle === 'period' && toggleBtn.dataset.value === 'once') {
+          strategy.endMonth = null;
+          strategy.stopMode = 'none';
+        }
+        renderStrategyRows(listKind);
+        calculate();
+      }
+    });
+  }
+
+  function renderTeamBonusSection(values, result) {
+    const members = Array.isArray(values.nfTeamMembers) ? values.nfTeamMembers : [];
+    if (values.investmentType !== 'nextforrest' || members.length === 0 || !result.team) {
+      els.teamBonusSection.style.display = 'none';
+      return;
+    }
+
+    const team = result.team;
+    const cur = values.currency;
+    els.teamBonusSection.style.display = '';
+
+    const nextRank = RANKS[team.rankIndex + 1];
+    const statusParts = [`Rang: ${team.rank}`];
+    statusParts.push(nextRank
+      ? `nächster Rang ${nextRank.name} ab ${fmt(nextRank.ownThreshold, cur)} eigen + ${fmt(nextRank.teamThreshold, cur)} Team-Volumen`
+      : 'höchster Rang erreicht');
+    statusParts.push(`Bonus gesamt ${fmt(team.totalBonus, cur)}`);
+    els.teamBonusStatusLabel.textContent = statusParts.join(' · ');
+
+    // Stabile Farbe je Mitglied über alle Monate hinweg, in der Reihenfolge
+    // der Team-Struktur — dieselbe Palette wie für Szenarien. Bewusst über
+    // den GANZEN Baum: row.members enthält seit der Baumstruktur auch den
+    // Unterbau, eine Karte nur aus den Wurzeln ließe jede tiefere Zeile ohne
+    // Farbe.
+    const memberColor = new Map();
+    const treeMembers = [];
+    walkTeam(members, (m, depth) => {
+      const key = m.id || m.name;
+      if (!memberColor.has(key)) memberColor.set(key, COLORS[memberColor.size % COLORS.length]);
+      treeMembers.push({ member: m, depth, key });
+    });
+
+    els.teamBonusRows.innerHTML = team.rows.map((row) => {
+      const open = expandedTeamBonusMonths.has(row.month);
+      const detailRow = open ? `
+      <tr>
+        <td class="detail-cell" colspan="10">
+          <div class="detail-inner">${teamMonthDetail(row, treeMembers, memberColor, cur)}</div>
+        </td>
+      </tr>
+      ` : '';
+
+      return `
+      <tr class="month-row${open ? ' open' : ''}" data-month="${row.month}" tabindex="0"
+          role="button" aria-expanded="${open}"
+          aria-label="Monat ${row.month}, Details ${open ? 'einklappen' : 'ausklappen'}">
+        <td class="expand-cell"><span class="expand-icon" aria-hidden="true">${CHEVRON_SVG}</span></td>
+        <td>${row.month}</td>
+        <td>${row.rank}</td>
+        <td>${fmt(row.teamVolume, cur)}</td>
+        <td>${fmt(row.tippgeberBonus, cur)}</td>
+        <td>${fmt(row.ownBonus, cur)}</td>
+        <td>${fmt(row.e1Bonus, cur)}</td>
+        <td>${fmt(row.e2Bonus, cur)}</td>
+        <td>${fmt(row.e3Bonus, cur)}</td>
+        <td><strong>${fmt(row.totalBonus, cur)}</strong></td>
+      </tr>
+      ${detailRow}
+    `;
+    }).join('');
+
+    // Breite des sichtbaren Ausschnitts an die Detailansicht weiterreichen —
+    // sie soll nicht breiter werden als das, was ohne Seitwärtsscrollen zu
+    // sehen ist (siehe .detail-inner).
+    const bonusWrap = els.teamBonusRows.closest('.table-wrap');
+    if (bonusWrap) bonusWrap.style.setProperty('--detail-w', bonusWrap.clientWidth + 'px');
+
+    renderTeamChart(team);
+  }
+
+  // Aufgeklappte Monatszeile: der gesamte Baum, nach Ebene gruppiert, je
+  // Gruppe eine Zwischensumme aus aktivem Kapital und dem Level-Bonus, den
+  // genau diese Ebene mir in diesem Monat gezahlt hat.
+  //
+  // Der Tippgeber-Bonus steht bewusst NUR auf Ebene 1. Auf einer Ebene ≥ 2
+  // ist `tippgeberBonus` der Betrag, den das Mitglied SEINEM Werbenden
+  // eingebracht hat — fremdes Geld, das als „mein Anteil" gelesen falsch
+  // wäre (siehe die ausführliche Begründung in calc.js an der Stelle, an der
+  // der Unterbau hochgereicht wird). Tiefere Ebenen zeigen deshalb, was das
+  // Mitglied selbst verdient hat.
+  //
+  // Kein „nur Volumen"-Kennzeichen ab Ebene 4: wer für mich Ebene 4 ist, ist
+  // für seinen Werbenden Ebene 1 und verdient dort sehr wohl. Bonusfreiheit
+  // ist eine Eigenschaft des Abstands zweier Knoten, nicht der Person — die
+  // Zwischensumme zeigt stattdessen den tatsächlichen Level-Bonus, ab
+  // Ebene 4 eben 0,00 €.
+  function teamMonthDetail(row, treeMembers, memberColor, cur) {
+    const snapshots = new Map();
+    (Array.isArray(row.members) ? row.members : []).forEach(mem => {
+      snapshots.set(mem.id || mem.name, mem);
+    });
+
+    const byLevel = new Map();
+    treeMembers.forEach(entry => {
+      if (!byLevel.has(entry.depth)) byLevel.set(entry.depth, []);
+      byLevel.get(entry.depth).push(entry);
+    });
+
+    const levelBonusOf = (level) => (
+      level === 1 ? row.e1Bonus : level === 2 ? row.e2Bonus : level === 3 ? row.e3Bonus : 0
+    );
+
+    return Array.from(byLevel.keys()).sort((a, b) => a - b).map(level => {
+      const list = byLevel.get(level);
+      let levelActive = 0;
+
+      const lines = list.map(entry => {
+        const mem = snapshots.get(entry.key);
+        const joined = !!mem;
+        const color = memberColor.get(entry.key) || 'var(--muted)';
+        const name = entry.member.name || 'Ohne Namen';
+        // Beide Quellen sind Kalendermonate: calc.js rechnet die
+        // Beitrittsmonate des Unterbaus beim Hochreichen zurück, und im
+        // Eingabebaum stehen sie ohnehin kalendarisch.
+        const joinMonth = joined
+          ? mem.joinMonth
+          : Math.max(1, Math.round(num(entry.member.joinMonth) || 1));
+        if (joined) levelActive += mem.activeBase || 0;
+
+        const ownEarned = joined && (mem.ownTotalBonus || 0) > 0
+          ? `<span class="member-note">verdient selbst ${fmt(mem.ownTotalBonus, cur)}</span>`
+          : '';
+        const tippgeber = joined && level === 1 && (mem.tippgeberBonus || 0) > 0
+          ? `<span class="member-note accent">+${fmt(mem.tippgeberBonus, cur)} Tippgeber an dich</span>`
+          : '';
+
+        return `
+        <div class="member-line${joined ? '' : ' not-joined'}" style="--lvl:${level - 1}">
+          <span class="member-dot" style="background:${color}"></span>
+          <span class="level-pill ${levelPillClass(level)}">E${level}</span>
+          <span class="ml-name">${escapeHtml(name)}${joined ? '' : ` <span class="member-note">(ab M${joinMonth})</span>`}</span>
+          ${joined ? `<span class="rank-badge rank-${mem.ownRankIndex || 0}">${escapeHtml(rankShort(mem.ownRankIndex || 0))}</span>` : ''}
+          ${ownEarned}${tippgeber}
+          <span class="ml-num">${joined ? fmt(mem.activeBase || 0, cur) : '–'}</span>
+        </div>`;
+      }).join('');
+
+      return `${lines}
+        <div class="level-subtotal" style="--lvl:${level - 1}">
+          <span>Ebene ${level} · ${list.length} ${list.length === 1 ? 'Person' : 'Personen'}</span>
+          <span class="ls-bonus" title="${level <= 3 ? 'Prozentsatz deines Rangs auf das aktive Kapital genau dieser Ebene.' : 'Aus dieser Entfernung zahlt keine Ebene mehr an dich — das Kapital zählt aber weiter in dein Team-Volumen und damit in deinen Rang.'}">dein Level-Bonus ${fmt(levelBonusOf(level), cur)}</span>
+          <span class="ml-num" title="Aktives Kapital dieser Ebene zu Monatsbeginn — die Grundlage, auf die der Level-Bonus gerechnet wird.">${fmt(levelActive, cur)}</span>
+        </div>`;
+    }).join('');
+  }
+
+  /* ---------------- Team-Diagramm: Ebenen-Bänder + Rang-Aufstiege ---------
+     Eigene Zeichenfläche, nicht das Szenario-Diagramm darüber: dort werden
+     mehrere Szenarien in zwei Modi (Rendite / investiertes Kapital)
+     verglichen: Kapitalbänder eines einzelnen Szenarios hätten dort weder
+     dieselbe Einheit noch dieselbe Aussage.
+
+     Jedes Band hat neben der Farbe ein eigenes Strichmuster an der
+     Oberkante — die Bänder müssen auch ohne Farbsehen unterscheidbar sein,
+     und dieselben Muster stehen in den Umschaltern darunter. */
+  const TEAM_BANDS = [
+    { id: '1', key: 'e1Active', label: 'Ebene 1', color: '#62d394', dash: [] },
+    { id: '2', key: 'e2Active', label: 'Ebene 2', color: '#75a7ff', dash: [9, 3] },
+    { id: '3', key: 'e3Active', label: 'Ebene 3', color: '#c79bff', dash: [2, 3] },
+    { id: 'deep', key: 'deepActive', label: 'Ebene 4+', color: '#8b9ab5', dash: [5, 4] }
+  ];
+  const TEAM_OWN_COLOR = '#f4f7fb';
+  const hiddenTeamBands = new Set();
+  let teamChartState = null;
+
+  function renderTeamChart(team) {
+    teamChartState = {
+      rows: Array.isArray(team.rows) ? team.rows : [],
+      rankUps: Array.isArray(team.rankUps) ? team.rankUps : []
+    };
+    renderTeamChartToggles();
+    drawTeamChart();
+  }
+
+  // Gefüllte Fläche = Ebene sichtbar, nur die Umrisslinie = ausgeblendet.
+  // Transparenz allein reicht nicht, sie fällt bei erhöhtem Kontrast weg.
+  function bandSwatch(color, dash, filled, lineOnly) {
+    const area = lineOnly || !filled
+      ? ''
+      : `<rect x="0" y="5" width="26" height="7" fill="${color}" opacity=".34"></rect>`;
+    const dashAttr = dash && dash.length ? ` stroke-dasharray="${dash.join(' ')}"` : '';
+    return `<svg class="band-swatch" width="26" height="12" viewBox="0 0 26 12" aria-hidden="true">
+      ${area}<line x1="0" y1="5" x2="26" y2="5" stroke="${color}" stroke-width="${lineOnly ? 2.4 : 2}"${dashAttr}></line>
+    </svg>`;
+  }
+
+  function renderTeamChartToggles() {
+    const items = TEAM_BANDS.map(b => ({ id: b.id, label: b.label, color: b.color, dash: b.dash, lineOnly: false }))
+      .concat([{ id: 'own', label: 'Dein Kapital', color: TEAM_OWN_COLOR, dash: [], lineOnly: true }]);
+
+    els.teamChartToggles.innerHTML = items.map(it => {
+      const on = !hiddenTeamBands.has(it.id);
+      return `<button type="button" class="secondary" data-band="${it.id}" aria-pressed="${on}">
+        ${bandSwatch(it.color, it.dash, on, it.lineOnly)}<span>${escapeHtml(it.label)}${on ? '' : ' (aus)'}</span>
+      </button>`;
+    }).join('');
+
+    els.teamChartLegend.innerHTML = `
+      <span class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span>Rang-Aufstieg — Marker mit dem neuen Rang</span>
+      <span class="legend-item">Flächen gestapelt von unten: Ebene 1 bis Ebene 4+ · deine eigene Kapitallinie liegt darüber und ist nicht mitgestapelt</span>`;
+  }
+
+  function drawTeamChart() {
+    const canvas = els.teamChart;
+    if (!canvas || !teamChartState) return;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.round(rect.width * dpr));
+    canvas.height = Math.max(1, Math.round(rect.height * dpr));
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const w = rect.width;
+    const h = rect.height;
+    const pad = { l: 66, r: 18, t: 26, b: 34 };
+    const pw = w - pad.l - pad.r;
+    const ph = h - pad.t - pad.b;
+    ctx.clearRect(0, 0, w, h);
+    if (pw <= 0 || ph <= 0) return;
+
+    const rows = teamChartState.rows;
+    if (!rows.length) return;
+
+    const visibleBands = TEAM_BANDS.filter(b => !hiddenTeamBands.has(b.id));
+    const showOwn = !hiddenTeamBands.has('own');
+
+    let peak = 0;
+    rows.forEach(r => {
+      const stack = visibleBands.reduce((sum, b) => sum + (r[b.key] || 0), 0);
+      peak = Math.max(peak, stack, showOwn ? (r.ownActive || 0) : 0);
+    });
+    const max = (peak > 0 ? peak : 1) * 1.08;
+
+    const x = i => pad.l + (i / Math.max(1, rows.length - 1)) * pw;
+    const y = v => pad.t + ph - (v / max) * ph;
+
+    // Raster + Achsenbeschriftung
+    ctx.strokeStyle = 'rgba(255,255,255,.09)';
+    ctx.fillStyle = 'rgba(158,171,193,.95)';
+    ctx.font = '11px system-ui';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    const compact = new Intl.NumberFormat('de-DE', { notation: 'compact', maximumFractionDigits: 1 });
+    for (let i = 0; i <= 5; i++) {
+      const val = (max / 5) * i;
+      const yy = y(val);
+      ctx.beginPath();
+      ctx.moveTo(pad.l, yy);
+      ctx.lineTo(w - pad.r, yy);
+      ctx.stroke();
+      ctx.fillText(compact.format(val), pad.l - 8, yy);
+    }
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const labelCount = Math.min(6, rows.length - 1);
+    for (let i = 0; i <= labelCount; i++) {
+      const idx = Math.round((rows.length - 1) * i / Math.max(1, labelCount));
+      ctx.fillText(rows[idx].month, x(idx), h - pad.b + 10);
+    }
+
+    // Gestapelte Ebenen-Bänder, Ebene 1 unten.
+    let baseline = rows.map(() => 0);
+    visibleBands.forEach(band => {
+      const top = rows.map((r, i) => baseline[i] + (r[band.key] || 0));
+
+      ctx.beginPath();
+      ctx.moveTo(x(0), y(baseline[0]));
+      top.forEach((v, i) => ctx.lineTo(x(i), y(v)));
+      for (let i = rows.length - 1; i >= 0; i--) ctx.lineTo(x(i), y(baseline[i]));
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(band.color, band.id === 'deep' ? .18 : .3);
+      ctx.fill();
+
+      ctx.save();
+      ctx.beginPath();
+      top.forEach((v, i) => (i ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v))));
+      ctx.strokeStyle = band.color;
+      ctx.lineWidth = 1.6;
+      if (band.dash.length) ctx.setLineDash(band.dash);
+      ctx.stroke();
+      ctx.restore();
+
+      baseline = top;
+    });
+
+    // Eigene Kapitallinie: bewusst NICHT mitgestapelt, sonst wäre sie nicht
+    // mehr mit einem Szenario ohne Team vergleichbar.
+    if (showOwn) {
+      ctx.beginPath();
+      rows.forEach((r, i) => (i ? ctx.lineTo(x(i), y(r.ownActive || 0)) : ctx.moveTo(x(i), y(r.ownActive || 0))));
+      ctx.strokeStyle = TEAM_OWN_COLOR;
+      ctx.lineWidth = 2.4;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
+
+    // Rang-Aufstiege
+    const firstMonth = rows[0].month;
+    teamChartState.rankUps.forEach(up => {
+      const idx = up.month - firstMonth;
+      if (idx < 0 || idx > rows.length - 1) return;
+      const mx = x(idx);
+
+      ctx.save();
+      ctx.setLineDash([3, 4]);
+      ctx.strokeStyle = 'rgba(98,211,148,.55)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(mx, pad.t);
+      ctx.lineTo(mx, pad.t + ph);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.beginPath();
+      ctx.arc(mx, pad.t - 10, 4.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#62d394';
+      ctx.fill();
+
+      // Beschriftung längs der Linie, wie schon im Szenario-Diagramm:
+      // waagerecht stoßen zwei dicht beieinander liegende Aufstiege auf
+      // schmalen Geräten aneinander.
+      ctx.save();
+      ctx.fillStyle = '#62d394';
+      ctx.font = '10px system-ui';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.translate(mx + 4, pad.t + ph - 6);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText(`${rankShort(up.rankIndex)} · Monat ${up.month}`, 0, 0);
+      ctx.restore();
+    });
+  }
+
+  // Unverändertes Original-<thead> der Monatsverlauf-Tabelle, einmalig beim
+  // Start gesichert — damit der No-Merge-Fall (Standardfall) exakt wie vorher
+  // rendert, ohne die Kopf-Zellen doppelt im Code zu pflegen.
+  const TABLE_HEAD_PLAIN = els.rowsThead.innerHTML;
+  const TABLE_HEAD_COMBINED = `<tr>
+    <th class="expand-cell"></th>
+    <th style="text-align:left">Monat</th>
+    <th>Start aktiv</th>
+    <th>Einzahlung</th>
+    <th>Auszahlung</th>
+    <th>Zinsen</th>
+    <th>Reinvestiert</th>
+    <th>Cash</th>
+    <th>Gebühren</th>
+    <th>Steuer</th>
+    <th>Aktives Kapital</th>
+    <th>Gesamt</th>
+  </tr>`;
+
+  // Der kapitalgedeckte Steueranteil (taxFromCapital: konnte die Rendite die
+  // fällige Steuer nicht allein decken, wurde ein 1000er-Block aus dem
+  // aktiven Kapital geholt) zählt sichtbar in "Auszahlung" mit — das Geld hat
+  // die Anlage genauso dauerhaft verlassen wie eine echte Auszahlung, nur ans
+  // Finanzamt statt an dich. `withdrawn`/`totalWithdrawn` selbst bleiben in
+  // calc.js davon unberührt, damit Gesamtrendite, Rendite p.a. und der
+  // Break-even-Monat korrekt bleiben (siehe simulateNextForrest()).
+  function auszahlungMitSteuer(r) {
+    return (r.withdrawn || 0) + (r.taxFromCapital || 0);
+  }
+
+  function monatsverlaufCells(r) {
+    return `
+        <td>${fmt(r.openingActive)}</td>
+        <td>${fmt(r.deposit)}</td>
+        <td>${fmt(auszahlungMitSteuer(r))}</td>
+        <td>${fmt(r.interest)}</td>
+        <td>${fmt(r.reinvested)}</td>
+        <td>${fmt(r.cash)}</td>
+        <td>${fmt(r.fee || 0)}</td>
+        <td>${fmt(r.tax || 0)}</td>
+        <td><strong>${fmt(r.active)}</strong></td>
+        <td><strong>${fmt(r.total)}</strong></td>`;
+  }
+
+  // `combinedList` ist entweder null/leer (Standardfall — keine Mitglieder
+  // zusammengerechnet, Tabelle rendert exakt wie bisher) oder das Ergebnis
+  // von buildCombinedRows(): pro Monat { month, own, members, combined }.
+  function renderTable(data, combinedList) {
+    const hasCombined = Array.isArray(combinedList) && combinedList.length > 0;
+    els.rowsThead.innerHTML = hasCombined ? TABLE_HEAD_COMBINED : TABLE_HEAD_PLAIN;
+
+    if (!hasCombined) {
+      els.rows.innerHTML = data.map(r => `
+      <tr>
+        <td>${r.month}</td>
+        ${monatsverlaufCells(r)}
+      </tr>
+    `).join('');
+      return;
+    }
+
+    // Farbkarte über den ganzen Baum, in derselben Reihenfolge wie in der
+    // Team-Bonus-Tabelle: zusammengerechnet werden kann ein Mitglied auf
+    // jeder Ebene, eine Karte nur aus der Wurzelliste ließe alles ab
+    // Ebene 2 farblos.
+    const memberColor = new Map();
+    walkTeam(activeTeamMembers(), (m) => {
+      const key = m.id || m.name;
+      if (!memberColor.has(key)) memberColor.set(key, COLORS[memberColor.size % COLORS.length]);
+    });
+
+    // Aufgeklappte Detailzeilen sind ganz normale <tr> derselben Tabelle
+    // (dieselben 11 Spalten wie die Monatszeile) statt einer separat
+    // umrahmten inneren Tabelle — dadurch fließen sie optisch nahtlos in die
+    // Monatsverlauf-Tabelle ein, nur leicht eingerückt/abgesetzt per CSS
+    // (.detail-sub-row).
+    const subRow = ({ label, color, level, row }) => `
+      <tr class="detail-sub-row">
+        <td colspan="2">
+          <span class="member-name-cell">
+            <span class="member-dot" style="background:${color}"></span>
+            ${escapeHtml(label)}
+            ${level ? `<span class="level-pill">E${level}</span>` : ''}
+          </span>
+        </td>
+        ${monatsverlaufCells(row)}
+      </tr>`;
+
+    els.rows.innerHTML = combinedList.map(({ month, own, members: memberEntries, combined }) => {
+      const open = expandedCombinedMonths.has(month);
+      const detailRows = open ? [
+        subRow({ label: 'Ich', color: colorFor(activeIndex), level: null, row: own }),
+        ...memberEntries.map(mem => subRow({
+          label: mem.name || 'Ohne Namen',
+          color: memberColor.get(mem.id) || 'var(--muted)',
+          level: mem.level,
+          row: mem.row
+        }))
+      ].join('') : '';
+
+      return `
+      <tr class="month-row${open ? ' open' : ''}" data-month="${month}" tabindex="0"
+          role="button" aria-expanded="${open}"
+          aria-label="Monat ${month}, Details ${open ? 'einklappen' : 'ausklappen'}">
+        <td class="expand-cell"><span class="expand-icon" aria-hidden="true">${CHEVRON_SVG}</span></td>
+        <td style="text-align:left">${month}</td>
+        ${monatsverlaufCells(combined)}
+      </tr>
+      ${detailRows}
+    `;
+    }).join('');
+  }
+
+  function toggleCombinedMonth(row) {
+    const month = parseInt(row.dataset.month, 10);
+    if (!Number.isFinite(month)) return;
+    if (expandedCombinedMonths.has(month)) expandedCombinedMonths.delete(month);
+    else expandedCombinedMonths.add(month);
+    calculate();
+    // Nach dem Neuzeichnen ist die Zeile ein neues Element — sonst verlöre
+    // die Tastaturbedienung den Fokus ans <body>.
+    const again = els.rows.querySelector(`.month-row[data-month="${month}"]`);
+    if (again) again.focus();
+  }
+
+  // Eine Monatszeile ist als role="button" ausgezeichnet und muss deshalb auf
+  // Enter UND Leertaste reagieren. Beide Monatstabellen (Monatsverlauf und
+  // Team-Bonus) teilen sich diesen Auslöser, damit die Tastaturbedienung
+  // nicht an einer Stelle nachgezogen wird und an der anderen zurückbleibt.
+  function monthRowKeydown(toggle) {
+    return (e) => {
+      const isSpace = e.key === ' ' || e.key === 'Spacebar' || e.code === 'Space';
+      if (e.key !== 'Enter' && !isSpace) return;
+      const row = e.target.closest('.month-row');
+      if (!row) return;
+      e.preventDefault();
+      toggle(row);
+    };
+  }
+
+  els.rows.addEventListener('click', (e) => {
+    const row = e.target.closest('tr.month-row');
+    if (!row) return;
+    toggleCombinedMonth(row);
+  });
+
+  els.rows.addEventListener('keydown', monthRowKeydown(toggleCombinedMonth));
+
+  function hexToRgba(hex, alpha) {
+    const h = hex.replace('#', '');
+    const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+    const bigint = parseInt(full, 16);
+    const r = (bigint >> 16) & 255, g = (bigint >> 8) & 255, b = bigint & 255;
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  // Splits a scenario's total-wealth series into two derived views, purely
+  // from the already-computed rows (no changes to the simulate() math):
+  // - invested: cumulative principal paid in so far (deposits, incl. start
+  //   capital), unaffected by growth or withdrawals.
+  // - rendite: cumulative profit so far — what's currently on the books plus
+  //   everything already paid out, minus everything paid in.
+  function buildDerivedSeries(result, overrideRows) {
+    const rowByMonth = new Map((overrideRows || result.rows).map(r => [r.month, r]));
+    // "Investiertes Kapital": das aktuell aktive, verzinste Kapital — direkt
+    // aus row.active übernommen. Das umfasst auch bereits reinvestierte
+    // Erträge (Zinsen/Rendite, die in volle 1000er-Blöcke gesweept wurden),
+    // nicht nur die ursprünglich eingezahlte Summe — sonst würde eine
+    // Einzahlungsschwelle (z. B. "Einzahlung endet, sobald Rendite 1000
+    // erreicht") das Diagramm fälschlich abflachen lassen, obwohl das
+    // Kapital durch Reinvestition weiterwächst.
+    // "Rendite": die in diesem Monat erwirtschaftete Rendite (row.interest)
+    // plus ggf. der in diesem Monat gutgeschriebene Team-Bonus (fließt im
+    // Cash-Konto genauso wie Rendite zu), nicht kumuliert — zeigt direkt,
+    // wie sich der monatliche Ertrag über die Laufzeit entwickelt.
+    const invested = [];
+    const rendite = [];
+    const teamRowByMonth = result.team
+      ? new Map(result.team.rows.map(r => [r.month, r]))
+      : null;
+
+    result.series.forEach(pt => {
+      const row = rowByMonth.get(pt.month);
+      const activeValue = row ? row.active : (result.startCapital || 0);
+      invested.push({ month: pt.month, value: activeValue });
+      const teamRow = teamRowByMonth ? teamRowByMonth.get(pt.month) : null;
+      const bonus = teamRow ? (teamRow.totalBonus || 0) : 0;
+      rendite.push({ month: pt.month, value: row ? (row.interest || 0) + bonus : 0 });
+    });
+
+    return { invested, rendite };
+  }
+
+  // Faltet eine optionale Monat-0-Zeile (Startkapital-Einzahlungsereignis,
+  // siehe Checkbox "Als Einzahlung berücksichtigen") in die Monat-1-Zeile —
+  // exakt nach demselben Muster wie memberMonthSnapshot() in calc.js für
+  // Team-Mitglieder. Dadurch entscheidet die Checkbox nur noch, OB die
+  // Einzahlung ab dem ersten Monat aufgelistet wird (Zeile vorhanden, wird
+  // reingefaltet) oder gar nicht (kein Startkapital-Einzahlungsereignis,
+  // Kapital startet direkt aktiv) — nie mehr als eigene "Monat 0"-Zeile in
+  // der Anzeige. Reine Anzeige-Zusammenfassung, rührt nicht an calc.js.
+  function foldRow0IntoRow1(rows) {
+    const row0 = rows.find(r => r.month === 0);
+    if (!row0) return rows;
+    const row1 = rows.find(r => r.month === 1);
+    if (!row1) return rows.filter(r => r.month !== 0);
+
+    const merged = {
+      month: 1,
+      openingActive: row0.openingActive,
+      deposit: row0.deposit + row1.deposit,
+      withdrawn: (row0.withdrawn || 0) + (row1.withdrawn || 0),
+      interest: row0.interest + row1.interest,
+      reinvested: row0.reinvested + row1.reinvested,
+      cash: row1.cash,
+      fee: (row0.fee || 0) + (row1.fee || 0),
+      tax: (row0.tax || 0) + (row1.tax || 0),
+      taxFromCapital: (row0.taxFromCapital || 0) + (row1.taxFromCapital || 0),
+      active: row1.active,
+      total: row1.total,
+    };
+
+    return [merged, ...rows.filter(r => r.month !== 0 && r.month !== 1)];
+  }
+
+  // Ermittelt zusammenhängende Zeiträume (Start-/Endmonat), in denen eine
+  // row-Eigenschaft (deposit/withdrawn) durchgehend > 0 ist. Mehrere
+  // Einzahlungs- bzw. Auszahlungsstrategien mit einer Lücke dazwischen (z. B.
+  // eine Auszahlung Monat 1–6, eine zweite erst ab Monat 10) erzeugen so
+  // mehrere getrennte Zeiträume statt eines einzigen, irreführenden
+  // durchgehenden Bereichs. Ein Zeitraum, der bis zum Simulationsende
+  // weiterläuft, bekommt end: null (kein "Ende" innerhalb der Laufzeit).
+  function computeActivityRuns(rows, key) {
+    const runs = [];
+    let runStart = null;
+    rows.forEach(r => {
+      const active = (r[key] || 0) > 1e-9;
+      if (active && runStart === null) {
+        runStart = r.month;
+      } else if (!active && runStart !== null) {
+        runs.push({ start: runStart, end: r.month - 1 });
+        runStart = null;
+      }
+    });
+    if (runStart !== null) runs.push({ start: runStart, end: null });
+    return runs;
+  }
+
+  // Ein- und Auszahlungs-Zeiträume, je aus den Zeilen abgeleitet, für die
+  // Diagramm-Markierungen (siehe drawMarker/renderMarkerLegend).
+  // Zusätzliches, nicht als Einzahlungszeile gezähltes Startkapital der
+  // zusammengerechneten Team-Mitglieder (analog zu result.startCapital für
+  // das eigene Szenario) — nötig, damit der Break-even-Zeitpunkt bei "Mit
+  // meinem Investment zusammenrechnen" auch das Mitglieds-Startkapital
+  // korrekt mit einrechnet, statt es zu ignorieren.
+  function combinedInitialPaid(values, result) {
+    const ownInitial = result.startCapital || 0;
+    const membersInitial = mergedTeamMembers(values, result).reduce((sum, m) => {
+      return sum + (m.includeStartCapital === false ? Math.max(0, num(m.startCapital || 0)) : 0);
+    }, 0);
+    return ownInitial + membersInitial;
+  }
+
+  // combinedRows: die zusammengerechneten Monatszeilen (siehe
+  // buildCombinedRows), falls mindestens ein Team-Mitglied "Mit meinem
+  // Investment zusammenrechnen" aktiviert hat — sonst null, dann gelten nur
+  // die eigenen Zeilen. Ohne diese Unterscheidung würden die Diagramm-
+  // Markierungen (Ein-/Auszahlungs-Zeiträume, Break-even) weiterhin nur das
+  // eigene Investment widerspiegeln, obwohl Tabelle und Chart-Linie bereits
+  // die zusammengerechnete Summe zeigen.
+  function computeMarkers(result, combinedRows, initialPaid) {
+    const rows = combinedRows || result.rows;
+    const startCapital = initialPaid != null ? initialPaid : (result.startCapital || 0);
+    return {
+      depositRuns: computeActivityRuns(rows, 'deposit'),
+      withdrawalRuns: computeActivityRuns(rows, 'withdrawn'),
+      breakEvenMonth: computeBreakEvenMonth(rows, startCapital),
+    };
+  }
+
+  function drawLineChart(canvas, datasets, { legendContainer = null, fillIndex = -1, hoverIndex = -1, hoverDatasetIndex = -1 } = {}) {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.round(rect.width * dpr));
+    canvas.height = Math.max(1, Math.round(rect.height * dpr));
+
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const w = rect.width;
+    const h = rect.height;
+    const pad = { l: 66, r: 18, t: 16, b: 34 };
+    const pw = w - pad.l - pad.r;
+    const ph = h - pad.t - pad.b;
+
+    ctx.clearRect(0, 0, w, h);
+
+    const allValues = datasets.flatMap(ds => ds.data.map(p => p.value));
+    let min = Math.min(...allValues);
+    let max = Math.max(...allValues);
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      min = 0;
+      max = 1;
+    }
+    if (max === min) max = min + 1;
+    min = Math.min(0, min);
+
+    const maxLen = Math.max(...datasets.map(ds => ds.data.length));
+    const x = i => pad.l + (i / Math.max(1, maxLen - 1)) * pw;
+    const y = v => pad.t + ph - ((v - min) / (max - min)) * ph;
+
+    canvas._chartMeta = { pad, pw, ph, x, y, maxLen };
+
+    // Grid
+    ctx.strokeStyle = 'rgba(255,255,255,.09)';
+    ctx.fillStyle = 'rgba(158,171,193,.95)';
+    ctx.font = '11px system-ui';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+
+    const ticks = 5;
+    for (let i = 0; i <= ticks; i++) {
+      const val = min + (max - min) * (i / ticks);
+      const yy = y(val);
+      ctx.beginPath();
+      ctx.moveTo(pad.l, yy);
+      ctx.lineTo(w - pad.r, yy);
+      ctx.stroke();
+
+      const short = new Intl.NumberFormat('de-DE', {
+        notation: 'compact',
+        maximumFractionDigits: 1
+      }).format(val);
+      ctx.fillText(short, pad.l - 8, yy);
+    }
+
+    // X labels
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const labelCount = Math.min(6, maxLen - 1);
+    for (let i = 0; i <= labelCount; i++) {
+      const idx = Math.round((maxLen - 1) * i / Math.max(1, labelCount));
+      const xx = x(idx);
+      const label = datasets[0]?.data[idx]?.month ?? idx;
+      ctx.fillText(label, xx, h - pad.b + 10);
+    }
+
+    // Optional fill for the highlighted (active) dataset
+    if (fillIndex >= 0 && datasets[fillIndex] && datasets[fillIndex].data.length > 0) {
+      const base = datasets[fillIndex];
+      const grad = ctx.createLinearGradient(0, pad.t, 0, h - pad.b);
+      grad.addColorStop(0, hexToRgba(base.color, .24));
+      grad.addColorStop(1, hexToRgba(base.color, 0));
+
+      ctx.beginPath();
+      base.data.forEach((p, i) => {
+        const xx = x(i), yy = y(p.value);
+        if (i === 0) ctx.moveTo(xx, yy);
+        else ctx.lineTo(xx, yy);
+      });
+      ctx.lineTo(x(base.data.length - 1), h - pad.b);
+      ctx.lineTo(x(0), h - pad.b);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    // Lines — draw the highlighted dataset last so it sits on top
+    const drawOrder = datasets.map((_, i) => i)
+      .sort((a, b) => (a === fillIndex ? 1 : 0) - (b === fillIndex ? 1 : 0));
+
+    drawOrder.forEach(i => {
+      const ds = datasets[i];
+      ctx.beginPath();
+      ds.data.forEach((p, j) => {
+        const xx = x(j), yy = y(p.value);
+        if (j === 0) ctx.moveTo(xx, yy);
+        else ctx.lineTo(xx, yy);
+      });
+      ctx.strokeStyle = ds.color;
+      ctx.lineWidth = ds.width || (i === fillIndex ? 3 : 2);
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      const last = ds.data[ds.data.length - 1];
+      if (last) {
+        ctx.beginPath();
+        ctx.arc(x(ds.data.length - 1), y(last.value), i === fillIndex ? 5 : 4, 0, Math.PI * 2);
+        ctx.fillStyle = ds.color;
+        ctx.fill();
+      }
+    });
+
+    // Vertical markers: end of the deposit phase / start of the withdrawal
+    // phase, per scenario — colors stay fixed (orange = deposit end, red =
+    // withdrawal start) so they read consistently across scenarios. Every
+    // scenario's markers get a label naming that scenario (rotated to run
+    // alongside the line, so several lines close together stay readable);
+    // the active scenario's markers are drawn bold, others fainter.
+    // Datasets now start at month 1 (month 0 is the start-capital stub, not
+    // plotted) — x() takes an array index, so a marker's real month needs
+    // converting via the first plotted month before it can be positioned.
+    const baseMonth = (datasets[0] && datasets[0].data.length) ? datasets[0].data[0].month : 0;
+    const drawMarker = (month, color, label, bold) => {
+      if (month === null || month === undefined) return;
+      const idx = month - baseMonth;
+      if (idx < 0 || idx > maxLen - 1) return;
+      const mx = x(idx);
+
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.setLineDash(bold ? [5, 4] : [3, 3]);
+      ctx.lineWidth = bold ? 1.5 : 1;
+      ctx.beginPath();
+      ctx.moveTo(mx, pad.t);
+      ctx.lineTo(mx, h - pad.b);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.font = bold ? '10px system-ui' : '9px system-ui';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.translate(mx + 4, h - pad.b - 6);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText(label, 0, 0);
+      ctx.restore();
+    };
+
+    datasets.forEach((ds, i) => {
+      if (!ds.markers) return;
+      const isActive = i === fillIndex;
+      const depositColor = isActive ? '#ffb86b' : 'rgba(255,184,107,.55)';
+      const withdrawalColor = isActive ? '#ff7a7a' : 'rgba(255,122,122,.55)';
+      const breakEvenColor = isActive ? '#62d394' : 'rgba(98,211,148,.55)';
+      const depositRuns = ds.markers.depositRuns || [];
+      const withdrawalRuns = ds.markers.withdrawalRuns || [];
+      // Einzahlung: wie bisher nur das Ende markieren (Start bei Monat 1 ist
+      // der Normalfall, braucht keine eigene Markierung) — bei mehreren
+      // getrennten Einzahlungsphasen wird jede nummeriert.
+      depositRuns.forEach((run, idx) => {
+        if (run.end === null) return; // läuft bis zum Laufzeitende weiter
+        const label = depositRuns.length > 1 ? `Einzahlung ${idx + 1} endet` : 'Einzahlung endet';
+        drawMarker(run.end, depositColor, `${ds.name} · ${label}`, isActive);
+      });
+      // Auszahlung: Start UND Ende markieren; bei mehreren Auszahlungsphasen
+      // (z. B. mehrere Strategien mit Lücke dazwischen) wird jede eigenständig
+      // nummeriert, damit sie im Diagramm unterscheidbar bleiben.
+      withdrawalRuns.forEach((run, idx) => {
+        const n = withdrawalRuns.length > 1 ? ` ${idx + 1}` : '';
+        drawMarker(run.start, withdrawalColor, `${ds.name} · Auszahlung${n} beginnt`, isActive);
+        if (run.end !== null) {
+          drawMarker(run.end, withdrawalColor, `${ds.name} · Auszahlung${n} endet`, isActive);
+        }
+      });
+      // Break-even: der Monat, ab dem die kumulierten Auszahlungen die
+      // kumulierten Einzahlungen erstmals erreichen/übersteigen — direkt
+      // die Antwort auf "ab wann habe ich mehr ausbezahlt als einbezahlt".
+      drawMarker(ds.markers.breakEvenMonth, breakEvenColor, `${ds.name} · Break-even`, isActive);
+    });
+
+    // Hover crosshair + per-series markers at the hovered month
+    if (hoverIndex >= 0) {
+      const gx = x(hoverIndex);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,.25)';
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(gx, pad.t);
+      ctx.lineTo(gx, h - pad.b);
+      ctx.stroke();
+      ctx.restore();
+
+      datasets.forEach((ds, i) => {
+        const p = ds.data[hoverIndex];
+        if (!p) return;
+        const isHovered = i === hoverDatasetIndex;
+        ctx.beginPath();
+        ctx.arc(gx, y(p.value), isHovered ? 6 : 3, 0, Math.PI * 2);
+        ctx.fillStyle = isHovered ? ds.color : hexToRgba(ds.color, .55);
+        ctx.fill();
+        if (isHovered) {
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = 'rgba(255,255,255,.9)';
+          ctx.stroke();
+        }
+      });
+    }
+
+    if (legendContainer) {
+      legendContainer.innerHTML = datasets.map(ds => `
+        <span class="legend-item${ds.scenarioIndex === fillIndex ? ' active' : ''}" data-scenario-index="${ds.scenarioIndex}">
+          <span class="legend-dot" style="background:${ds.color}"></span>
+          ${ds.label}
+        </span>
+      `).join('');
+    }
+  }
+
+  function readInputsIntoValues() {
+    const values = {};
+    FIELD_KEYS.forEach(key => { values[key] = els[key].value; });
+    return values;
+  }
+
+  function applyValuesToInputs(values) {
+    FIELD_KEYS.forEach(key => {
+      if (values[key] !== undefined) els[key].value = values[key];
+    });
+  }
+
+  function setInvestmentTypeUI(type) {
+    els.typeToggle.querySelectorAll('.type-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.type === type);
+    });
+    els.classicFields.style.display = type === 'nextforrest' ? 'none' : '';
+    els.nextForrestFields.style.display = type === 'nextforrest' ? '' : 'none';
+    els.typeToggle.dataset.type = type;
+  }
+
+  function setNfRateUI(value) {
+    els.nfRateToggle.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === value);
+    });
+    els.nfRateToggle.dataset.value = value;
+  }
+
+  const TAX_RATE_PRESETS = new Set(['25', '26.375', '27.82', '27.99']);
+
+  function setTaxUI(enabled, rate, payout) {
+    els.taxEnabled.checked = !!enabled;
+    els.taxRateField.style.display = enabled ? '' : 'none';
+    const rateStr = String(rate != null ? rate : TAX_RATE_DEFAULT);
+    const isPreset = TAX_RATE_PRESETS.has(rateStr);
+    els.taxRatePreset.value = isPreset ? rateStr : 'custom';
+    els.taxRateCustomWrap.style.display = isPreset ? 'none' : '';
+    els.taxRateCustom.value = isPreset ? TAX_RATE_DEFAULT : rate;
+    els.taxPayout.checked = payout !== false;
+  }
+
+  function readTaxRateFromInputs() {
+    return els.taxRatePreset.value === 'custom'
+      ? num(els.taxRateCustom.value)
+      : num(els.taxRatePreset.value);
+  }
+
+  function applyScenarioToInputs(scenario) {
+    applyValuesToInputs(scenario.values);
+    els.scenarioName.value = scenario.name;
+    setInvestmentTypeUI(scenario.values.investmentType || 'nextforrest');
+    setNfRateUI(scenario.values.nfRate || 'low');
+    setTaxUI(scenario.values.taxEnabled, scenario.values.taxRate, scenario.values.taxPayout);
+    renderStrategyRows('deposit');
+    renderStrategyRows('withdrawal');
+    // Beim Szenario-Wechsel gibt es keine sinnvolle Vorauswahl mehr — das
+    // nächste renderTeamDetail() (aus calculate()) nimmt das erste Mitglied.
+    selectedTeamMemberId = null;
+    collapsedTeamIds.clear();
+  }
+
+  function syncActiveFromInputs() {
+    if (!scenarios[activeIndex]) return;
+    // Merge (not replace): fields without a visible control — e.g. the
+    // fixed Klassisch defaults for depositTiming/reinvestMode/reinvestThreshold —
+    // must survive since they're not part of FIELD_KEYS anymore.
+    Object.assign(scenarios[activeIndex].values, readInputsIntoValues());
+    scenarios[activeIndex].values.investmentType = els.typeToggle.dataset.type || 'nextforrest';
+    // Kein Umschalter mehr in der UI — Startkapital ist immer sofort
+    // aktives Kapital ohne Einzahlungsgebühr, auch für Szenarien, die vor
+    // dieser Umstellung mit aktivierter Checkbox gespeichert wurden.
+    scenarios[activeIndex].values.includeStartCapital = false;
+    scenarios[activeIndex].values.nfRate = els.nfRateToggle.dataset.value || 'low';
+    scenarios[activeIndex].values.taxEnabled = els.taxEnabled.checked;
+    scenarios[activeIndex].values.taxRate = readTaxRateFromInputs();
+    scenarios[activeIndex].values.taxPayout = els.taxPayout.checked;
+    // Keine Währungsauswahl mehr in der UI — fest auf USD, auch für
+    // Szenarien, die vor dieser Umstellung mit einer anderen Währung
+    // gespeichert wurden.
+    scenarios[activeIndex].values.currency = 'USD';
+
+    const nameVal = els.scenarioName.value.trim();
+    if (nameVal) scenarios[activeIndex].name = nameVal;
+
+    GLOBAL_FIELD_KEYS.forEach(key => {
+      const value = scenarios[activeIndex].values[key];
+      scenarios.forEach(sc => { sc.values[key] = value; });
+    });
+  }
+
+  function updateTabNames() {
+    const names = els.scenarioTabs.querySelectorAll('.name');
+    names.forEach((el, idx) => {
+      if (scenarios[idx]) el.textContent = scenarios[idx].name;
+    });
+  }
+
+  function renderTabs() {
+    els.scenarioTabs.innerHTML = '';
+
+    scenarios.forEach((sc, idx) => {
+      const tab = document.createElement('div');
+      tab.className = 'scenario-tab' + (idx === activeIndex ? ' active' : '');
+
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.style.background = colorFor(idx);
+      tab.appendChild(dot);
+
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = sc.name;
+      tab.appendChild(name);
+
+      if (scenarios.length > 1) {
+        const close = document.createElement('span');
+        close.className = 'close';
+        close.textContent = '✕';
+        close.title = 'Szenario entfernen';
+        close.addEventListener('click', (e) => {
+          e.stopPropagation();
+          removeScenario(idx);
+        });
+        tab.appendChild(close);
+      }
+
+      tab.addEventListener('click', () => switchScenario(idx));
+      els.scenarioTabs.appendChild(tab);
+    });
+
+    const addBtn = document.createElement('div');
+    addBtn.className = 'scenario-tab-add';
+    addBtn.textContent = '+';
+    addBtn.title = 'Aktuelles Szenario duplizieren';
+    addBtn.addEventListener('click', addScenario);
+    els.scenarioTabs.appendChild(addBtn);
+  }
+
+  function switchScenario(idx) {
+    if (idx === activeIndex) return;
+    syncActiveFromInputs();
+    activeIndex = idx;
+    expandedCombinedMonths.clear();
+    applyScenarioToInputs(scenarios[activeIndex]);
+    renderTabs();
+    calculate();
+  }
+
+  function addScenario() {
+    syncActiveFromInputs();
+    const newScenario = makeScenario(scenarios[activeIndex].values);
+    scenarios.push(newScenario);
+    activeIndex = scenarios.length - 1;
+    expandedCombinedMonths.clear();
+    applyScenarioToInputs(newScenario);
+    renderTabs();
+    calculate();
+  }
+
+  function removeScenario(idx) {
+    if (scenarios.length <= 1) return;
+    const name = scenarios[idx] && scenarios[idx].name ? scenarios[idx].name : 'dieses Szenario';
+    if (!window.confirm(`"${name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) return;
+    scenarios.splice(idx, 1);
+    if (idx < activeIndex) activeIndex -= 1;
+    if (activeIndex >= scenarios.length) activeIndex = scenarios.length - 1;
+    expandedCombinedMonths.clear();
+    applyScenarioToInputs(scenarios[activeIndex]);
+    renderTabs();
+    calculate();
+  }
+
+  function calculate() {
+    syncActiveFromInputs();
+    const activeScenario = scenarios[activeIndex];
+    const main = runSimulation(activeScenario.values);
+    // Erst rechnen, dann zeichnen: renderTeamNav()/renderTeamDetail() lesen
+    // Rang und Kapital je Mitglied ausschließlich hieraus und rechnen nie
+    // selbst — ein calculate() aus einer Render-Funktion wäre eine
+    // Endlosschleife.
+    teamResult = main.team;
+    const mainRows = foldRow0IntoRow1(main.rows);
+    const activeCombined = buildCombinedRows(activeScenario.values, { ...main, rows: mainRows });
+
+    renderTable(mainRows, activeCombined);
+    els.tableScenarioLabel.textContent = activeScenario.name;
+    renderTeamBonusSection(activeScenario.values, main);
+    renderTeamNav();
+    renderTeamDetail();
+    updateTabNames();
+
+    const results = scenarios.map((sc, idx) => {
+      const result = idx === activeIndex ? main : runSimulation(sc.values);
+      const combined = idx === activeIndex ? activeCombined : buildCombinedRows(sc.values, result);
+      return { sc, idx, result, combined };
+    });
+
+    lastDatasets = results.map(({ sc, idx, result, combined }) => {
+      const derived = buildDerivedSeries(result, combined ? combined.map(c => c.combined) : null);
+      const modeSeries = chartMode === 'rendite' ? derived.rendite : derived.invested;
+      // Zeigt denselben Wert, den die Linie im letzten Monat tatsächlich
+      // erreicht — in der Rendite-Ansicht also die monatliche Rendite des
+      // letzten Monats (nicht die kumulierte Gesamtrendite über die
+      // Laufzeit), damit die Legende zur gezeichneten Linie passt.
+      const summaryValue = modeSeries.length ? modeSeries[modeSeries.length - 1].value : 0;
+      return {
+        scenarioIndex: idx,
+        name: sc.name,
+        currency: sc.values.currency,
+        label: `${sc.name}: ${fmt(summaryValue, sc.values.currency)}`,
+        color: colorFor(idx),
+        // Monat 0 ist nur der Startkapital-Einzahlungsstichtag (Rendite dort
+        // immer 0) — das Diagramm beginnt bei Monat 1.
+        data: modeSeries.filter(pt => pt.month >= 1),
+        width: idx === activeIndex ? 3 : 2,
+        markers: computeMarkers(
+          result,
+          combined ? combined.map(c => c.combined) : null,
+          combined ? combinedInitialPaid(sc.values, result) : undefined
+        )
+      };
+    });
+
+    renderScenarioSummaryTable(results);
+
+    hoverState = { index: -1, datasetIndex: -1 };
+    els.chartTooltip.style.display = 'none';
+    renderChart();
+
+    saveState();
+    updateTableScrollHints();
+  }
+
+  function updateTableScrollHints() {
+    document.querySelectorAll('.table-wrap').forEach((el) => {
+      const scrollable = el.scrollWidth > el.clientWidth + 1;
+      el.classList.toggle('has-scroll-right', scrollable && el.scrollLeft < el.scrollWidth - el.clientWidth - 1);
+      el.classList.toggle('has-scroll-left', scrollable && el.scrollLeft > 1);
+    });
+  }
+
+  function renderScenarioSummaryTable(results) {
+    els.scenarioSummaryRows.innerHTML = results.map(({ sc, idx, result, combined }) => {
+      const cur = sc.values.currency;
+      const merged = mergedTeamMembers(sc.values, result);
+      const totals = combinedScenarioTotals(result, combined, merged, sc.values) || result;
+      const pct = (value) => `${value >= 0 ? '+' : ''}${value.toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`;
+      const growth = pct(totals.growth);
+      const roiPerYear = pct(totals.roiPerYear);
+      return `
+        <tr class="scenario-row${idx === activeIndex ? ' active-row' : ''}" data-scenario-index="${idx}">
+          <td><span class="row-dot" style="background:${colorFor(idx)}"></span>${sc.name}</td>
+          <td><strong>${fmt(totals.finalWealth, cur)}</strong></td>
+          <td>${fmt(totals.activeCapital, cur)}</td>
+          <td>${fmt(totals.totalInterest, cur)}</td>
+          <td>${fmt(totals.cash, cur)}</td>
+          <td>${fmt(totals.totalDeposits, cur)}</td>
+          <td>${fmt(totals.totalFees, cur)}</td>
+          <td>${fmt(totals.totalTax || 0, cur)}</td>
+          <td>${fmt((totals.totalWithdrawn || 0) + (totals.totalTaxFromCapital || 0), cur)}</td>
+          <td>${growth}</td>
+          <td>${roiPerYear}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function updateChartModeLabel() {
+    const modeText = chartMode === 'rendite' ? 'Rendite' : 'Investiertes Kapital';
+    els.chartModeLabel.textContent = `Vergleich aller Szenarien · ${modeText}`;
+  }
+
+  // Lists every scenario's deposit-end / withdrawal-start month, not just
+  // the active one — the canvas only labels the active scenario's markers,
+  // so this is how a threshold on a non-active scenario stays visible.
+  function renderMarkerLegend(datasets) {
+    const parts = [];
+    datasets.forEach(ds => {
+      if (!ds.markers) return;
+      const depositRuns = ds.markers.depositRuns || [];
+      const withdrawalRuns = ds.markers.withdrawalRuns || [];
+      depositRuns.forEach((run, idx) => {
+        if (run.end === null) return;
+        const label = depositRuns.length > 1 ? `Einzahlung ${idx + 1} endet` : 'Einzahlung endet';
+        parts.push(`<span style="color:#ffb86b;"><span class="marker-swatch"></span>${escapeHtml(ds.name)}: ${label} (Monat ${run.end})</span>`);
+      });
+      withdrawalRuns.forEach((run, idx) => {
+        const n = withdrawalRuns.length > 1 ? ` ${idx + 1}` : '';
+        parts.push(`<span style="color:#ff7a7a;"><span class="marker-swatch"></span>${escapeHtml(ds.name)}: Auszahlung${n} beginnt (Monat ${run.start})</span>`);
+        if (run.end !== null) {
+          parts.push(`<span style="color:#ff7a7a;"><span class="marker-swatch"></span>${escapeHtml(ds.name)}: Auszahlung${n} endet (Monat ${run.end})</span>`);
+        }
+      });
+      if (ds.markers.breakEvenMonth != null) {
+        parts.push(`<span style="color:#62d394;"><span class="marker-swatch"></span>${escapeHtml(ds.name)}: Break-even — Auszahlungen ≥ Einzahlungen (Monat ${ds.markers.breakEvenMonth})</span>`);
+      }
+    });
+    els.chartMarkerLegend.innerHTML = parts.join('');
+  }
+
+  function renderChart() {
+    drawLineChart(els.chart, lastDatasets, {
+      legendContainer: els.chartLegend,
+      fillIndex: activeIndex,
+      hoverIndex: hoverState.index,
+      hoverDatasetIndex: hoverState.datasetIndex
+    });
+    renderMarkerLegend(lastDatasets);
+  }
+
+  function showTooltip(clientX, clientY, idx, highlightDs) {
+    const wrap = els.chart.closest('.chart-wrap');
+    const wrapRect = wrap.getBoundingClientRect();
+
+    const rows = lastDatasets
+      .map(ds => ({ ds, point: ds.data[idx] }))
+      .filter(r => r.point)
+      .sort((a, b) => b.point.value - a.point.value);
+
+    if (!rows.length) return;
+
+    els.chartTooltip.innerHTML = `
+      <div class="tt-month">Monat ${rows[0].point.month}</div>
+      ${rows.map(r => `
+        <div class="tt-row${r.ds.scenarioIndex === highlightDs ? ' hovered' : ''}">
+          <span class="tt-dot" style="background:${r.ds.color}"></span>
+          <span class="tt-name">${r.ds.name}</span>
+          <span class="tt-value">${fmt(r.point.value, r.ds.currency)}</span>
+        </div>
+      `).join('')}
+    `;
+    els.chartTooltip.style.display = 'block';
+
+    const ttRect = els.chartTooltip.getBoundingClientRect();
+    let left = clientX - wrapRect.left + 14;
+    let top = clientY - wrapRect.top + 14;
+    if (left + ttRect.width > wrapRect.width) left = clientX - wrapRect.left - ttRect.width - 14;
+    if (top + ttRect.height > wrapRect.height) top = clientY - wrapRect.top - ttRect.height - 14;
+    if (left < 0) left = 4;
+    if (top < 0) top = 4;
+    els.chartTooltip.style.left = left + 'px';
+    els.chartTooltip.style.top = top + 'px';
+  }
+
+  function hideHover() {
+    if (hoverState.index === -1) return;
+    hoverState = { index: -1, datasetIndex: -1 };
+    renderChart();
+    els.chartTooltip.style.display = 'none';
+    els.chart.style.cursor = 'default';
+  }
+
+  function handleChartHover(e) {
+    const meta = els.chart._chartMeta;
+    if (!meta || !lastDatasets.length) return;
+
+    const rect = els.chart.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    if (mx < meta.pad.l || mx > rect.width - meta.pad.r || my < meta.pad.t || my > rect.height - meta.pad.b) {
+      hideHover();
+      return;
+    }
+
+    const rawIdx = Math.round((mx - meta.pad.l) / Math.max(1, meta.pw) * (meta.maxLen - 1));
+    const idx = Math.max(0, Math.min(meta.maxLen - 1, rawIdx));
+
+    // Find the line closest to the cursor — used for click-to-switch and
+    // the emphasized marker, not for whether the tooltip is shown at all.
+    let bestDs = -1, bestDist = Infinity;
+    lastDatasets.forEach((ds, i) => {
+      const p = ds.data[idx];
+      if (!p) return;
+      const dist = Math.abs(my - meta.y(p.value));
+      if (dist < bestDist) { bestDist = dist; bestDs = i; }
+    });
+    const closeEnough = bestDs !== -1 && bestDist <= 45;
+
+    hoverState = { index: idx, datasetIndex: closeEnough ? bestDs : -1 };
+    renderChart();
+    showTooltip(e.clientX, e.clientY, idx, closeEnough ? bestDs : -1);
+    els.chart.style.cursor = closeEnough ? 'pointer' : 'default';
+  }
+
+  els.chart.addEventListener('mousemove', handleChartHover);
+  els.chart.addEventListener('mouseleave', hideHover);
+  els.chart.addEventListener('click', () => {
+    if (hoverState.datasetIndex >= 0 && hoverState.datasetIndex !== activeIndex) {
+      switchScenario(hoverState.datasetIndex);
+    }
+  });
+
+  els.chartLegend.addEventListener('click', (e) => {
+    const item = e.target.closest('.legend-item');
+    if (!item) return;
+    const idx = parseInt(item.dataset.scenarioIndex, 10);
+    if (Number.isFinite(idx)) switchScenario(idx);
+  });
+
+  els.scenarioSummaryRows.addEventListener('click', (e) => {
+    const row = e.target.closest('.scenario-row');
+    if (!row) return;
+    const idx = parseInt(row.dataset.scenarioIndex, 10);
+    if (Number.isFinite(idx)) switchScenario(idx);
+  });
+
+  function toggleTeamBonusMonth(row) {
+    const month = parseInt(row.dataset.month, 10);
+    if (!Number.isFinite(month)) return;
+    if (expandedTeamBonusMonths.has(month)) expandedTeamBonusMonths.delete(month);
+    else expandedTeamBonusMonths.add(month);
+    calculate();
+    // Nach dem Neuzeichnen ist die Zeile ein neues Element — sonst verlöre
+    // die Tastaturbedienung den Fokus ans <body>.
+    const again = els.teamBonusRows.querySelector(`.month-row[data-month="${month}"]`);
+    if (again) again.focus();
+  }
+
+  els.teamBonusRows.addEventListener('click', (e) => {
+    const row = e.target.closest('.month-row');
+    if (!row) return;
+    toggleTeamBonusMonth(row);
+  });
+
+  // Siehe monthRowKeydown(): derselbe Auslöser wie im Monatsverlauf.
+  els.teamBonusRows.addEventListener('keydown', monthRowKeydown(toggleTeamBonusMonth));
+
+  els.teamChartToggles.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-band]');
+    if (!btn) return;
+    const band = btn.dataset.band;
+    if (hiddenTeamBands.has(band)) hiddenTeamBands.delete(band);
+    else hiddenTeamBands.add(band);
+    renderTeamChartToggles();
+    drawTeamChart();
+    const again = els.teamChartToggles.querySelector(`[data-band="${band}"]`);
+    if (again) again.focus();
+  });
+
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        scenarios: scenarios.map(sc => ({ id: sc.id, name: sc.name, values: sc.values })),
+        activeIndex,
+        scenarioSeq
+      }));
+    } catch(e) {}
+  }
+
+  // Der Zähler für neue Mitglieds-Ids wird nicht gespeichert. Ohne dieses
+  // Nachziehen bekäme das erste neu angelegte Mitglied nach einem Neuladen
+  // wieder 'tm1' — und damit dieselbe Id wie ein bereits gespeichertes.
+  // Die Auswahl in der Navigation läuft über genau diese Id.
+  function bumpTeamMemberSeq() {
+    let max = 0;
+    scenarios.forEach(sc => {
+      walkTeam((sc.values && sc.values.nfTeamMembers) || [], (m) => {
+        const hit = /^tm(\d+)$/.exec(String(m.id || ''));
+        if (hit) max = Math.max(max, Number(hit[1]));
+      });
+    });
+    teamMemberSeq = Math.max(teamMemberSeq, max + 1);
+  }
+
+  function loadState() {
+    let saved = null;
+    try {
+      saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    } catch(e) {}
+
+    // Die Migration steht bewusst MIT im try: loadState() läuft im Bootstrap,
+    // und eine Ausnahme hier ließe die Seite ohne Szenarien und ohne
+    // Ereignis-Handler zurück — auch ohne den Zurücksetzen-Knopf, mit dem man
+    // sich sonst befreien könnte. Beschädigte gespeicherte Daten führen
+    // deshalb zum Standardszenario, nicht zu einer toten Seite.
+    if (saved && Array.isArray(saved.scenarios) && saved.scenarios.length) {
+      try {
+        // Ältere gespeicherte Szenarien tragen noch die alten flachen
+        // NextForrest-Felder (nfMonthlyDeposit/nfDepositGoal/... statt
+        // nfDepositStrategies-Array) — beim Laden ins neue Schema überführen,
+        // damit sie unverändert weiterrechnen.
+        scenarios = saved.scenarios.map(sc => ({ ...sc, values: migrateScenarioValues({ ...sc.values }) }));
+        activeIndex = Math.min(Math.max(0, saved.activeIndex || 0), scenarios.length - 1);
+        scenarioSeq = saved.scenarioSeq || scenarios.length + 1;
+        bumpTeamMemberSeq();
+        return true;
+      } catch(e) {}
+    }
+
+    let legacy = null;
+    try {
+      legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || 'null');
+    } catch(e) {}
+
+    if (legacy && legacy.start !== undefined) {
+      try {
+        scenarios = [makeScenario(migrateScenarioValues({ ...defaultScenarioValues, ...legacy }))];
+        activeIndex = 0;
+        bumpTeamMemberSeq();
+        return true;
+      } catch(e) {}
+    }
+
+    return false;
+  }
+
+  function reset() {
+    if (!window.confirm('Alle Szenarien wirklich zurücksetzen? Diese Aktion kann nicht rückgängig gemacht werden.')) return;
+    scenarios = [makeScenario(defaultScenarioValues)];
+    activeIndex = 0;
+    applyScenarioToInputs(scenarios[0]);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+    } catch(e) {}
+    renderTabs();
+    calculate();
+  }
+
+  els.calcBtn.addEventListener('click', calculate);
+  els.resetBtn.addEventListener('click', reset);
+
+  FIELD_KEYS.forEach(key => {
+    els[key].addEventListener('input', calculate);
+    els[key].addEventListener('change', calculate);
+  });
+
+  els.scenarioName.addEventListener('input', calculate);
+  els.scenarioName.addEventListener('change', calculate);
+
+  els.typeToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.type-tab');
+    if (!btn) return;
+    setInvestmentTypeUI(btn.dataset.type);
+    calculate();
+  });
+
+  els.nfRateToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    setNfRateUI(btn.dataset.value);
+    calculate();
+  });
+
+  els.taxEnabled.addEventListener('change', () => {
+    els.taxRateField.style.display = els.taxEnabled.checked ? '' : 'none';
+    calculate();
+  });
+
+  els.taxRatePreset.addEventListener('change', () => {
+    els.taxRateCustomWrap.style.display = els.taxRatePreset.value === 'custom' ? '' : 'none';
+    calculate();
+  });
+
+  els.taxRateCustom.addEventListener('input', calculate);
+  els.taxRateCustom.addEventListener('change', calculate);
+
+  els.taxPayout.addEventListener('change', calculate);
+
+  els.addNfDepositStrategyBtn.addEventListener('click', () => addStrategy('deposit'));
+  els.addNfWithdrawalStrategyBtn.addEventListener('click', () => addStrategy('withdrawal'));
+  bindStrategyRowEvents('deposit');
+  bindStrategyRowEvents('withdrawal');
+
+  // Felder, deren Wert ein String ist (nicht über num() geparst werden darf) —
+  // alle anderen .team-input-Felder sind numerisch, außer den Checkbox-
+  // Sonderfällen in BOOLEAN_TEAM_FIELDS unten.
+  const STRING_TEAM_FIELDS = new Set(['name', 'nfMonthlyDepositPeriod', 'nfWithdrawalPeriod']);
+  const BOOLEAN_TEAM_FIELDS = new Set(['includeStartCapital', 'mergeWithOwn', 'taxEnabled', 'taxPayout']);
+
+  function handleTeamMemberFieldChange(e) {
+    const input = e.target.closest('.team-input');
+    if (!input) return;
+    // Strategie-Karten (Einzahlungs-/Auszahlungsstrategien eines
+    // Mitglieds) sind aus Stil-Gründen ebenfalls .team-member-card und
+    // liegen im selben Detail-Panel — die gehören nicht hierher, sondern
+    // zu handleStrategyFieldChange (siehe handleTeamAreaFieldChange unten).
+    if (input.closest('.team-member-card[data-strategy-id]')) return;
+    // Die Eingabemaske zeigt immer genau das ausgewählte Mitglied.
+    const entry = findTeamEntry(selectedTeamMemberId);
+    if (!entry) return;
+    const member = entry.member;
+    const field = input.dataset.field;
+    if (BOOLEAN_TEAM_FIELDS.has(field)) {
+      member[field] = input.checked;
+    } else if (STRING_TEAM_FIELDS.has(field)) {
+      member[field] = input.value;
+    } else if (field === 'joinMonth') {
+      // Niemand tritt vor seinem Werbenden bei — die Untergrenze steht auch
+      // als min am Feld, wird hier aber verbindlich durchgesetzt. Der
+      // gesamte Unterbau zieht anschließend nach.
+      const min = entry.parent ? Math.max(1, Math.round(num(entry.parent.joinMonth) || 1)) : 1;
+      member.joinMonth = Math.max(min, Math.round(num(input.value)) || min);
+      clampTeamJoinMonths(activeTeamMembers());
+    } else {
+      member[field] = num(input.value);
+    }
+    calculate();
+  }
+
+  // Team-Mitglied-Felder und die Strategie-Karten teilen sich denselben
+  // Container (els.teamDetail) und damit dieselbe Event-Delegation — hier
+  // wird je nach Ziel an die passende Handler-Funktion weitergereicht.
+  function handleTeamAreaFieldChange(e) {
+    const input = e.target.closest('.team-input');
+    if (!input) return;
+    if (input.closest('.team-member-card[data-strategy-id]')) {
+      handleStrategyFieldChange(e);
+    } else {
+      handleTeamMemberFieldChange(e);
+    }
+  }
+
+  // Beim Tippen darf das Detail-Panel nicht neu gezeichnet werden, sonst
+  // verliert das Feld bei jedem Tastendruck den Fokus. Navigation und
+  // Ergebnis werden trotzdem sofort aktualisiert: calculate() zeichnet die
+  // Navigation mit, nur renderTeamDetail() hält still (teamDetailFrozen).
+  // <select> löst neben 'change' auch 'input' aus — dort ist ein
+  // vollständiger Neuaufbau erwünscht, weil die Auswahl weitere Felder
+  // ein- und ausblendet. Deshalb hier überspringen.
+  els.teamDetail.addEventListener('input', (e) => {
+    if (e.target.tagName === 'SELECT') return;
+    teamDetailFrozen = true;
+    try {
+      handleTeamAreaFieldChange(e);
+    } finally {
+      teamDetailFrozen = false;
+    }
+  });
+
+  els.teamDetail.addEventListener('change', handleTeamAreaFieldChange);
+
+  // Der Steuersatz-Vorgaben-Select eines Mitglieds ist bewusst kein
+  // .team-input (er trägt selbst keinen Modellwert, "custom" wäre keine
+  // gültige Zahl) — bei einer festen Vorgabe setzt er taxRate direkt, bei
+  // "Eigener Wert" bleibt der zuletzt gesetzte Wert stehen und das
+  // Zahlenfeld (echtes .team-input mit data-field="taxRate") erscheint.
+  els.teamDetail.addEventListener('change', (e) => {
+    const presetSelect = e.target.closest('.member-tax-rate-preset');
+    if (!presetSelect) return;
+    const entry = findTeamEntry(presetSelect.dataset.memberId);
+    if (!entry) return;
+    if (presetSelect.value === 'custom') {
+      customTaxRateMemberIds.add(entry.member.id);
+      if (entry.member.taxRate == null) entry.member.taxRate = TAX_RATE_DEFAULT;
+    } else {
+      customTaxRateMemberIds.delete(entry.member.id);
+      entry.member.taxRate = num(presetSelect.value);
+    }
+    calculate();
+  });
+
+  els.teamNav.addEventListener('click', (e) => {
+    if (e.target.closest('[data-act="add-root"]')) {
+      addTeamMember(null);
+      return;
+    }
+    // Der Aufklapp-Pfeil ändert nur die Ansicht, nicht die Auswahl und
+    // nicht die Rechnung — deshalb hier ausnahmsweise nur renderTeamNav().
+    const twist = e.target.closest('[data-act="twist"]');
+    if (twist) {
+      const tid = twist.dataset.memberId;
+      if (collapsedTeamIds.has(tid)) collapsedTeamIds.delete(tid);
+      else collapsedTeamIds.add(tid);
+      renderTeamNav();
+      return;
+    }
+    const selectBtn = e.target.closest('.nav-select[data-member-id]');
+    if (!selectBtn) return;
+    const id = selectBtn.dataset.memberId;
+    if (selectedTeamMemberId === id) return;
+    selectedTeamMemberId = id;
+    renderTeamNav();
+    renderTeamDetail();
+  });
+
+  els.teamDetail.addEventListener('click', (e) => {
+    // Strategie-Karten zuerst behandeln (Entfernen/Toggle), danach nicht
+    // mehr zur Mitglieds-Ebene durchfallen lassen. Wichtig: .team-member-card
+    // in den Selektor mit aufnehmen, da die inneren .strategy-toggle-Divs
+    // (stopMode/thresholdBasis/kind/period) selbst ebenfalls data-strategy-id
+    // tragen — ohne die Klasse würde closest() dort fälschlich stoppen,
+    // bevor es die äußere Karte (mit data-list) erreicht.
+    const strategyCard = e.target.closest('.team-member-card[data-strategy-id]');
+    if (strategyCard) {
+      const listKind = strategyCard.dataset.list;
+      const memberId = strategyCard.dataset.memberId || undefined;
+      const removeBtn = e.target.closest('.team-remove-btn');
+      if (removeBtn) {
+        removeStrategy(listKind, removeBtn.dataset.removeId, memberId);
+        return;
+      }
+      const toggleBtn = e.target.closest('.strategy-toggle .toggle-btn');
+      if (toggleBtn) {
+        const group = toggleBtn.closest('.strategy-toggle');
+        const strategy = activeStrategies(listKind, memberId).find(s => s.id === group.dataset.strategyId);
+        if (!strategy) return;
+        strategy[group.dataset.toggle] = toggleBtn.dataset.value;
+        if (group.dataset.toggle === 'period' && toggleBtn.dataset.value === 'once') {
+          strategy.endMonth = null;
+          strategy.stopMode = 'none';
+        }
+        calculate();
+      }
+      return;
+    }
+
+    const addStrategyBtn = e.target.closest('[data-add-strategy]');
+    if (addStrategyBtn) {
+      addStrategy(addStrategyBtn.dataset.addStrategy, addStrategyBtn.dataset.memberId);
+      return;
+    }
+
+    const actBtn = e.target.closest('[data-act]');
+    if (actBtn) {
+      const act = actBtn.dataset.act;
+      const id = actBtn.dataset.memberId;
+      if (act === 'select') {
+        selectedTeamMemberId = id;
+        renderTeamNav();
+        renderTeamDetail();
+      } else if (act === 'add-child') {
+        addTeamMember(id);
+      } else if (act === 'delete') {
+        askRemoveTeamMember(id);
+      }
+      return;
+    }
+
+    const toggleBtn = e.target.closest('.team-toggle .toggle-btn');
+    if (toggleBtn) {
+      const group = toggleBtn.closest('.team-toggle');
+      const entry = findTeamEntry(group.dataset.memberId);
+      if (!entry) return;
+      entry.member[group.dataset.toggle] = toggleBtn.dataset.value;
+      calculate();
+    }
+  });
+
+  els.teamDeleteSubtree.addEventListener('click', () => confirmTeamDelete('subtree'));
+  els.teamDeletePromote.addEventListener('click', () => confirmTeamDelete('promote'));
+  els.teamDeleteCancel.addEventListener('click', () => {
+    pendingTeamDelete = null;
+    els.teamDeleteDialog.close();
+  });
+  // Auch Escape schließt den Dialog — dann darf nichts hängen bleiben.
+  els.teamDeleteDialog.addEventListener('close', () => { pendingTeamDelete = null; });
+
+  els.chartModeToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn || btn.dataset.value === chartMode) return;
+    chartMode = btn.dataset.value;
+    els.chartModeToggle.querySelectorAll('.toggle-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.value === chartMode);
+    });
+    updateChartModeLabel();
+    calculate();
+  });
+
+  window.addEventListener('resize', calculate);
+
+  document.querySelectorAll('.table-wrap').forEach((el) => {
+    el.addEventListener('scroll', updateTableScrollHints, { passive: true });
+  });
+
+  if (!loadState()) {
+    scenarios = [makeScenario(defaultScenarioValues)];
+    activeIndex = 0;
+  }
+  applyScenarioToInputs(scenarios[activeIndex]);
+  renderTabs();
+  updateChartModeLabel();
+  calculate();
+})();
+</script>
+
+</body>
+</html>
