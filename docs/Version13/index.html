@@ -1748,6 +1748,7 @@
                 <th>Einzahlung</th>
                 <th>Auszahlung</th>
                 <th>Zinsen</th>
+                <th title="Team-Bonus (Bonus gesamt), sofern Team-Bonus aktiv ist">Bonus</th>
                 <th>Reinvestiert</th>
                 <th>Cash</th>
                 <th>Gebühren</th>
@@ -3115,6 +3116,7 @@
     <th>Einzahlung</th>
     <th>Auszahlung</th>
     <th>Zinsen</th>
+    <th title="Team-Bonus (Bonus gesamt), sofern Team-Bonus aktiv ist">Bonus</th>
     <th>Reinvestiert</th>
     <th>Cash</th>
     <th>Gebühren</th>
@@ -3134,12 +3136,13 @@
     return (r.withdrawn || 0) + (r.taxFromCapital || 0);
   }
 
-  function monatsverlaufCells(r) {
+  function monatsverlaufCells(r, bonus) {
     return `
         <td>${fmt(r.openingActive)}</td>
         <td>${fmt(r.deposit)}</td>
         <td>${fmt(auszahlungMitSteuer(r))}</td>
         <td>${fmt(r.interest)}</td>
+        <td>${fmt(bonus || 0)}</td>
         <td>${fmt(r.reinvested)}</td>
         <td>${fmt(r.cash)}</td>
         <td>${fmt(r.fee || 0)}</td>
@@ -3155,11 +3158,20 @@
     const hasCombined = Array.isArray(combinedList) && combinedList.length > 0;
     els.rowsThead.innerHTML = hasCombined ? TABLE_HEAD_COMBINED : TABLE_HEAD_PLAIN;
 
+    // Bonus je Monat kommt aus der Team-Bonus-Tabelle (row.totalBonus, siehe
+    // "Bonus gesamt" in #teamBonusRows) — dieselbe Quelle wie in
+    // buildDerivedSeries() für die Rendite-Kurve, hier nur zusätzlich als
+    // eigene Spalte im Monatsverlauf sichtbar.
+    const bonusByMonth = teamResult
+      ? new Map(teamResult.rows.map(r => [r.month, r.totalBonus || 0]))
+      : null;
+    const bonusFor = (month) => (bonusByMonth ? (bonusByMonth.get(month) || 0) : 0);
+
     if (!hasCombined) {
       els.rows.innerHTML = data.map(r => `
       <tr>
         <td>${r.month}</td>
-        ${monatsverlaufCells(r)}
+        ${monatsverlaufCells(r, bonusFor(r.month))}
       </tr>
     `).join('');
       return;
@@ -3180,7 +3192,7 @@
     // umrahmten inneren Tabelle — dadurch fließen sie optisch nahtlos in die
     // Monatsverlauf-Tabelle ein, nur leicht eingerückt/abgesetzt per CSS
     // (.detail-sub-row).
-    const subRow = ({ label, color, level, row }) => `
+    const subRow = ({ label, color, level, row, bonus }) => `
       <tr class="detail-sub-row">
         <td colspan="2">
           <span class="member-name-cell">
@@ -3189,20 +3201,27 @@
             ${level ? `<span class="level-pill">E${level}</span>` : ''}
           </span>
         </td>
-        ${monatsverlaufCells(row)}
+        ${monatsverlaufCells(row, bonus)}
       </tr>`;
 
     els.rows.innerHTML = combinedList.map(({ month, own, members: memberEntries, combined }) => {
       const open = expandedCombinedMonths.has(month);
+      const ownBonus = bonusFor(month);
       const detailRows = open ? [
-        subRow({ label: 'Ich', color: colorFor(activeIndex), level: null, row: own }),
+        subRow({ label: 'Ich', color: colorFor(activeIndex), level: null, row: own, bonus: ownBonus }),
         ...memberEntries.map(mem => subRow({
           label: mem.name || 'Ohne Namen',
           color: memberColor.get(mem.id) || 'var(--muted)',
           level: mem.level,
-          row: mem.row
+          row: mem.row,
+          bonus: mem.ownTotalBonus || 0
         }))
       ].join('') : '';
+
+      // Bonus der Monatszeile: eigener Team-Bonus plus der eigene Team-Bonus
+      // jedes zusammengerechneten Mitglieds — analog dazu, wie `combined`
+      // bereits deren Finanzfelder (inkl. bonusgespeistem cash/total) summiert.
+      const combinedBonus = ownBonus + memberEntries.reduce((acc, mem) => acc + (mem.ownTotalBonus || 0), 0);
 
       return `
       <tr class="month-row${open ? ' open' : ''}" data-month="${month}" tabindex="0"
@@ -3210,7 +3229,7 @@
           aria-label="Monat ${month}, Details ${open ? 'einklappen' : 'ausklappen'}">
         <td class="expand-cell"><span class="expand-icon" aria-hidden="true">${CHEVRON_SVG}</span></td>
         <td style="text-align:left">${month}</td>
-        ${monatsverlaufCells(combined)}
+        ${monatsverlaufCells(combined, combinedBonus)}
       </tr>
       ${detailRows}
     `;

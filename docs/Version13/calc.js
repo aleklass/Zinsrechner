@@ -1398,7 +1398,7 @@
       const memberEntries = merged
         .map(m => {
           const found = teamRow && teamRow.members.find(x => x.id === m.id);
-          return found ? { id: m.id, name: found.name, level: found.level, row: found.row } : null;
+          return found ? { id: m.id, name: found.name, level: found.level, row: found.row, ownTotalBonus: found.ownTotalBonus || 0 } : null;
         })
         .filter(Boolean);
       return combineMonthRow(ownRow.month, ownRow, memberEntries);
