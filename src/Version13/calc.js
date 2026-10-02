@@ -520,6 +520,10 @@
         });
         Object.assign(m, migratedMember);
         if (!Array.isArray(m.children)) m.children = [];
+        // Kein Schalter mehr in der UI: Mitglieds-Startkapital ist immer sofort
+        // aktives Kapital ohne Tippgeber-Bonus (weitere Einzahlungen laufen über
+        // Einzahlungsstrategien).
+        m.includeStartCapital = false;
       });
     }
     return out;
@@ -534,6 +538,10 @@
     // capital from month 0, exactly like before this toggle existed.
     const startAsDeposit = v.includeStartCapital !== false;
     const startCapital = startAsDeposit ? 0 : rawStart;
+    // Bereits vorhandener Cash-Bestand zu Beginn: liegt ohne Gebühr im Cash-
+    // Pool und zählt als eingezahlt; wird wie jeder Cash in 1000er-Blöcken
+    // ins aktive Kapital übernommen.
+    const startCash = Math.max(0, num(v.startCash));
     const depositStrategies = Array.isArray(v.nfDepositStrategies) ? v.nfDepositStrategies : [];
     const depositState = depositStrategies.map(() => ({ stopped: false, started: false, startedAt: null }));
     const withdrawalStrategies = Array.isArray(v.nfWithdrawalStrategies) ? v.nfWithdrawalStrategies : [];
@@ -586,8 +594,8 @@
     const teamRows = [];
 
     let activeCapital = startCapital;
-    let cash = 0;
-    let totalPaid = startCapital;
+    let cash = startCash;
+    let totalPaid = startCapital + startCash;
     let totalInterest = 0;
     let totalFees = 0;
     let totalDepositFees = 0;
@@ -1001,6 +1009,7 @@
 
     return {
       startCapital,
+      startCash,
       activeCapital,
       cash,
       totalPaid,
@@ -1015,7 +1024,7 @@
       totalTaxFromCapital,
       finalWealth,
       ...computeRoi(totalPaid, finalWealth, totalWithdrawn, months),
-      breakEvenMonth: computeBreakEvenMonth(rows, startCapital),
+      breakEvenMonth: computeBreakEvenMonth(rows, startCapital + startCash),
       interestPct:
         finalWealth > 0 ? (totalInterest / finalWealth) * 100 : 0,
       series,
@@ -1212,6 +1221,7 @@
 
     const result = simulateNextForrest({
       start: num(member.startCapital),
+      startCash: num(member.startCash),
       // Wie beim Hauptszenario: unchecked lässt das Startkapital direkt als
       // aktives Kapital beginnen statt als Einzahlungsereignis — dadurch
       // entsteht kein row0-Deposit und somit auch kein Tippgeber-Bonus im
@@ -1444,7 +1454,7 @@
         memberDeposits += entry.row.deposit || 0;
         memberFees += entry.row.fee || 0;
       });
-      totalPaid += startActive + memberDeposits + memberFees;
+      totalPaid += startActive + Math.max(0, num(m.startCash)) + memberDeposits + memberFees;
     });
 
     const last = combinedList[combinedList.length - 1].combined;

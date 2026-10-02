@@ -1577,6 +1577,14 @@
         </div>
 
         <div class="field">
+          <label for="startCash">Aktueller Cash <span class="info-tip" tabindex="0"><span class="info-tip-bubble">Bereits vorhandener Cash-Betrag zu Beginn (ohne Einzahlungsgebühr). Wird wie anderer Cash in vollen 1.000er-Blöcken ins aktive Kapital übernommen.</span></span></label>
+          <div class="amount-input">
+            <span class="amount-input-symbol">$</span>
+            <input id="startCash" type="number" min="0" step="10" value="0">
+          </div>
+        </div>
+
+        <div class="field">
           <label>Investment-Typ</label>
           <div class="type-tab-bar" id="investmentTypeToggle">
             <button type="button" class="type-tab" data-type="classic">Klassisch</button>
@@ -1836,6 +1844,7 @@
     classicFields: $('classicFields'),
     nextForrestFields: $('nextForrestFields'),
     start: $('start'),
+    startCash: $('startCash'),
     rate: $('rate'),
     duration: $('duration'),
     durationUnit: $('durationUnit'),
@@ -1883,7 +1892,7 @@
   };
 
   const FIELD_KEYS = [
-    'start', 'rate', 'duration', 'durationUnit',
+    'start', 'startCash', 'rate', 'duration', 'durationUnit',
     'contribution', 'contributionPeriod', 'compound'
   ];
 
@@ -1894,6 +1903,7 @@
   const defaultScenarioValues = {
     investmentType: 'nextforrest',
     start: 10000,
+    startCash: 0,
     // Kein Umschalter mehr in der UI: Startkapital ist immer sofort aktives
     // Kapital ohne Einzahlungsgebühr (früher "unchecked"). Wer eine
     // Einzahlung mit Gebühr simulieren will, nutzt dafür eine
@@ -2084,8 +2094,9 @@
       name: '',
       // Kein getipptes Ebenen-Feld mehr: die Ebene ist die Tiefe im Baum.
       startCapital: 1000,
+      startCash: 0,
       joinMonth: parent ? Math.max(1, Math.round(num(parent.joinMonth) || 1)) : 1,
-      includeStartCapital: true,
+      includeStartCapital: false,
       // Wenn aktiv, wird dieses Mitglied im Diagramm und im Monatsverlauf zu
       // einer gemeinsamen Summe mit dem eigenen Investment zusammengerechnet
       // (siehe buildCombinedRows()). Der Team-Bonus-Bereich bleibt davon
@@ -2325,6 +2336,7 @@
       <label>Name<input type="text" class="team-input" data-field="name" value="${escapeHtml(m.name || '')}" placeholder="Name (optional)"></label>
       <label>Beitrittsmonat${minJoin > 1 ? ` (frühestens ${minJoin})` : ''}<input type="number" class="team-input" data-field="joinMonth" min="${minJoin}" max="${lastMonth}" step="1" value="${m.joinMonth}"></label>
       <label>Startkapital<div class="amount-input"><span class="amount-input-symbol">${currencySymbol(cur)}</span><input type="number" class="team-input" data-field="startCapital" min="0" step="500" value="${m.startCapital}"></div></label>
+      <label>Aktueller Cash<div class="amount-input"><span class="amount-input-symbol">${currencySymbol(cur)}</span><input type="number" class="team-input" data-field="startCash" min="0" step="10" value="${m.startCash || 0}"></div></label>
     </div>`;
 
     /* --- Rendite --- */
@@ -2337,11 +2349,7 @@
     </div>`;
 
     /* --- Optionen --- */
-    html += `<label class="team-checkbox-row" title="Deaktivieren, wenn das Startkapital bereits vor dieser Simulation investiert war und der Tippgeber-Bonus dafür schon ausgezahlt wurde — dann gibt's dafür keinen erneuten Bonus. Laufende Einzahlungen danach lösen weiterhin normal pro 1.000 €-Block einen Bonus aus, und das Kapital zählt unverändert fürs Team-Volumen.">
-      <input type="checkbox" class="team-input" data-field="includeStartCapital" ${m.includeStartCapital !== false ? 'checked' : ''}>
-      <span>Tippgeber-Bonus auf Startkapital (neu, nicht bereits ausgezahlt)</span>
-    </label>
-    <label class="team-checkbox-row" title="Rechnet das Investment dieses Mitglieds im Diagramm und im Monatsverlauf zum eigenen Investment hinzu (eine gemeinsame Linie/Zeile). Im Team-Bonus-Bereich bleibt das Mitglied davon unabhängig weiterhin einzeln sichtbar.">
+    html += `<label class="team-checkbox-row" title="Rechnet das Investment dieses Mitglieds im Diagramm und im Monatsverlauf zum eigenen Investment hinzu (eine gemeinsame Linie/Zeile). Im Team-Bonus-Bereich bleibt das Mitglied davon unabhängig weiterhin einzeln sichtbar.">
       <input type="checkbox" class="team-input" data-field="mergeWithOwn" ${m.mergeWithOwn ? 'checked' : ''}>
       <span>Mit meinem Investment zusammenrechnen</span>
     </label>
@@ -3379,9 +3387,9 @@
   // meinem Investment zusammenrechnen" auch das Mitglieds-Startkapital
   // korrekt mit einrechnet, statt es zu ignorieren.
   function combinedInitialPaid(values, result) {
-    const ownInitial = result.startCapital || 0;
+    const ownInitial = (result.startCapital || 0) + (result.startCash || 0);
     const membersInitial = mergedTeamMembers(values, result).reduce((sum, m) => {
-      return sum + (m.includeStartCapital === false ? Math.max(0, num(m.startCapital || 0)) : 0);
+      return sum + Math.max(0, num(m.startCapital || 0)) + Math.max(0, num(m.startCash || 0));
     }, 0);
     return ownInitial + membersInitial;
   }
@@ -4107,7 +4115,7 @@
         // NextForrest-Felder (nfMonthlyDeposit/nfDepositGoal/... statt
         // nfDepositStrategies-Array) — beim Laden ins neue Schema überführen,
         // damit sie unverändert weiterrechnen.
-        scenarios = saved.scenarios.map(sc => ({ ...sc, values: migrateScenarioValues({ ...sc.values }) }));
+        scenarios = saved.scenarios.map(sc => ({ ...sc, values: migrateScenarioValues({ startCash: 0, ...sc.values }) }));
         activeIndex = Math.min(Math.max(0, saved.activeIndex || 0), scenarios.length - 1);
         scenarioSeq = saved.scenarioSeq || scenarios.length + 1;
         bumpTeamMemberSeq();
@@ -4194,7 +4202,7 @@
   // alle anderen .team-input-Felder sind numerisch, außer den Checkbox-
   // Sonderfällen in BOOLEAN_TEAM_FIELDS unten.
   const STRING_TEAM_FIELDS = new Set(['name', 'nfMonthlyDepositPeriod', 'nfWithdrawalPeriod']);
-  const BOOLEAN_TEAM_FIELDS = new Set(['includeStartCapital', 'mergeWithOwn', 'taxEnabled', 'taxPayout']);
+  const BOOLEAN_TEAM_FIELDS = new Set(['mergeWithOwn', 'taxEnabled', 'taxPayout']);
 
   function handleTeamMemberFieldChange(e) {
     const input = e.target.closest('.team-input');
