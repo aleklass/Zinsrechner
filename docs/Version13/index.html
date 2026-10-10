@@ -1335,6 +1335,26 @@
       width: min(100%, var(--detail-w, 100%));
     }
 
+    .calc-box {
+      margin: 0 0 14px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.75rem;
+    }
+    .calc-title { font-weight: 700; margin-bottom: 4px; }
+    .calc-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px 8px;
+      padding: 3px 0;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .calc-line:last-child { border-bottom: 0; }
+    .calc-line .cl-label { font-weight: 650; flex: 0 0 auto; }
+    .calc-line .cl-formula { flex: 1 1 12rem; min-width: 0; color: var(--muted); }
+    .calc-line .cl-note { flex: 1 0 100%; }
+
     .member-line {
       display: flex;
       align-items: center;
@@ -1379,6 +1399,12 @@
       font-size: 0.6875rem;
       color: var(--muted);
       min-width: 0;
+    }
+
+    /* Zins/Bonus-Zeile je Mitglied: eigene Zeile unter Name und Kapital. */
+    .member-line .cl-note {
+      flex: 1 0 100%;
+      order: 1;
     }
 
     .member-note.accent {
@@ -1476,6 +1502,21 @@
       color: var(--muted);
       font-size: 0.6875rem;
       text-align: center;
+    }
+
+    /* Desktop: Eingabe und Ergebnisse scrollen getrennt — jede Spalte füllt
+       die Fensterhöhe und hat ihren eigenen Scrollbereich. Auf schmalen
+       Bildschirmen (unten) stehen sie untereinander und scrollen mit der Seite. */
+    @media (min-width: 861px) {
+      .inputs,
+      .results {
+        position: sticky;
+        top: 20px;
+        max-height: calc(100vh - 40px);
+        max-height: calc(100dvh - 40px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+      }
     }
 
     @media (max-width: 860px) {
@@ -1974,6 +2015,10 @@
   const expandedCombinedMonths = new Set();
   const CHEVRON_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>`;
   let lastDatasets = [];
+  // Untergrenze zum aktiven Szenario: dasselbe Szenario ohne Teamstruktur
+  // (null, solange es kein Team hat). Kein eigener Datensatz, damit
+  // Hover/Klick/Szenario-Wechsel unverändert bleiben.
+  let lastBaseline = null;
   let hoverState = { index: -1, datasetIndex: -1 };
   let chartMode = 'rendite'; // 'invested' | 'rendite'
 
@@ -2847,6 +2892,59 @@
     renderTeamChart(team);
   }
 
+  // Rechenweg des Monats zum Nachprüfen: Rang und Schwellen, dann jeder
+  // Bonus als Formel (Basis × Satz = Betrag). Reine Anzeige aus den Werten
+  // von calc.js — hier wird nichts neu gerechnet, nur dargestellt.
+  function teamMonthCalc(row, cur) {
+    const rank = RANKS[row.rankIndex] || RANKS[0];
+    const pct = (p) => `${(p * 100).toLocaleString('de-DE', { maximumFractionDigits: 2 })} %`;
+    const line = (label, formula, amount, note) => `
+      <div class="calc-line">
+        <span class="cl-label">${label}</span>
+        <span class="cl-formula">${formula}</span>
+        ${amount == null ? '' : `<span class="ml-num">${fmt(amount, cur)}</span>`}
+        ${note ? `<span class="member-note cl-note">${note}</span>` : ''}
+      </div>`;
+
+    const direct = (Array.isArray(row.members) ? row.members : []).filter(mem => mem.level === 1);
+    const tippLines = direct
+      .filter(mem => ((mem.row && mem.row.reinvested) || 0) > 0)
+      .map(mem => {
+        const reinvested = mem.row.reinvested;
+        const own = mem.ownTotalBonus || 0;
+        return line(
+          `Tippgeber ${escapeHtml(mem.name || 'Ohne Namen')}`,
+          `${fmt(reinvested, cur)} investiert ÷ ${fmt(1000, cur)} = ${reinvested / 1000} ${reinvested / 1000 === 1 ? 'Block' : 'Blöcke'} × ${fmt(50, cur)}`,
+          mem.tippgeberBonus || 0,
+          own > 0
+            ? `Das Mitglied bekam im selben Monat selbst ${fmt(own, cur)} Bonus — er kann im investierten Betrag stecken.`
+            : ''
+        );
+      }).join('');
+
+    const levelLines = [row.e1Active, row.e2Active, row.e3Active].map((active, i) => {
+      const p = rank.levelPcts[i] || 0;
+      const bonus = [row.e1Bonus, row.e2Bonus, row.e3Bonus][i];
+      return line(
+        `Ebene ${i + 1}`,
+        p > 0
+          ? `${fmt(active, cur)} aktives Kapital × ${pct(p)}`
+          : `${fmt(active, cur)} aktives Kapital × 0 % (Rang ${escapeHtml(rank.name)} schaltet diese Ebene nicht frei)`,
+        bonus
+      );
+    }).join('');
+
+    return `
+      <div class="calc-box">
+        <div class="calc-title">Rechnung Monat ${row.month}</div>
+        ${line('Rang', `${escapeHtml(rank.name)} · eigenes aktives Kapital ${fmt(row.ownActive, cur)} · Team-Volumen ${fmt(row.teamVolume, cur)} (Ebene 4+: ${fmt(row.deepActive, cur)})`, null)}
+        ${tippLines || line('Tippgeber', `kein Ebene-1-Mitglied hat in diesem Monat einen ${fmt(1000, cur)}-Block investiert`, 0)}
+        ${line('Eigen', rank.ownPct > 0 ? `${fmt(row.ownActive, cur)} eigenes aktives Kapital × ${pct(rank.ownPct)}` : 'Rang zahlt keinen Eigen-Bonus', row.ownBonus)}
+        ${levelLines}
+        ${line('<strong>Summe</strong>', 'Tippgeber + Eigen + Ebene 1–3', row.totalBonus)}
+      </div>`;
+  }
+
   // Aufgeklappte Monatszeile: der gesamte Baum, nach Ebene gruppiert, je
   // Gruppe eine Zwischensumme aus aktivem Kapital und dem Level-Bonus, den
   // genau diese Ebene mir in diesem Monat gezahlt hat.
@@ -2879,7 +2977,7 @@
       level === 1 ? row.e1Bonus : level === 2 ? row.e2Bonus : level === 3 ? row.e3Bonus : 0
     );
 
-    return Array.from(byLevel.keys()).sort((a, b) => a - b).map(level => {
+    return teamMonthCalc(row, cur) + Array.from(byLevel.keys()).sort((a, b) => a - b).map(level => {
       const list = byLevel.get(level);
       let levelActive = 0;
 
@@ -2896,8 +2994,12 @@
           : Math.max(1, Math.round(num(entry.member.joinMonth) || 1));
         if (joined) levelActive += mem.activeBase || 0;
 
-        const ownEarned = joined && (mem.ownTotalBonus || 0) > 0
-          ? `<span class="member-note">verdient selbst ${fmt(mem.ownTotalBonus, cur)}</span>`
+        // Zahlen des Mitglieds in diesem Monat (eigene Zeile aus seiner
+        // Simulation): Zins, Bonus aus seinem Unterbau, was er in 1000er-
+        // Blöcken ins aktive Kapital gesweept hat, und sein Rest-Cash.
+        const snap = (joined && mem.row) || {};
+        const ownEarned = joined
+          ? `<span class="member-note cl-note">Zins ${fmt(snap.interest || 0, cur)} · Bonus ${fmt(mem.ownTotalBonus || 0, cur)} · investiert ${fmt(snap.reinvested || 0, cur)} · Cash ${fmt(snap.cash || 0, cur)}</span>`
           : '';
         const tippgeber = joined && level === 1 && (mem.tippgeberBonus || 0) > 0
           ? `<span class="member-note accent">+${fmt(mem.tippgeberBonus, cur)} Tippgeber an dich</span>`
@@ -3411,7 +3513,7 @@
     };
   }
 
-  function drawLineChart(canvas, datasets, { legendContainer = null, fillIndex = -1, hoverIndex = -1, hoverDatasetIndex = -1 } = {}) {
+  function drawLineChart(canvas, datasets, { legendContainer = null, fillIndex = -1, hoverIndex = -1, hoverDatasetIndex = -1, band = null } = {}) {
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.max(1, Math.round(rect.width * dpr));
@@ -3428,7 +3530,8 @@
 
     ctx.clearRect(0, 0, w, h);
 
-    const allValues = datasets.flatMap(ds => ds.data.map(p => p.value));
+    const allValues = datasets.flatMap(ds => ds.data.map(p => p.value))
+      .concat(band ? band.data.map(p => p.value) : []);
     let min = Math.min(...allValues);
     let max = Math.max(...allValues);
     if (!Number.isFinite(min) || !Number.isFinite(max)) {
@@ -3496,6 +3599,35 @@
       ctx.closePath();
       ctx.fillStyle = grad;
       ctx.fill();
+    }
+
+    // Spanne zwischen "ohne Team" (Untergrenze) und dem aktiven Szenario
+    // (Obergrenze): Fläche mit 20 % Deckkraft, die Untergrenze selbst als
+    // Linie mit 50 %. Wird vor den Linien gezeichnet, liegt also darunter.
+    if (band && fillIndex >= 0 && datasets[fillIndex]) {
+      const top = datasets[fillIndex].data;
+      const n = Math.min(top.length, band.data.length);
+      if (n > 0) {
+        ctx.beginPath();
+        for (let i = 0; i < n; i++) {
+          if (i === 0) ctx.moveTo(x(i), y(top[i].value));
+          else ctx.lineTo(x(i), y(top[i].value));
+        }
+        for (let i = n - 1; i >= 0; i--) ctx.lineTo(x(i), y(band.data[i].value));
+        ctx.closePath();
+        ctx.fillStyle = hexToRgba(band.color, .2);
+        ctx.fill();
+      }
+      ctx.beginPath();
+      band.data.forEach((p, j) => {
+        if (j === 0) ctx.moveTo(x(j), y(p.value));
+        else ctx.lineTo(x(j), y(p.value));
+      });
+      ctx.strokeStyle = hexToRgba(band.color, .5);
+      ctx.lineWidth = 3;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.stroke();
     }
 
     // Lines — draw the highlighted dataset last so it sits on top
@@ -3607,6 +3739,14 @@
       ctx.stroke();
       ctx.restore();
 
+      const bandPoint = band && band.data[hoverIndex];
+      if (bandPoint) {
+        ctx.beginPath();
+        ctx.arc(gx, y(bandPoint.value), 3, 0, Math.PI * 2);
+        ctx.fillStyle = hexToRgba(band.color, .5);
+        ctx.fill();
+      }
+
       datasets.forEach((ds, i) => {
         const p = ds.data[hoverIndex];
         if (!p) return;
@@ -3629,7 +3769,11 @@
           <span class="legend-dot" style="background:${ds.color}"></span>
           ${ds.label}
         </span>
-      `).join('');
+      `).join('') + (band ? `
+        <span class="legend-item" title="Dasselbe Szenario ohne Teamstruktur — das Minimum, das du mit deiner Strategie allein erwarten kannst. Die Fläche darüber ist der mögliche Team-Zugewinn.">
+          <span class="legend-dot" style="background:${hexToRgba(band.color, .5)}"></span>
+          ${band.label}
+        </span>` : '');
     }
   }
 
@@ -3858,6 +4002,35 @@
 
     renderScenarioSummaryTable(results);
 
+    // Untergrenze: dasselbe Szenario ohne Teamstruktur-Boni, mit derselben
+    // Strategie. Mitglieder mit "Mit meinem Investment zusammenrechnen"
+    // bleiben dabei Teil der Rechnung: ihre Monatszeilen kommen aus dem
+    // Hauptlauf (sie hängen nicht von meinen Boni ab) und werden auf meine
+    // Zeilen OHNE Team addiert — wie bei der oberen Linie.
+    const activeValues = activeScenario.values;
+    const hasTeam = activeValues.investmentType === 'nextforrest'
+      && Array.isArray(activeValues.nfTeamMembers) && activeValues.nfTeamMembers.length > 0;
+    lastBaseline = null;
+    if (hasTeam) {
+      const baseResult = runSimulation({ ...activeValues, nfTeamMembers: [] });
+      // `team` stammt aus dem Hauptlauf, nur damit buildCombinedRows() die
+      // zusammengerechneten Mitglieder findet; die Eigenzeilen sind die ohne
+      // Team. buildDerivedSeries() bekommt bewusst baseResult (ohne Team),
+      // damit kein Team-Bonus in die Rendite-Ansicht einfließt.
+      const baseCombined = buildCombinedRows(activeValues, { ...baseResult, rows: foldRow0IntoRow1(baseResult.rows), team: main.team });
+      const baseDerived = buildDerivedSeries(baseResult, baseCombined ? baseCombined.map(c => c.combined) : null);
+      const baseSeries = (chartMode === 'rendite' ? baseDerived.rendite : baseDerived.invested)
+        .filter(pt => pt.month >= 1);
+      const baseLast = baseSeries.length ? baseSeries[baseSeries.length - 1].value : 0;
+      lastBaseline = {
+        data: baseSeries,
+        color: colorFor(activeIndex),
+        currency: activeValues.currency,
+        name: `${activeScenario.name} ohne Team`,
+        label: `${activeScenario.name} ohne Team: ${fmt(baseLast, activeValues.currency)}`
+      };
+    }
+
     hoverState = { index: -1, datasetIndex: -1 };
     els.chartTooltip.style.display = 'none';
     renderChart();
@@ -3937,6 +4110,7 @@
     drawLineChart(els.chart, lastDatasets, {
       legendContainer: els.chartLegend,
       fillIndex: activeIndex,
+      band: lastBaseline,
       hoverIndex: hoverState.index,
       hoverDatasetIndex: hoverState.datasetIndex
     });
@@ -3953,6 +4127,15 @@
       .sort((a, b) => b.point.value - a.point.value);
 
     if (!rows.length) return;
+
+    const bandPoint = lastBaseline && lastBaseline.data[idx];
+    if (bandPoint) {
+      rows.push({
+        ds: { scenarioIndex: -2, color: hexToRgba(lastBaseline.color, .5), name: lastBaseline.name, currency: lastBaseline.currency },
+        point: bandPoint
+      });
+      rows.sort((a, b) => b.point.value - a.point.value);
+    }
 
     els.chartTooltip.innerHTML = `
       <div class="tt-month">Monat ${rows[0].point.month}</div>
