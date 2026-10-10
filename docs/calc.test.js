@@ -9,6 +9,13 @@ const {
   computeRoi,
   computeBreakEvenMonth,
   NF_RATES,
+  walkTeam,
+  clampTeamJoinMonths,
+  MAX_TEAM_DEPTH,
+  migrateTeamMembersToTree,
+  mergedTeamMembers,
+  buildCombinedRows,
+  combinedScenarioTotals,
 } = require('./calc.js');
 
 const EPS = 0.01;
@@ -903,27 +910,33 @@ describe('Team-Struktur / Rangsystem (simulateNextForrest.team)', () => {
     const r = simulateNextForrest(baseTeam({
       duration: 6,
       nfTeamMembers: [
-        { name: 'Ebene1', level: 1, startCapital: 3000, monthlyDeposit: 0, joinMonth: 1 },
-        { name: 'Ebene2', level: 2, startCapital: 5000, monthlyDeposit: 0, joinMonth: 1 }
+        { name: 'Ebene1', startCapital: 3000, monthlyDeposit: 0, joinMonth: 1, children: [
+          { name: 'Ebene2', startCapital: 5000, monthlyDeposit: 0, joinMonth: 1, children: [] }
+        ] }
       ]
     }));
     const byMonth = m => r.team.rows.find(row => row.month === m);
     // Kein Monat 0 mehr — alle Bonuszahlungen laufen ab Monat 1. Ebene 1:
     // 3.000 € Startkapital = 3 Blöcke → 3 × 50 € = 150 €, im tatsächlichen
     // Beitrittsmonat 1. Ebene 2 zählt hier nicht mit, da sie nicht direkt
-    // vom Szenario-Inhaber geworben wurde.
+    // vom Szenario-Inhaber geworben wurde: ihre 5 Blöcke (250 €) gehen an
+    // Ebene 1, nicht an mich.
     assert.strictEqual(byMonth(0), undefined);
     assert.strictEqual(byMonth(1).rank, 'Forrest Member');
     close(byMonth(1).tippgeberBonus, 150);
     close(byMonth(2).tippgeberBonus, 0);
-    close(r.team.totalTippgeberBonus, 150);
+    // 200 € statt 150 €, seit Ebene 2 unter Ebene 1 hängt: die 250 €
+    // Tippgeber-Bonus, die Ebene 1 für Ebene 2 bekommt, füllen zusammen mit
+    // ihren eigenen Zinsen (150 €/Monat) bis Monat 5 einen vollen 1000er-
+    // Block. Dieser Sweep bei Ebene 1 zahlt mir weitere 50 €.
+    close(r.team.totalTippgeberBonus, 200);
   });
 
   test('Tippgeber-Bonus wird im tatsächlichen Beitrittsmonat der Empfehlung gutgeschrieben', () => {
     const r = simulateNextForrest(baseTeam({
       duration: 6,
       nfTeamMembers: [
-        { name: 'Spaeteinsteiger', level: 1, startCapital: 2000, monthlyDeposit: 0, joinMonth: 4 }
+        { name: 'Spaeteinsteiger', startCapital: 2000, monthlyDeposit: 0, joinMonth: 4 }
       ]
     }));
     const byMonth = m => r.team.rows.find(row => row.month === m);
@@ -941,7 +954,7 @@ describe('Team-Struktur / Rangsystem (simulateNextForrest.team)', () => {
     const r = simulateNextForrest(baseTeam({
       duration: 3,
       nfTeamMembers: [
-        { name: 'Ebene1', level: 1, startCapital: 100000, monthlyDeposit: 0, joinMonth: 1 }
+        { name: 'Ebene1', startCapital: 100000, monthlyDeposit: 0, joinMonth: 1 }
       ]
     }));
     const byMonth = m => r.team.rows.find(row => row.month === m);
@@ -954,7 +967,7 @@ describe('Team-Struktur / Rangsystem (simulateNextForrest.team)', () => {
     const r = simulateNextForrest(baseTeam({
       duration: 2,
       nfTeamMembers: [
-        { name: 'Ebene1', level: 1, startCapital: 50000, monthlyDeposit: 0, joinMonth: 1, includeStartCapital: false }
+        { name: 'Ebene1', startCapital: 50000, monthlyDeposit: 0, joinMonth: 1, includeStartCapital: false }
       ]
     }));
     const byMonth = m => r.team.rows.find(row => row.month === m);
@@ -969,7 +982,7 @@ describe('Team-Struktur / Rangsystem (simulateNextForrest.team)', () => {
     const r = simulateNextForrest(baseTeam({
       duration: 3,
       nfTeamMembers: [
-        { name: 'Ebene1', level: 1, startCapital: 50000, monthlyDeposit: 1000, joinMonth: 1, includeStartCapital: false }
+        { name: 'Ebene1', startCapital: 50000, monthlyDeposit: 1000, joinMonth: 1, includeStartCapital: false }
       ]
     }));
     const byMonth = m => r.team.rows.find(row => row.month === m);
@@ -982,7 +995,7 @@ describe('Team-Struktur / Rangsystem (simulateNextForrest.team)', () => {
     // Referenzbeispiel aus der Spezifikation: 500.000 € auf Ebene 1 bei 1 % → 5.000 € Bonus.
     const r = simulateNextForrest(baseTeam({
       nfTeamMembers: [
-        { name: 'Ebene1', level: 1, startCapital: 500000, monthlyDeposit: 0, joinMonth: 1 }
+        { name: 'Ebene1', startCapital: 500000, monthlyDeposit: 0, joinMonth: 1 }
       ]
     }));
     const row = r.team.rows.find(row => row.month === 1);
@@ -997,8 +1010,9 @@ describe('Team-Struktur / Rangsystem (simulateNextForrest.team)', () => {
     const r = simulateNextForrest(baseTeam({
       start: 20000,
       nfTeamMembers: [
-        { name: 'Ebene1', level: 1, startCapital: 150000, monthlyDeposit: 0, joinMonth: 1 },
-        { name: 'Ebene2', level: 2, startCapital: 60000, monthlyDeposit: 0, joinMonth: 1 }
+        { name: 'Ebene1', startCapital: 150000, monthlyDeposit: 0, joinMonth: 1, children: [
+          { name: 'Ebene2', startCapital: 60000, monthlyDeposit: 0, joinMonth: 1, children: [] }
+        ] }
       ]
     }));
     const row = r.team.rows.find(row => row.month === 1);
@@ -1013,9 +1027,11 @@ describe('Team-Struktur / Rangsystem (simulateNextForrest.team)', () => {
     const r = simulateNextForrest(baseTeam({
       start: 30000,
       nfTeamMembers: [
-        { name: 'Ebene1', level: 1, startCapital: 150000, monthlyDeposit: 0, joinMonth: 1 },
-        { name: 'Ebene2', level: 2, startCapital: 100000, monthlyDeposit: 0, joinMonth: 1 },
-        { name: 'Ebene3', level: 3, startCapital: 60000, monthlyDeposit: 0, joinMonth: 1 }
+        { name: 'Ebene1', startCapital: 150000, monthlyDeposit: 0, joinMonth: 1, children: [
+          { name: 'Ebene2', startCapital: 100000, monthlyDeposit: 0, joinMonth: 1, children: [
+            { name: 'Ebene3', startCapital: 60000, monthlyDeposit: 0, joinMonth: 1, children: [] }
+          ] }
+        ] }
       ]
     }));
     const row = r.team.rows.find(row => row.month === 1);
@@ -1030,9 +1046,11 @@ describe('Team-Struktur / Rangsystem (simulateNextForrest.team)', () => {
     const r = simulateNextForrest(baseTeam({
       start: 60000,
       nfTeamMembers: [
-        { name: 'Ebene1', level: 1, startCapital: 200000, monthlyDeposit: 0, joinMonth: 1 },
-        { name: 'Ebene2', level: 2, startCapital: 200000, monthlyDeposit: 0, joinMonth: 1 },
-        { name: 'Ebene3', level: 3, startCapital: 200000, monthlyDeposit: 0, joinMonth: 1 }
+        { name: 'Ebene1', startCapital: 200000, monthlyDeposit: 0, joinMonth: 1, children: [
+          { name: 'Ebene2', startCapital: 200000, monthlyDeposit: 0, joinMonth: 1, children: [
+            { name: 'Ebene3', startCapital: 200000, monthlyDeposit: 0, joinMonth: 1, children: [] }
+          ] }
+        ] }
       ]
     }));
     const row = r.team.rows.find(row => row.month === 1);
@@ -1047,9 +1065,11 @@ describe('Team-Struktur / Rangsystem (simulateNextForrest.team)', () => {
     const r = simulateNextForrest(baseTeam({
       start: 100000,
       nfTeamMembers: [
-        { name: 'Ebene1', level: 1, startCapital: 400000, monthlyDeposit: 0, joinMonth: 1 },
-        { name: 'Ebene2', level: 2, startCapital: 400000, monthlyDeposit: 0, joinMonth: 1 },
-        { name: 'Ebene3', level: 3, startCapital: 200000, monthlyDeposit: 0, joinMonth: 1 }
+        { name: 'Ebene1', startCapital: 400000, monthlyDeposit: 0, joinMonth: 1, children: [
+          { name: 'Ebene2', startCapital: 400000, monthlyDeposit: 0, joinMonth: 1, children: [
+            { name: 'Ebene3', startCapital: 200000, monthlyDeposit: 0, joinMonth: 1, children: [] }
+          ] }
+        ] }
       ]
     }));
     const row = r.team.rows.find(row => row.month === 1);
@@ -1065,7 +1085,7 @@ describe('Team-Struktur / Rangsystem (simulateNextForrest.team)', () => {
       duration: 6,
       start: 1000,
       nfTeamMembers: [
-        { name: 'Ebene1', level: 1, startCapital: 2000, monthlyDeposit: 0, joinMonth: 1 }
+        { name: 'Ebene1', startCapital: 2000, monthlyDeposit: 0, joinMonth: 1 }
       ]
     }));
     r.team.rows.forEach(row => {
@@ -1081,9 +1101,11 @@ describe('Team-Struktur / Rangsystem (simulateNextForrest.team)', () => {
       start: 30000,
       duration: 3,
       nfTeamMembers: [
-        { name: 'Ebene1', level: 1, startCapital: 150000, monthlyDeposit: 0, joinMonth: 1 },
-        { name: 'Ebene2', level: 2, startCapital: 100000, monthlyDeposit: 0, joinMonth: 1 },
-        { name: 'Ebene3', level: 3, startCapital: 60000, monthlyDeposit: 0, joinMonth: 1 }
+        { name: 'Ebene1', startCapital: 150000, monthlyDeposit: 0, joinMonth: 1, children: [
+          { name: 'Ebene2', startCapital: 100000, monthlyDeposit: 0, joinMonth: 1, children: [
+            { name: 'Ebene3', startCapital: 60000, monthlyDeposit: 0, joinMonth: 1, children: [] }
+          ] }
+        ] }
       ]
     }));
     // Einmal Gold erreicht, bleibt der Rang für den Rest der Laufzeit
@@ -1100,8 +1122,9 @@ describe('Team-Struktur / Rangsystem (simulateNextForrest.team)', () => {
     const values = baseTeam({
       start: 30000,
       nfTeamMembers: [
-        { name: 'Ebene1', level: 1, startCapital: 150000, monthlyDeposit: 0, joinMonth: 1 },
-        { name: 'Ebene2', level: 2, startCapital: 100000, monthlyDeposit: 0, joinMonth: 1 }
+        { name: 'Ebene1', startCapital: 150000, monthlyDeposit: 0, joinMonth: 1, children: [
+          { name: 'Ebene2', startCapital: 100000, monthlyDeposit: 0, joinMonth: 1, children: [] }
+        ] }
       ]
     });
     const withTeam = simulateNextForrest(values);
@@ -1114,8 +1137,9 @@ describe('Team-Struktur / Rangsystem (simulateNextForrest.team)', () => {
       start: 30000,
       nfWithdrawalStrategies: [withdrawalStrategy({ type: 'percentage', amount: 10 })],
       nfTeamMembers: [
-        { name: 'Ebene1', level: 1, startCapital: 150000, monthlyDeposit: 0, joinMonth: 1 },
-        { name: 'Ebene2', level: 2, startCapital: 100000, monthlyDeposit: 0, joinMonth: 1 }
+        { name: 'Ebene1', startCapital: 150000, monthlyDeposit: 0, joinMonth: 1, children: [
+          { name: 'Ebene2', startCapital: 100000, monthlyDeposit: 0, joinMonth: 1, children: [] }
+        ] }
       ]
     });
     const r = simulateNextForrest(values);
@@ -1134,8 +1158,8 @@ describe('Team-Struktur / Rangsystem (simulateNextForrest.team)', () => {
     const r = simulateNextForrest(baseTeam({
       duration: 2,
       nfTeamMembers: [
-        { name: 'Ebene1', level: 1, startCapital: 3000, monthlyDeposit: 0, joinMonth: 1 },
-        { name: 'Spaeteinsteiger', level: 1, startCapital: 1000, monthlyDeposit: 0, joinMonth: 2 }
+        { name: 'Ebene1', startCapital: 3000, monthlyDeposit: 0, joinMonth: 1 },
+        { name: 'Spaeteinsteiger', startCapital: 1000, monthlyDeposit: 0, joinMonth: 2 }
       ]
     }));
     const month1 = r.team.rows.find(row => row.month === 1);
@@ -1258,5 +1282,965 @@ describe('migrateScenarioValues: migriert auch verschachtelte Team-Mitglieder', 
     const before = simulateTeamMember(values, oldMember);
     const after = simulateTeamMember(migrated, migratedMember);
     close(before.result.finalWealth, after.result.finalWealth);
+  });
+});
+
+describe('Migration: flache Team-Liste → Baum', () => {
+  test('Ebene 2 hängt unter dem zuletzt gesehenen Ebene-1-Eintrag', () => {
+    const { members, migrated } = migrateTeamMembersToTree([
+      { id: 'a', name: 'A', level: 1, startCapital: 1000, joinMonth: 1 },
+      { id: 'a1', name: 'A1', level: 2, startCapital: 2000, joinMonth: 2 },
+      { id: 'b', name: 'B', level: 1, startCapital: 3000, joinMonth: 1 },
+      { id: 'b1', name: 'B1', level: 2, startCapital: 4000, joinMonth: 3 }
+    ]);
+    assert.strictEqual(migrated, true);
+    assert.deepStrictEqual(members.map(m => m.name), ['A', 'B']);
+    assert.deepStrictEqual(members[0].children.map(m => m.name), ['A1']);
+    assert.deepStrictEqual(members[1].children.map(m => m.name), ['B1']);
+  });
+
+  test('Ebene 3 hängt unter dem zuletzt gesehenen Ebene-2-Eintrag', () => {
+    const { members } = migrateTeamMembersToTree([
+      { id: 'a', name: 'A', level: 1, startCapital: 1000, joinMonth: 1 },
+      { id: 'a1', name: 'A1', level: 2, startCapital: 2000, joinMonth: 1 },
+      { id: 'a1a', name: 'A1a', level: 3, startCapital: 3000, joinMonth: 1 }
+    ]);
+    assert.strictEqual(members[0].children[0].children[0].name, 'A1a');
+  });
+
+  test('Ein verwaister Ebene-2-Eintrag ohne vorherige Ebene 1 landet an der Wurzel', () => {
+    const { members } = migrateTeamMembersToTree([
+      { id: 'x', name: 'X', level: 2, startCapital: 1000, joinMonth: 1 }
+    ]);
+    assert.deepStrictEqual(members.map(m => m.name), ['X']);
+    assert.strictEqual(members[0].level, undefined, 'level wird entfernt');
+  });
+
+  test('Eine reine Ebene-1-Liste gilt nicht als migriert', () => {
+    const { migrated } = migrateTeamMembersToTree([
+      { id: 'a', name: 'A', level: 1, startCapital: 1000, joinMonth: 1 },
+      { id: 'b', name: 'B', level: 1, startCapital: 2000, joinMonth: 1 }
+    ]);
+    assert.strictEqual(migrated, false);
+  });
+
+  test('Die Beitrittsmonat-Regel gilt nach der Migration', () => {
+    const { members } = migrateTeamMembersToTree([
+      { id: 'a', name: 'A', level: 1, startCapital: 1000, joinMonth: 6 },
+      { id: 'a1', name: 'A1', level: 2, startCapital: 2000, joinMonth: 2 }
+    ]);
+    assert.strictEqual(members[0].children[0].joinMonth, 6);
+  });
+
+  test('Ein bereits migrierter Baum bleibt unverändert', () => {
+    const tree = [{ id: 'a', name: 'A', startCapital: 1000, joinMonth: 1, children: [] }];
+    const { members, migrated } = migrateTeamMembersToTree(tree);
+    assert.strictEqual(migrated, false);
+    assert.deepStrictEqual(members.map(m => m.name), ['A']);
+  });
+});
+
+describe('Baum-Hilfsfunktionen (walkTeam, clampTeamJoinMonths)', () => {
+  function node(name, joinMonth, children) {
+    return { id: name, name, joinMonth, startCapital: 1000, children: children || [] };
+  }
+
+  test('walkTeam läuft in Anzeigereihenfolge und zählt die Tiefe ab 1', () => {
+    const tree = [
+      node('A', 1, [node('A1', 2, [node('A1a', 3)]), node('A2', 2)]),
+      node('B', 1)
+    ];
+    const seen = [];
+    walkTeam(tree, (m, depth, parent) => {
+      seen.push(`${m.name}:${depth}:${parent ? parent.name : '-'}`);
+    });
+    assert.deepStrictEqual(seen, [
+      'A:1:-', 'A1:2:A', 'A1a:3:A1', 'A2:2:A', 'B:1:-'
+    ]);
+  });
+
+  test('clampTeamJoinMonths zieht Kinder auf den Beitrittsmonat des Werbenden', () => {
+    const tree = [node('A', 5, [node('A1', 2, [node('A1a', 1)])])];
+    clampTeamJoinMonths(tree);
+    assert.strictEqual(tree[0].joinMonth, 5);
+    assert.strictEqual(tree[0].children[0].joinMonth, 5);
+    assert.strictEqual(tree[0].children[0].children[0].joinMonth, 5);
+  });
+
+  test('clampTeamJoinMonths lässt spätere Beitritte unangetastet', () => {
+    const tree = [node('A', 3, [node('A1', 7)])];
+    clampTeamJoinMonths(tree);
+    assert.strictEqual(tree[0].children[0].joinMonth, 7);
+  });
+
+  test('clampTeamJoinMonths erzwingt Monat 1 als Untergrenze', () => {
+    const tree = [node('A', 0, [node('A1', -4)])];
+    clampTeamJoinMonths(tree);
+    assert.strictEqual(tree[0].joinMonth, 1);
+    assert.strictEqual(tree[0].children[0].joinMonth, 1);
+  });
+});
+
+describe('Rekursive Sub-Simulationen: jedes Mitglied verdient an seiner eigenen Downline', () => {
+  function baseRec(overrides) {
+    return {
+      investmentType: 'nextforrest',
+      start: 15000,
+      includeStartCapital: false,
+      currency: 'EUR',
+      duration: 6,
+      durationUnit: 'months',
+      nfRate: 'low',
+      nfDepositStrategies: [],
+      nfWithdrawalStrategies: [],
+      nfTeamMembers: [],
+      ...overrides
+    };
+  }
+
+  test('Ein Mitglied bekommt Tippgeber-Bonus für seine eigenen Geworbenen', () => {
+    const v = baseRec({
+      nfTeamMembers: [{
+        id: 'a', name: 'A', startCapital: 2000, joinMonth: 1,
+        includeStartCapital: true, children: [
+          { id: 'b', name: 'B', startCapital: 3000, joinMonth: 1, includeStartCapital: true, children: [] }
+        ]
+      }]
+    });
+    const sim = simulateTeamMember(v, v.nfTeamMembers[0]);
+    // B investiert 3.000 € = 3 Blöcke → A bekommt 3 × 50 € = 150 €
+    assert.ok(sim.result.team, 'A muss ein eigenes team-Ergebnis haben');
+    close(sim.result.team.totalTippgeberBonus, 150);
+  });
+
+  test('Der Beitrittsmonat eines Enkels wird auf die Zeitachse des Kindes umgerechnet', () => {
+    const v = baseRec({
+      duration: 12,
+      nfTeamMembers: [{
+        id: 'a', name: 'A', startCapital: 1000, joinMonth: 3,
+        includeStartCapital: true, children: [
+          { id: 'b', name: 'B', startCapital: 2000, joinMonth: 9, includeStartCapital: true, children: [] }
+        ]
+      }]
+    });
+    const sim = simulateTeamMember(v, v.nfTeamMembers[0]);
+    // B tritt im Kalendermonat 9 bei, A im Monat 3 → lokal Monat 7.
+    const row = sim.result.team.rows.find(r => r.month === 7);
+    close(row.tippgeberBonus, 100); // 2 Blöcke × 50 €
+    const vorher = sim.result.team.rows.find(r => r.month === 6);
+    close(vorher.tippgeberBonus, 0);
+  });
+
+  test('Die Zeitachse stimmt auch über drei Ebenen, wenn niemand in Monat 1 beitritt', () => {
+    const v = baseRec({
+      duration: 18,
+      nfTeamMembers: [{
+        id: 'a', name: 'A', startCapital: 1000, joinMonth: 5, includeStartCapital: true, children: [
+          { id: 'b', name: 'B', startCapital: 1000, joinMonth: 10, includeStartCapital: true, children: [
+            // 20.000 € = 20 Blöcke → 1.000 € Tippgeber-Bonus an B, in einem
+            // Schlag groß genug für einen vollen Block-Sweep bei B.
+            { id: 'c', name: 'C', startCapital: 20000, joinMonth: 13, includeStartCapital: true, children: [] }
+          ] }
+        ]
+      }]
+    });
+    const simA = simulateTeamMember(v, v.nfTeamMembers[0]);
+    // B ist lokal zu A Monat 6 (Kalendermonat 10 minus A's 5, plus 1).
+    // C ist lokal zu B Monat 4 (Kalendermonat 13 minus A's Versatz 5 ergibt
+    // erst A-lokal Monat 9, davon B's bereits A-lokalen Beitrittsmonat 6
+    // abgezogen ergibt Monat 4) — NICHT Monat 8, wie die fehlerhafte
+    // einstufige Formel ergäbe, wenn sie C's noch unverändert kalendarischen
+    // Monat direkt gegen B's schon lokalen Monat rechnet.
+    //
+    // Beobachtbar ist das nur über A: der Block-Sweep bei B (ausgelöst durch
+    // C's Bonus) landet korrekt bei A-lokal Monat 9 (B-lokal Monat 4) und
+    // erscheint ab der Folgezeile (openingActive) bei A-lokal Monat 10 als
+    // Ebene-1-Kapital 2.000 € — fehlerhaft erst vier Monate später bei
+    // A-lokal Monat 14.
+    //
+    // Geprüft wird jetzt e1Active statt teamVolume: seit die Ebenen aus dem
+    // Baum kommen, zählt teamVolume auch C mit (2.000 € + 21.000 € =
+    // 23.000 €). e1Active ist genau die Größe, die teamVolume hier früher
+    // meinte — B's aktives Kapital — und bleibt damit derselbe Wächter
+    // gegen einen Zeitachsen-Versatz.
+    const row10 = simA.result.team.rows.find(r => r.month === 10);
+    close(row10.e1Active, 2000);
+    // C liegt aus A's Sicht auf Ebene 2 und ist zu diesem Zeitpunkt einen
+    // Monat alt: 20.000 € plus der bereits reinvestierte erste Zinsblock.
+    // Säße C zeitlich falsch, stünde hier noch 0.
+    close(row10.e2Active, 21000);
+  });
+
+  test('Die Boni eines Mitglieds erhöhen sein aktives Kapital und damit mein Team-Volumen', () => {
+    const ohneEnkel = simulateNextForrest(baseRec({
+      duration: 10,
+      nfTeamMembers: [{ id: 'a', name: 'A', startCapital: 2000, joinMonth: 1, includeStartCapital: true, children: [] }]
+    }));
+    const mitEnkel = simulateNextForrest(baseRec({
+      duration: 10,
+      nfTeamMembers: [{
+        id: 'a', name: 'A', startCapital: 2000, joinMonth: 1, includeStartCapital: true,
+        children: [{ id: 'b', name: 'B', startCapital: 3000, joinMonth: 1, includeStartCapital: true, children: [] }]
+      }]
+    }));
+    const letzteOhne = ohneEnkel.team.rows[ohneEnkel.team.rows.length - 1];
+    const letzteMit = mitEnkel.team.rows[mitEnkel.team.rows.length - 1];
+    // A's own 100€/Monat Zinsen allein reichen in 10 Monaten noch nicht für
+    // einen neuen 1000er-Block; A's Tippgeber-Bonus aus B (150 €) reicht.
+    // Das ist an A's eigenem Kapital ablesbar, also an Ebene 1.
+    close(letzteOhne.e1Active, 2000);
+    close(letzteMit.e1Active, 3000);
+    // Und es schlägt aufs Team-Volumen durch. Seit die Ebenen aus dem Baum
+    // kommen, zählt es B mit: 3.000 € (A) + 4.000 € (B, das seinen eigenen
+    // Zinsblock in Monat 7 gesweept hat) statt früher nur A's 3.000 €.
+    close(letzteOhne.teamVolume, 2000);
+    close(letzteMit.teamVolume, 7000);
+  });
+
+  test('Ab Tiefe 20 wird nicht weiter simuliert', () => {
+    let tiefste = { id: 'n20', name: 'n20', startCapital: 1000, joinMonth: 1, includeStartCapital: true, children: [] };
+    let wurzel = tiefste;
+    for (let i = 19; i >= 1; i--) {
+      wurzel = { id: 'n' + i, name: 'n' + i, startCapital: 1000, joinMonth: 1, includeStartCapital: true, children: [wurzel] };
+    }
+    const v = baseRec({ duration: 3, nfTeamMembers: [wurzel] });
+    assert.strictEqual(simulateTeamMember(v, wurzel, MAX_TEAM_DEPTH + 1), null);
+    assert.ok(simulateTeamMember(v, wurzel, 1), 'Tiefe 1 muss simuliert werden');
+  });
+
+  test('Ein Mitglied ohne Kinder hat weiterhin team === null', () => {
+    const v = baseRec({
+      nfTeamMembers: [{ id: 'a', name: 'A', startCapital: 2000, joinMonth: 1, includeStartCapital: true, children: [] }]
+    });
+    const sim = simulateTeamMember(v, v.nfTeamMembers[0]);
+    assert.strictEqual(sim.result.team, null);
+  });
+});
+
+describe('Ebenen-Aggregation aus dem Baum', () => {
+  function baseLv(overrides) {
+    return {
+      investmentType: 'nextforrest', start: 15000, includeStartCapital: false,
+      currency: 'EUR', duration: 3, durationUnit: 'months', nfRate: 'low',
+      nfDepositStrategies: [], nfWithdrawalStrategies: [], nfTeamMembers: [],
+      ...overrides
+    };
+  }
+  const leaf = (id, cap) => ({ id, name: id, startCapital: cap, joinMonth: 1, includeStartCapital: true, children: [] });
+
+  test('e1/e2/e3Active kommen aus der Baumtiefe, nicht aus einem Feld', () => {
+    const r = simulateNextForrest(baseLv({
+      nfTeamMembers: [{
+        ...leaf('a', 1000),
+        children: [{ ...leaf('b', 2000), children: [{ ...leaf('c', 3000), children: [leaf('d', 4000)] }] }]
+      }]
+    }));
+    const row = r.team.rows.find(x => x.month === 2);
+    close(row.e1Active, 1000, 'Ebene 1 = a');
+    close(row.e2Active, 2000, 'Ebene 2 = b');
+    close(row.e3Active, 3000, 'Ebene 3 = c');
+    close(row.deepActive, 4000, 'Ebene 4+ = d');
+    close(row.teamVolume, 10000, 'Team-Volumen über alle Ebenen');
+  });
+
+  test('Tippgeber-Bonus zahlt nur für die eigenen Direkten', () => {
+    const r = simulateNextForrest(baseLv({
+      nfTeamMembers: [{ ...leaf('a', 1000), children: [leaf('b', 5000)] }]
+    }));
+    // Nur a (1 Block) zählt für mich; b (5 Blöcke) zahlt an a, nicht an mich.
+    close(r.team.rows.find(x => x.month === 1).tippgeberBonus, 50);
+  });
+
+  test('Jede Mitgliedszeile trägt den eigenen Rang des Mitglieds', () => {
+    const r = simulateNextForrest(baseLv({
+      nfTeamMembers: [{ ...leaf('a', 1000), children: [leaf('b', 2000)] }]
+    }));
+    const row = r.team.rows.find(x => x.month === 2);
+    const a = row.members.find(m => m.id === 'a');
+    assert.strictEqual(typeof a.ownRankIndex, 'number');
+    assert.strictEqual(a.level, 1);
+    const b = row.members.find(m => m.id === 'b');
+    assert.strictEqual(b.level, 2);
+  });
+
+  test('joinMonth bleibt auch für tiefere Ebenen ein Kalendermonat', () => {
+    // Jede Sub-Simulation rechnet in ihrer eigenen Zeitachse: B tritt aus
+    // A's Sicht in Monat 3 bei (Kalender 5 minus A's 3, plus 1), C aus B's
+    // Sicht in Monat 5. Ungerechnet würde die Monatsansicht für B und C zu
+    // frühe Beitritte melden — deshalb wird beim Hochreichen jede Ebene
+    // wieder auf Kalendermonate zurückgerechnet.
+    const r = simulateNextForrest(baseLv({
+      duration: 12,
+      nfTeamMembers: [{
+        ...leaf('a', 1000), joinMonth: 3, children: [{
+          ...leaf('b', 2000), joinMonth: 5, children: [
+            { ...leaf('c', 3000), joinMonth: 9 }
+          ]
+        }]
+      }]
+    }));
+    const row = r.team.rows.find(x => x.month === 10);
+    const bei = id => row.members.find(m => m.id === id).joinMonth;
+    assert.strictEqual(bei('a'), 3, 'A: Ebene 1, schon immer kalendarisch');
+    assert.strictEqual(bei('b'), 5, 'B: 3 in A\'s Achse → 5 im Kalender');
+    assert.strictEqual(bei('c'), 9, 'C: 5 in B\'s Achse → 7 in A\'s → 9 im Kalender');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Die zentralen Zusicherungen des Baum-Umbaus. Bis hierher standen sie nur als
+// Prosa im Entwurf bzw. als Kommentar im Code — ab jetzt sind sie erzwungen.
+// ---------------------------------------------------------------------------
+describe('Abgleich: Mitgliedszeilen, Ebenen-Zwischensummen und Team-Volumen', () => {
+  function baseAbgleich(overrides) {
+    return {
+      investmentType: 'nextforrest', start: 30000, includeStartCapital: false,
+      currency: 'EUR', duration: 24, durationUnit: 'months', nfRate: 'low',
+      nfDepositStrategies: [], nfWithdrawalStrategies: [], nfTeamMembers: [],
+      ...overrides
+    };
+  }
+  const n = (id, cap, joinMonth, children) => ({
+    id, name: id, startCapital: cap, joinMonth,
+    includeStartCapital: true, children: children || []
+  });
+
+  // Fünf Ebenen tief, ungleich verzweigt, gestaffelte Beitrittsmonate, zwei
+  // Wurzeln. Genau die Form, bei der ein Fehler im Zeitachsen-Rebasing oder
+  // in der Ebenen-Verschiebung auffallen würde.
+  const baum = () => [
+    n('A', 20000, 1, [
+      n('B', 15000, 2, [
+        n('D', 9000, 4, [
+          n('G', 5000, 6, [n('J', 3000, 9)]),
+          n('H', 4000, 7),
+        ]),
+        n('E', 7000, 5),
+      ]),
+      n('C', 12000, 3),
+    ]),
+    n('F', 11000, 8, [n('I', 6000, 10)]),
+  ];
+
+  test('Ebenen-Zwischensummen und Team-Volumen gehen in JEDEM Monat auf', () => {
+    const r = simulateNextForrest(baseAbgleich({ nfTeamMembers: baum() }));
+    assert.ok(r.team.rows.length >= 24, 'Es sollen alle Monate geprüft werden');
+
+    for (const row of r.team.rows) {
+      const proEbene = (lvl) => row.members
+        .filter(m => m.level === lvl)
+        .reduce((acc, m) => acc + (m.activeBase || 0), 0);
+      const abEbene4 = row.members
+        .filter(m => m.level >= 4)
+        .reduce((acc, m) => acc + (m.activeBase || 0), 0);
+
+      close(proEbene(1), row.e1Active, `Monat ${row.month}: Ebene 1`);
+      close(proEbene(2), row.e2Active, `Monat ${row.month}: Ebene 2`);
+      close(proEbene(3), row.e3Active, `Monat ${row.month}: Ebene 3`);
+      close(abEbene4, row.deepActive, `Monat ${row.month}: Ebene 4+`);
+      close(
+        row.e1Active + row.e2Active + row.e3Active + row.deepActive,
+        row.teamVolume,
+        `Monat ${row.month}: Ebenen summieren sich zum Team-Volumen`
+      );
+    }
+  });
+
+  // Vertrag aus dem Entwurf: `tippgeberBonus` einer Mitgliedszeile ist, was
+  // dieses Mitglied SEINEM Werbenden eingebracht hat. Nur auf Ebene 1 bin das
+  // ich. Die Spalte summiert sich deshalb bewusst NICHT auf den Monatswert —
+  // wer sie über alle Ebenen addiert, zählt fremdes Geld mit.
+  test('tippgeberBonus summiert sich nur über Ebene 1 auf den Monatswert', () => {
+    const r = simulateNextForrest(baseAbgleich({ nfTeamMembers: baum() }));
+    const summe = (row, filter) => row.members
+      .filter(filter)
+      .reduce((acc, m) => acc + (m.tippgeberBonus || 0), 0);
+
+    let hatTiefereBoni = false;
+    for (const row of r.team.rows) {
+      close(
+        summe(row, m => m.level === 1),
+        row.tippgeberBonus,
+        `Monat ${row.month}: Ebene 1 ergibt meinen Tippgeber-Bonus`
+      );
+      if (summe(row, () => true) > row.tippgeberBonus + EPS) hatTiefereBoni = true;
+    }
+
+    assert.ok(
+      hatTiefereBoni,
+      'Auf diesem Baum muss es Monate geben, in denen tiefere Ebenen eigene ' +
+      'Tippgeber-Boni erzeugen — sonst prüft der Test den Vertrag gar nicht'
+    );
+  });
+
+  test('Tiefe 20 wird noch simuliert, Tiefe 21 nicht mehr', () => {
+    const kette = (laenge) => {
+      let knoten = n('n' + laenge, 1000, 1);
+      for (let i = laenge - 1; i >= 1; i--) knoten = n('n' + i, 1000, 1, [knoten]);
+      return [knoten];
+    };
+
+    const bei20 = simulateNextForrest(baseAbgleich({ duration: 3, nfTeamMembers: kette(20) }));
+    const zeile20 = bei20.team.rows.find(x => x.month === 1);
+    assert.strictEqual(zeile20.members.length, 20, 'Eine 20er-Kette ergibt 20 Mitglieder');
+    assert.strictEqual(
+      Math.max(...zeile20.members.map(m => m.level)), 20,
+      'Die tiefste Ebene ist 20 — eine Regression von > auf >= bei MAX_TEAM_DEPTH würde sie abschneiden'
+    );
+
+    const bei21 = simulateNextForrest(baseAbgleich({ duration: 3, nfTeamMembers: kette(21) }));
+    const zeile21 = bei21.team.rows.find(x => x.month === 1);
+    assert.strictEqual(zeile21.members.length, 20, 'Eine 21er-Kette bleibt bei 20 Mitgliedern');
+  });
+});
+
+describe('Zusammenrechnen mit dem eigenen Investment (mergedTeamMembers, buildCombinedRows, combinedScenarioTotals)', () => {
+  const blatt = (id, cap, extra) => ({
+    id, name: id, startCapital: cap, joinMonth: 1,
+    includeStartCapital: true, children: [], ...extra
+  });
+
+  function werte(overrides) {
+    return {
+      investmentType: 'nextforrest', start: 20000, includeStartCapital: false,
+      currency: 'EUR', duration: 12, durationUnit: 'months', nfRate: 'low',
+      nfDepositStrategies: [], nfWithdrawalStrategies: [],
+      nfTeamMembers: [
+        { ...blatt('a', 5000), children: [
+          { ...blatt('b', 4000), children: [blatt('c', 3000, { mergeWithOwn: true })] }
+        ] },
+        blatt('d', 6000, { mergeWithOwn: true }),
+      ],
+      ...overrides
+    };
+  }
+
+  // Das Häkchen "Mit meinem Investment zusammenrechnen" steht in der
+  // Eingabemaske JEDES Mitglieds, nicht nur bei den eigenen Direkten. Solange
+  // nur die Wurzelliste durchsucht wurde, war es ab Ebene 2 wirkungslos.
+  test('Ein Mitglied auf Ebene 3 mit mergeWithOwn wird zusammengerechnet', () => {
+    const v = werte();
+    const r = simulateNextForrest(v);
+
+    assert.deepStrictEqual(
+      mergedTeamMembers(v, r).map(m => m.id), ['c', 'd'],
+      'c hängt auf Ebene 3 und muss trotzdem gefunden werden'
+    );
+
+    const kombiniert = buildCombinedRows(v, r);
+    const letzte = kombiniert[kombiniert.length - 1];
+    assert.deepStrictEqual(letzte.members.map(m => m.id), ['c', 'd']);
+    assert.strictEqual(letzte.members.find(m => m.id === 'c').level, 3);
+  });
+
+  test('Ohne angehaktes Mitglied bleibt alles beim Alten (null als No-Op-Signal)', () => {
+    const v = werte({ nfTeamMembers: [blatt('a', 5000)] });
+    const r = simulateNextForrest(v);
+    assert.deepStrictEqual(mergedTeamMembers(v, r), []);
+    assert.strictEqual(buildCombinedRows(v, r), null);
+    assert.strictEqual(combinedScenarioTotals(r, null, [], v), null);
+  });
+
+  test('Klassische Szenarien ohne result.team liefern sofort []', () => {
+    const v = baseClassic();
+    assert.deepStrictEqual(mergedTeamMembers(v, simulate(v)), []);
+  });
+
+  test('Die kombinierte Zeile ist feldweise die Summe aus eigener Zeile und Mitgliedern', () => {
+    const v = werte();
+    const r = simulateNextForrest(v);
+    const kombiniert = buildCombinedRows(v, r);
+
+    const FELDER = ['openingActive', 'deposit', 'withdrawn', 'interest', 'reinvested', 'cash', 'fee', 'active', 'total'];
+    for (const { month, own, members, combined } of kombiniert) {
+      for (const feld of FELDER) {
+        const erwartet = (own[feld] || 0) + members.reduce((acc, m) => acc + (m.row[feld] || 0), 0);
+        close(combined[feld], erwartet, `Monat ${month}, Feld ${feld}`);
+      }
+    }
+  });
+
+  test('Die kombinierten Gesamtsummen gehen auf', () => {
+    const v = werte();
+    const r = simulateNextForrest(v);
+    const kombiniert = buildCombinedRows(v, r);
+    const merged = mergedTeamMembers(v, r);
+    const summen = combinedScenarioTotals(r, kombiniert, merged, v);
+    const letzte = kombiniert[kombiniert.length - 1].combined;
+
+    close(summen.finalWealth, letzte.total, 'Endvermögen ist die letzte kombinierte Zeile');
+    close(summen.activeCapital, letzte.active);
+    close(summen.cash, letzte.cash);
+    close(summen.finalWealth, summen.activeCapital + summen.cash);
+
+    // Zinsen und Gebühren sind die eigenen plus die der zusammengerechneten
+    // Mitglieder — nachgerechnet direkt aus den Monatszeilen.
+    const ausZeilen = (feld) => kombiniert.reduce(
+      (acc, { members }) => acc + members.reduce((s, m) => s + (m.row[feld] || 0), 0), 0
+    );
+    close(summen.totalInterest, r.totalInterest + ausZeilen('interest'), 'Zinsen');
+    close(summen.totalFees, r.totalFees + ausZeilen('fee'), 'Gebühren');
+    close(summen.totalDeposits, r.totalDeposits + ausZeilen('deposit'), 'Einzahlungen');
+
+    // Und sie liegen über den reinen Eigenwerten — sonst würde der Test auch
+    // dann grün, wenn das Zusammenrechnen gar nicht greift.
+    assert.ok(summen.finalWealth > r.finalWealth, 'Zusammenrechnen erhöht das Endvermögen');
+  });
+});
+
+describe('Migrationshinweis und beschädigte gespeicherte Daten', () => {
+  test('nfTeamTreeMigrated überlebt das zweite Laden', () => {
+    const alt = {
+      investmentType: 'nextforrest', start: 10000, duration: 12, durationUnit: 'months',
+      nfTeamMembers: [
+        { id: 'a', name: 'A', level: 1, startCapital: 1000, joinMonth: 1 },
+        { id: 'b', name: 'B', level: 2, startCapital: 1000, joinMonth: 1 },
+      ],
+    };
+
+    const ersterLauf = migrateScenarioValues({ ...alt });
+    assert.strictEqual(ersterLauf.nfTeamTreeMigrated, true, 'Erstes Laden setzt das Flag');
+
+    // Zweites Laden: das Szenario ist bereits ein Baum, tree.migrated also
+    // false. Das Flag darf davon nicht zurückgesetzt werden, sonst
+    // verschwände der Hinweis, ohne dass der Nutzer die Struktur angefasst hat.
+    const zweiterLauf = migrateScenarioValues({ ...ersterLauf });
+    assert.strictEqual(zweiterLauf.nfTeamTreeMigrated, true, 'Zweites Laden behält das Flag');
+
+    // Gelöscht wird es ausschließlich durch eine Handlung des Nutzers
+    // (markTeamStructureTouched() in index.html setzt es auf false).
+    const nachBearbeitung = migrateScenarioValues({ ...zweiterLauf, nfTeamTreeMigrated: false });
+    assert.strictEqual(nachBearbeitung.nfTeamTreeMigrated, false, 'Einmal angefasst bleibt es aus');
+  });
+
+  test('Ein Szenario ohne Migration bekommt kein Flag', () => {
+    const v = migrateScenarioValues({
+      investmentType: 'nextforrest', start: 10000, duration: 12, durationUnit: 'months',
+      nfTeamMembers: [{ id: 'a', name: 'A', startCapital: 1000, joinMonth: 1, children: [] }],
+    });
+    assert.ok(!v.nfTeamTreeMigrated);
+  });
+
+  test('Ein null-Eintrag in der gespeicherten Mitgliederliste wirft nicht', () => {
+    // Vor der Baum-Umstellung überlebte dieser Fall, weil jeder Eintrag über
+    // `{...raw}` kopiert wurde. Ein Wurf hier reißt beim Laden die ganze Seite
+    // mit (loadState() läuft im Bootstrap), inklusive Zurücksetzen-Knopf.
+    let v;
+    assert.doesNotThrow(() => {
+      v = migrateScenarioValues({
+        investmentType: 'nextforrest', start: 10000, duration: 12, durationUnit: 'months',
+        nfTeamMembers: [null, { id: 'a', name: 'A', level: 1, startCapital: 1000, joinMonth: 1 }],
+      });
+    });
+    assert.deepStrictEqual(v.nfTeamMembers.map(m => m.id), ['a'], 'Der Schrott-Eintrag fällt weg');
+    assert.doesNotThrow(() => simulateNextForrest(v), 'und das Ergebnis rechnet weiter');
+  });
+
+  test('Ein null-Eintrag in einem bereits migrierten Baum wirft ebenfalls nicht', () => {
+    let v;
+    assert.doesNotThrow(() => {
+      v = migrateScenarioValues({
+        investmentType: 'nextforrest', start: 10000, duration: 12, durationUnit: 'months',
+        nfTeamMembers: [null, { id: 'a', name: 'A', startCapital: 1000, joinMonth: 1, children: [] }],
+      });
+    });
+    assert.deepStrictEqual(v.nfTeamMembers.map(m => m.id), ['a']);
+  });
+
+  test('walkTeam überspringt leere Einträge', () => {
+    const gesehen = [];
+    walkTeam([null, { id: 'a', children: [null, { id: 'b', children: [] }] }], (m) => gesehen.push(m.id));
+    assert.deepStrictEqual(gesehen, ['a', 'b']);
+  });
+});
+
+describe('Startbedingung für Strategien: Monat, aktives Kapital oder Rendite', () => {
+  // Herleitung der erwarteten Monate: bei 10.000 € Startkapital, 5 %/Monat und
+  // ohne Einzahlungen entwickelt sich das aktive Kapital zu Monatsbeginn —
+  // genau der Wert, den das Startgatter prüft — wie folgt:
+  //
+  //   Monat    1      2      3      4      5      6      7      8      9
+  //   Kapital 10000  10000  11000  11000  12000  12000  13000  13000  14000
+  //   Zins      500    500    550    550    600    600    650    650    700
+  //
+  // Eine Kapitalschwelle von 12.000 € greift damit erstmals in Monat 5, eine
+  // Renditeschwelle von 600 € ebenfalls. Weil die Strategien vor Monat 5
+  // nichts beitragen, bleibt diese Reihe durch sie unverändert — die
+  // Herleitung ist also in sich stimmig.
+  function baseStart(overrides) {
+    return {
+      investmentType: 'nextforrest', start: 10000, includeStartCapital: false,
+      currency: 'EUR', duration: 10, durationUnit: 'months', nfRate: 'low',
+      nfDepositStrategies: [], nfWithdrawalStrategies: [], nfTeamMembers: [],
+      ...overrides
+    };
+  }
+  const ersterMonatMitEinzahlung = (r) => {
+    const treffer = r.rows.find(x => x.month > 0 && x.deposit > 1e-9);
+    return treffer ? treffer.month : null;
+  };
+
+  test('startMode "capital": die Einzahlung beginnt erst, wenn das aktive Kapital die Schwelle erreicht', () => {
+    const r = simulateNextForrest(baseStart({
+      nfDepositStrategies: [depositStrategy({
+        amount: 1000, period: 'monthly', startMode: 'capital', startThreshold: 12000
+      })]
+    }));
+    assert.strictEqual(ersterMonatMitEinzahlung(r), 5);
+    // Vorher wirklich nichts, nicht bloß später mehr:
+    r.rows.filter(x => x.month > 0 && x.month < 5)
+      .forEach(x => close(x.deposit, 0, `Monat ${x.month} darf keine Einzahlung haben`));
+  });
+
+  test('startMode "yield": die Schwelle prüft die Rendite des Monats', () => {
+    const r = simulateNextForrest(baseStart({
+      nfDepositStrategies: [depositStrategy({
+        amount: 1000, period: 'monthly', startMode: 'yield', startThreshold: 600
+      })]
+    }));
+    assert.strictEqual(ersterMonatMitEinzahlung(r), 5);
+  });
+
+  test('startMode "yield" zählt Bonuszahlungen mit — mit Team startet dieselbe Schwelle früher', () => {
+    const werte = {
+      nfDepositStrategies: [depositStrategy({
+        amount: 1000, period: 'monthly', startMode: 'yield', startThreshold: 600
+      })]
+    };
+    const ohneTeam = simulateNextForrest(baseStart(werte));
+    const mitTeam = simulateNextForrest(baseStart({
+      ...werte,
+      nfTeamMembers: [{
+        id: 'a', name: 'A', startCapital: 40000, joinMonth: 1,
+        includeStartCapital: true, children: []
+      }]
+    }));
+    const ohne = ersterMonatMitEinzahlung(ohneTeam);
+    const mit = ersterMonatMitEinzahlung(mitTeam);
+    assert.ok(mit < ohne, `mit Team (${mit}) muss früher starten als ohne (${ohne})`);
+    // Und zwar in einem Monat, in dem der Zins allein die Schwelle noch NICHT
+    // erreicht — nur so ist belegt, dass der Bonus mitzählt.
+    const zeile = mitTeam.rows.find(x => x.month === mit);
+    assert.ok(zeile.interest < 600,
+      `Zins allein (${zeile.interest}) muss unter der Schwelle liegen, sonst beweist der Test nichts`);
+  });
+
+  test('Die Startbedingung rastet ein: fällt das Kapital wieder unter die Schwelle, läuft die Strategie weiter', () => {
+    const r = simulateNextForrest(baseStart({
+      duration: 12,
+      nfDepositStrategies: [depositStrategy({
+        amount: 500, period: 'monthly', startMode: 'capital', startThreshold: 12000
+      })],
+      // Große Einmalauszahlung nach dem Start, die das aktive Kapital wieder
+      // unter 12.000 € drückt.
+      nfWithdrawalStrategies: [withdrawalStrategy({
+        type: 'once', amount: 6000, startMonth: 6
+      })]
+    }));
+    const nachDemEinbruch = r.rows.filter(x => x.month > 6);
+    assert.ok(nachDemEinbruch.some(x => x.openingActive < 12000),
+      'Testaufbau: das Kapital muss nach der Auszahlung wirklich unter die Schwelle fallen');
+    nachDemEinbruch.forEach(x =>
+      assert.ok(x.deposit > 1e-9, `Monat ${x.month} muss weiter einzahlen, obwohl das Kapital gefallen ist`));
+  });
+
+  test('"Einmalig" mit Schwelle feuert in dem Monat, in dem die Schwelle zuerst greift', () => {
+    const r = simulateNextForrest(baseStart({
+      nfDepositStrategies: [depositStrategy({
+        amount: 2000, period: 'once', startMode: 'capital', startThreshold: 12000
+      })]
+    }));
+    const monateMitEinzahlung = r.rows.filter(x => x.month > 0 && x.deposit > 1e-9).map(x => x.month);
+    assert.deepStrictEqual(monateMitEinzahlung, [5]);
+  });
+
+  test('"Jährlich" mit Schwelle ankert am tatsächlichen Startmonat, nicht am Feld startMonth', () => {
+    const r = simulateNextForrest(baseStart({
+      duration: 20,
+      nfDepositStrategies: [depositStrategy({
+        // startMonth bleibt 1 und muss ignoriert werden
+        amount: 1000, period: 'yearly', startMonth: 1,
+        startMode: 'capital', startThreshold: 12000
+      })]
+    }));
+    const monateMitEinzahlung = r.rows.filter(x => x.month > 0 && x.deposit > 1e-9).map(x => x.month);
+    assert.deepStrictEqual(monateMitEinzahlung, [5, 17]);
+  });
+
+  test('Ohne startMode rechnet eine Strategie exakt wie bisher', () => {
+    const alt = simulateNextForrest(baseStart({
+      nfDepositStrategies: [depositStrategy({ amount: 1000, period: 'monthly', startMonth: 3 })]
+    }));
+    const neu = simulateNextForrest(baseStart({
+      nfDepositStrategies: [depositStrategy({
+        amount: 1000, period: 'monthly', startMonth: 3, startMode: 'month'
+      })]
+    }));
+    assert.deepStrictEqual(
+      neu.rows.map(x => [x.month, x.deposit, x.active]),
+      alt.rows.map(x => [x.month, x.deposit, x.active]),
+      'startMode "month" muss identisch zum Weglassen des Feldes sein'
+    );
+    assert.strictEqual(ersterMonatMitEinzahlung(alt), 3);
+  });
+
+  test('Auch Auszahlungsstrategien kennen die Startbedingung', () => {
+    const r = simulateNextForrest(baseStart({
+      nfWithdrawalStrategies: [withdrawalStrategy({
+        type: 'monthly', amount: 200, startMode: 'capital', startThreshold: 12000
+      })]
+    }));
+    const ersterMonatMitAuszahlung = r.rows.find(x => x.month > 0 && x.withdrawn > 1e-9);
+    assert.strictEqual(ersterMonatMitAuszahlung.month, 5);
+  });
+});
+
+describe('Steueroption: Kapitalertragsteuer auf Zinsen, jährliche Abrechnung', () => {
+  // 10.000 € Startkapital, aktiv ab Monat 1 (kein Deposit-Ereignis), keine
+  // Ein-/Auszahlungsstrategien — der einzige Cashflow ist der monatliche
+  // Zins, exakt das Szenario, das eine Steuer treffen soll.
+  function baseTax(overrides) {
+    return {
+      investmentType: 'nextforrest', start: 10000, includeStartCapital: false,
+      currency: 'EUR', duration: 12, durationUnit: 'months', nfRate: 'low',
+      nfDepositStrategies: [], nfWithdrawalStrategies: [], nfTeamMembers: [],
+      ...overrides
+    };
+  }
+
+  test('Ohne Steuer (Default) bleibt das Ergebnis unverändert — Regression', () => {
+    const ohneFeld = simulateNextForrest(baseTax());
+    const explizitAus = simulateNextForrest(baseTax({ taxEnabled: false, taxRate: 42 }));
+    assert.deepStrictEqual(ohneFeld.rows, explizitAus.rows);
+    close(ohneFeld.finalWealth, explizitAus.finalWealth);
+    assert.strictEqual(ohneFeld.totalTax || 0, 0);
+  });
+
+  test('Endet die Laufzeit vor Monat 12, wird der Rest erst im letzten Monat fällig', () => {
+    // 11 Monate: kein volles Jahr läuft ab, also keine reguläre 12er-
+    // Abrechnung — aber der Lauf endet trotzdem, deshalb muss der bis dahin
+    // aufgelaufene Zins spätestens im letzten Monat (11) besteuert werden,
+    // sonst bliebe das angebrochene Jahr komplett unversteuert.
+    const r = simulateNextForrest(baseTax({ duration: 11, taxEnabled: true, taxRate: 26.375 }));
+    r.rows.filter(x => x.month < 11).forEach(x =>
+      close(x.tax || 0, 0, `Monat ${x.month} darf noch keine Steuer zeigen`));
+    const letzterMonat = r.rows.find(x => x.month === 11);
+    assert.ok(letzterMonat.tax > 0, 'Monat 11 muss die Restabrechnung zeigen');
+    close(r.totalTax, r.totalInterest * 0.26375);
+  });
+
+  test('Jährliche Abrechnung in Monat 12: Steuer = Gesamtzins × Satz, Boni bleiben außen vor', () => {
+    const satz = 25;
+    const ohneSteuer = simulateNextForrest(baseTax());
+    const mitSteuer = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: satz }));
+
+    // Über exakt ein volles Jahr findet genau eine Abrechnung statt, die den
+    // kompletten Jahreszins erfasst — unabhängig vom Verlauf des aktiven
+    // Kapitals bleibt totalInterest der Simulation die maßgebliche Bezugsgröße.
+    close(mitSteuer.totalTax, ohneSteuer.totalInterest * (satz / 100));
+    // Die Steuer wird aus Cash bzw. per Block-Entnahme aus dem aktiven
+    // Kapital bezahlt — die Summe (Gesamtvermögen) sinkt um genau die Steuer,
+    // der Zins selbst bleibt unangetastet.
+    close(mitSteuer.totalInterest, ohneSteuer.totalInterest);
+    // Deckte die Rendite die Steuer nicht voll, fiel zusätzlich zur Steuer
+    // selbst noch die 3,5%-Auszahlungsgebühr auf den kapitalgedeckten Anteil
+    // an (siehe eigener Test dazu weiter unten) — das Gesamtvermögen sinkt
+    // also um Steuer PLUS diese zusätzliche Gebühr.
+    const zusaetzlicheGebuehr = mitSteuer.totalFees - ohneSteuer.totalFees;
+    close(mitSteuer.finalWealth, ohneSteuer.finalWealth - mitSteuer.totalTax - zusaetzlicheGebuehr);
+    const abrechnungsMonat = mitSteuer.rows.find(x => x.month === 12);
+    assert.ok(abrechnungsMonat.tax > 0, 'Monat 12 muss die Abrechnung zeigen');
+  });
+
+  test('Reicht die Rendite nicht, fällt auf den kapitalgedeckten Anteil die 3,5%-Auszahlungsgebühr an', () => {
+    const r = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: 25 }));
+    const row = r.rows.find(x => x.month === 12);
+    assert.ok(row.taxFromCapital > 0, 'Testaufbau: es muss eine kapitalgedeckte Steuer geben');
+    // taxFromCapital ist NETTO (nach Gebühr) — hochgerechnet auf brutto muss
+    // sich exakt der 3,5%-Satz ergeben, und die Gebühr steckt in row.fee.
+    const grossFromCapital = row.taxFromCapital / (1 - 0.035);
+    const feeFromCapital = grossFromCapital - row.taxFromCapital;
+    close(row.fee, feeFromCapital, 'row.fee muss diese Gebühr enthalten (keine anderen Ein-/Auszahlungen in diesem Test)');
+  });
+
+  test('Läuft die Simulation über Monat 12 hinaus, wird am Laufzeitende der Rest abgerechnet', () => {
+    const satz = 26.375;
+    const r = simulateNextForrest(baseTax({ duration: 18, taxEnabled: true, taxRate: satz }));
+    const monateMitSteuer = r.rows.filter(x => x.tax > 1e-9).map(x => x.month);
+    assert.deepStrictEqual(monateMitSteuer, [12, 18], 'Abrechnung nach 12 Monaten und am Laufzeitende (Rest)');
+    // Die Summe aus beiden Teil-Abrechnungen bleibt exakt Gesamtzins × Satz,
+    // weil jeder Monatszins in genau eine der beiden Abrechnungen fällt.
+    close(r.totalTax, r.totalInterest * (satz / 100));
+  });
+
+  test('Boni bleiben unversteuert, auch mit aktiver Team-Struktur', () => {
+    const satz = 26.375;
+    const r = simulateNextForrest(baseTax({
+      taxEnabled: true, taxRate: satz,
+      nfTeamMembers: [{
+        id: 'a', name: 'A', startCapital: 40000, joinMonth: 1,
+        includeStartCapital: true, children: []
+      }]
+    }));
+    assert.ok(r.team.totalBonus > 0, 'Testaufbau: es muss tatsächlich Bonus geben');
+    close(r.totalTax, r.totalInterest * (satz / 100),
+      'Steuer darf nur vom eigenen Zins abhängen, nicht vom (viel größeren) Team-Bonus');
+  });
+
+  test('Eigener Steuersatz ist frei wählbar (z. B. 27,99 % für den Sonderfall Kirchensteuer)', () => {
+    const r = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: 27.99 }));
+    close(r.totalTax, r.totalInterest * 0.2799);
+  });
+
+  test('Jedes Team-Mitglied hat seine eigene, unabhängige Steuer-Konstellation', () => {
+    const v = baseTax({
+      taxEnabled: false,
+      nfTeamMembers: [{
+        id: 'a', name: 'A', startCapital: 10000, joinMonth: 1,
+        includeStartCapital: false, taxEnabled: true, taxRate: 25, children: []
+      }]
+    });
+    const own = simulateNextForrest(v);
+    assert.strictEqual(own.totalTax || 0, 0, 'Hauptszenario hat Steuer deaktiviert');
+    const sim = simulateTeamMember(v, v.nfTeamMembers[0], 1);
+    assert.ok(sim.result.totalTax > 0, 'Mitglied hat seine eigene Steuer aktiviert');
+    close(sim.result.totalTax, sim.result.totalInterest * 0.25);
+  });
+
+  test('taxPayout Default (unverändert): Steuer wird wie bisher aus Cash/aktivem Kapital beglichen', () => {
+    const ohneFeld = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: 25 }));
+    const explizitAn = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: 25, taxPayout: true }));
+    assert.deepStrictEqual(ohneFeld.rows, explizitAn.rows);
+  });
+
+  test('taxPayout: false — Steuer wird ausgewiesen, aber nicht aus dem Investment beglichen', () => {
+    const satz = 25;
+    const bezahlt = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: satz, taxPayout: true }));
+    const ausgewiesen = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: satz, taxPayout: false }));
+    const ohneSteuer = simulateNextForrest(baseTax());
+
+    // Dieselbe Steuerschuld, exakt derselbe Zinsverlauf — nur die Frage, ob
+    // sie das Investment tatsächlich verlässt, unterscheidet sich.
+    close(ausgewiesen.totalTax, bezahlt.totalTax);
+    close(ausgewiesen.totalInterest, bezahlt.totalInterest);
+    const abrechnungsMonat = ausgewiesen.rows.find(x => x.month === 12);
+    assert.ok(abrechnungsMonat.tax > 0, 'Die Steuer muss trotzdem in der Zeile ausgewiesen werden');
+
+    // Ohne Zahlung bleibt das Gesamtvermögen um Steuer PLUS die zusätzliche
+    // Auszahlungsgebühr auf den kapitalgedeckten Anteil höher, weil weder
+    // Cash noch aktives Kapital angetastet werden — der komplette
+    // Kapitalverlauf ist dann identisch zum steuerfreien Lauf.
+    const zusaetzlicheGebuehr = bezahlt.totalFees - ausgewiesen.totalFees;
+    close(ausgewiesen.finalWealth, bezahlt.finalWealth + bezahlt.totalTax + zusaetzlicheGebuehr);
+    assert.deepStrictEqual(
+      ausgewiesen.rows.map(x => [x.month, x.cash, x.active, x.total]),
+      ohneSteuer.rows.map(x => [x.month, x.cash, x.active, x.total])
+    );
+  });
+
+  test('taxPayout: false verändert weder Cash noch aktives Kapital in der Abrechnungszeile', () => {
+    const r = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: 26.375, taxPayout: false, duration: 18 }));
+    const ohneSteuer = simulateNextForrest(baseTax({ duration: 18 }));
+    // Ohne Auszahlung der Steuer ist der komplette Kapitalverlauf identisch
+    // zum steuerfreien Lauf — nur `tax`/`totalTax` unterscheiden sich.
+    assert.deepStrictEqual(
+      r.rows.map(x => [x.month, x.cash, x.active, x.total]),
+      ohneSteuer.rows.map(x => [x.month, x.cash, x.active, x.total])
+    );
+    assert.ok(r.totalTax > 0);
+  });
+
+  test('Jedes Team-Mitglied hat sein eigenes taxPayout, unabhängig vom Hauptszenario', () => {
+    const memberBase = {
+      id: 'a', name: 'A', startCapital: 10000, joinMonth: 1,
+      includeStartCapital: false, children: []
+    };
+    const v = baseTax({
+      taxEnabled: true, taxRate: 25, taxPayout: true,
+      nfTeamMembers: [{ ...memberBase, taxEnabled: true, taxRate: 25, taxPayout: false }]
+    });
+    const vOhneSteuer = baseTax({ taxEnabled: false, nfTeamMembers: [{ ...memberBase }] });
+
+    const own = simulateNextForrest(v);
+    const ownOhneSteuer = simulateNextForrest(vOhneSteuer);
+    const sim = simulateTeamMember(v, v.nfTeamMembers[0], 1);
+    const simOhneSteuer = simulateTeamMember(vOhneSteuer, vOhneSteuer.nfTeamMembers[0], 1);
+
+    // Das Hauptszenario zahlt seine Steuer tatsächlich aus dem Kapital —
+    // der Verlauf muss vom steuerfreien Lauf abweichen.
+    assert.notDeepStrictEqual(
+      own.rows.map(x => [x.cash, x.active]),
+      ownOhneSteuer.rows.map(x => [x.cash, x.active])
+    );
+    // Das Mitglied zahlt seine Steuer NICHT aus — sein Kapitalverlauf bleibt
+    // exakt wie ohne Steuer, obwohl seine Steuer weiterhin berechnet wird.
+    assert.deepStrictEqual(
+      sim.result.rows.map(x => [x.cash, x.active]),
+      simOhneSteuer.result.rows.map(x => [x.cash, x.active])
+    );
+    assert.ok(sim.result.totalTax > 0, 'Steuer des Mitglieds wird trotzdem berechnet');
+  });
+
+  test('taxFromCapital: 0, wenn die Rendite (vorhandenes Cash) die Steuer allein deckt', () => {
+    // 1 Monat, Restabrechnung sofort: Zins 500 €, Steuer bei 25 % = 125 € —
+    // das vorhandene Cash (500 €) reicht bequem, keine Block-Entnahme nötig.
+    const r = simulateNextForrest(baseTax({ duration: 1, taxEnabled: true, taxRate: 25, taxPayout: true }));
+    const row = r.rows.find(x => x.month === 1);
+    assert.ok(row.tax > 0, 'Testaufbau: es muss tatsächlich Steuer anfallen');
+    close(row.taxFromCapital || 0, 0, 'Die Rendite allein deckt die Steuer, keine Kapital-Entnahme nötig');
+    close(r.totalTaxFromCapital || 0, 0);
+  });
+
+  test('taxFromCapital > 0, wenn die Rendite die Steuer NICHT deckt (Block-Entnahme aus aktivem Kapital nötig)', () => {
+    // Über 12 Monate ist die meiste Rendite längst in 1000er-Blöcken
+    // reinvestiert — das verbleibende Cash reicht bei Weitem nicht für den
+    // vollen Jahreszins × Satz, ein Teil kommt zwangsläufig aus dem Kapital.
+    const r = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: 25, taxPayout: true }));
+    const row = r.rows.find(x => x.month === 12);
+    assert.ok(row.taxFromCapital > 0, 'Die Rendite allein darf hier nicht ausreichen');
+    assert.ok(row.taxFromCapital <= row.tax, 'Der kapitalgedeckte Anteil darf die Gesamtsteuer nicht übersteigen');
+    close(r.totalTaxFromCapital, row.taxFromCapital);
+  });
+
+  test('taxFromCapital verfälscht weder Gesamtrendite, Rendite p.a. noch den Break-even-Monat', () => {
+    const satz = 25;
+    const mitSteuer = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: satz, taxPayout: true }));
+    const ohneSteuer = simulateNextForrest(baseTax());
+
+    assert.ok(mitSteuer.totalTaxFromCapital > 0, 'Testaufbau: es muss tatsächlich kapitalgedeckte Steuer geben');
+    // totalWithdrawn (die ROI-relevante Größe) bleibt unberührt von der
+    // Steuer — hier gibt es keine einzige echte Auszahlungsstrategie.
+    close(mitSteuer.totalWithdrawn, 0);
+    close(mitSteuer.totalWithdrawn, ohneSteuer.totalWithdrawn);
+    assert.strictEqual(mitSteuer.breakEvenMonth, ohneSteuer.breakEvenMonth);
+  });
+
+  test('taxFromCapital nur in "Steuer auszahlen"-Läufen, nie wenn die Steuer nur ausgewiesen wird', () => {
+    const r = simulateNextForrest(baseTax({ taxEnabled: true, taxRate: 25, taxPayout: false }));
+    r.rows.forEach(x => close(x.taxFromCapital || 0, 0, `Monat ${x.month} darf ohne Auszahlung keine Kapital-Entnahme zeigen`));
+    close(r.totalTaxFromCapital || 0, 0);
+    assert.ok(r.totalTax > 0, 'Die Steuer selbst wird trotzdem weiter ausgewiesen');
+  });
+
+  test('Zusammengerechnete Ansicht: taxFromCapital des Mitglieds fließt in die kombinierte Zeile und die Gesamtsumme ein', () => {
+    const memberBase = {
+      id: 'a', name: 'A', startCapital: 10000, joinMonth: 1,
+      includeStartCapital: false, mergeWithOwn: true,
+      taxEnabled: true, taxRate: 25, taxPayout: true, children: []
+    };
+    const v = baseTax({ taxEnabled: false, nfTeamMembers: [memberBase] });
+    const own = simulateNextForrest(v);
+    const combined = buildCombinedRows(v, own);
+    const merged = mergedTeamMembers(v, own);
+    const totals = combinedScenarioTotals(own, combined, merged, v);
+
+    const combinedMonth12 = combined.find(c => c.month === 12);
+    const memberEntry = combinedMonth12.members.find(x => x.id === 'a');
+    assert.ok(memberEntry.row.taxFromCapital > 0, 'Testaufbau: das Mitglied muss kapitalgedeckte Steuer haben');
+    close(combinedMonth12.combined.taxFromCapital, memberEntry.row.taxFromCapital);
+    close(totals.totalTaxFromCapital, memberEntry.row.taxFromCapital);
+    // Auch zusammengerechnet bleibt totalWithdrawn (ROI-relevant) davon
+    // unberührt.
+    close(totals.totalWithdrawn, 0);
   });
 });
